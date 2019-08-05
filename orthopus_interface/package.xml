@@ -13,7 +13,6 @@
   <depend>qpoases_ros</depend>
 <!--  <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>-->
-  <depend>joy_node</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>actionlib</depend>
 
