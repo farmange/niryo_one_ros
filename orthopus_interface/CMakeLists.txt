@@ -7,7 +7,6 @@ find_package(catkin REQUIRED COMPONENTS
   niryo_one_msgs
   roscpp
   std_msgs
-#   control_msgs
   moveit_ros_planning_interface
   qpoases_ros
   actionlib
@@ -19,13 +18,13 @@ catkin_package(
   INCLUDE_DIRS
     ${EIGEN3_INCLUDE_DIR}
   CATKIN_DEPENDS
-#     control_msgs
     moveit_ros_planning_interface
-      qpoases_ros
+    qpoases_ros
   DEPENDS
     EIGEN3
     )
-    
+  
+
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}

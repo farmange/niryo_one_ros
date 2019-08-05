@@ -9,13 +9,11 @@
   
   <buildtool_depend>catkin</buildtool_depend>
   <depend>niryo_one_msgs</depend>
-
   <depend>qpoases_ros</depend>
-<!--  <depend>sensor_msgs</depend>
-  <depend>geometry_msgs</depend>-->
   <depend>moveit_ros_planning_interface</depend>
   <depend>actionlib</depend>
 
   <export>
   </export>
 </package>
+
