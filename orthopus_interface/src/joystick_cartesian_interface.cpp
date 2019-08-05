@@ -47,7 +47,7 @@ static const double TO_RAD = (3.141589 / 180.0);
 
 static const int RATE = 10;
 static const double CALC_PERIOD = 1.0 / RATE;
-static const double INIT_DURATION = 8;
+static const double INIT_DURATION = 1;
 
 int TOOL_ID = 12;  // change this depenidning on the tool mounted
 
@@ -210,13 +210,6 @@ public:
       theta[4] = 0.0;
       theta[5] = 0.0;
       sendInitCommand();
-      //       if(q_meas_.position[0]==0 &&
-      //         q_meas_.position[1]==0 &&
-      //         q_meas_.position[2]==0 &&
-      //         q_meas_.position[3]==0 &&
-      //         q_meas_.position[4]==0 &&
-      //         q_meas_.position[5]==0)
-      //         {
       ros::Duration(INIT_DURATION+1.0).sleep();
       break;
       //         }
@@ -229,6 +222,14 @@ public:
       ros::spinOnce();
 
       kinematic_state->setVariableValues(q_meas_);
+//       sensor_msgs::JointState q_meas_forced = q_meas_;
+//       q_meas_forced.position[0] = theta[0];
+//       q_meas_forced.position[1] = theta[1];
+//       q_meas_forced.position[2] = theta[2];
+//       q_meas_forced.position[3] = theta[3];
+//       q_meas_forced.position[4] = theta[4];
+//       q_meas_forced.position[5] = theta[5];
+//       kinematic_state->setVariableValues(q_meas_forced);
 
       const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
       std::vector<double> joint_values;
@@ -238,6 +239,7 @@ public:
       {
         ROS_INFO("Joint %s: %f (q_meas_=%f)", joint_names[i].c_str(), joint_values[i], q_meas_.position[i]);
         joint_values_copy[i] = joint_values[i];
+        //joint_values_copy[i] = theta[i];
       }
 
       const Eigen::Affine3d& end_effector_state =
@@ -326,16 +328,8 @@ public:
       // lb < q0 + dq*T < ub
       // (lb-q0) < dq.T < (ub-q0)
 
-      Eigen::MatrixXd A(12, 6);
-      A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
-      A.bottomLeftCorner(6, 6) = jacobian * CALC_PERIOD;
-
-      //       joints_limits_min[0] = -20 * TO_RAD;
-      //       joints_limits_max[0] = 20 * TO_RAD;
-      //       joints_limits_min[1] = -20 * TO_RAD;
-      //       joints_limits_max[1] = 20 * TO_RAD;
-      //       joints_limits_min[2] = -20 * TO_RAD;
-      //       joints_limits_max[2] = 20 * TO_RAD;
+      Eigen::MatrixXd A(6, 6);
+      A = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
 
       double lbA[] = { (joints_limits_min[0] - joint_values_copy[0]),
                        (joints_limits_min[1] - joint_values_copy[1]),
@@ -362,7 +356,7 @@ public:
                        p_max - currentPosition(4, 0),
                        yaw_max - currentPosition(5, 0) };
 
-      //       ROS_INFO_STREAM("A = \n" << A << "\n");
+      ROS_DEBUG_STREAM("A = \n" << A << "\n");
 
       // Solve first QP.
       qpOASES::int_t nWSR = 10;
@@ -385,11 +379,6 @@ public:
         qpOASES::real_t xOpt[6];
 
         IK.getPrimalSolution(xOpt);
-        ROS_INFO_STREAM("theta[1] = " << theta[1]);
-        ROS_INFO_STREAM("joint_values[1] = " << joint_values[1]);
-        ROS_INFO_STREAM("joint_values_copy[1] = " << joint_values_copy[1]);
-        ROS_INFO_STREAM("xOpt[1] = " << xOpt[1]);
-        ROS_INFO_STREAM("CALC_PERIOD = " << CALC_PERIOD);
         double theta_tmp[6];
         theta_tmp[0] = joint_values_copy[0] + xOpt[0] * CALC_PERIOD;
         theta_tmp[1] = joint_values_copy[1] + xOpt[1] * CALC_PERIOD;
@@ -403,6 +392,7 @@ public:
         // Check joints limits
         for (int i = 0; i < 6; i++)
         {
+          ROS_INFO_STREAM("========= joint  "<<i+1<<"  ==========");
           if (theta_tmp[i] > joints_limits_max[i])
           {
             ROS_WARN_STREAM("joint_" << i + 1 << " max limit overshoot : " << theta_tmp[i] << ">"
@@ -414,6 +404,13 @@ public:
             ROS_WARN_STREAM("joint_" << i + 1 << " min limit overshoot : " << theta_tmp[i] << "<"
                                      << joints_limits_min[i]);
             limit_detected = true;
+          }
+          if (theta_tmp[i] < joints_limits_min[i] || theta_tmp[i] > joints_limits_max[i])
+          {
+            ROS_INFO_STREAM("theta = " << theta[i]);
+            ROS_INFO_STREAM("joint_values_copy = " << joint_values_copy[i]);
+            ROS_INFO_STREAM("xOpt = " << xOpt[i]);
+            ROS_INFO_STREAM("q_meas_ = " << q_meas_.position[i]);          
           }
         }
         if (!limit_detected)
@@ -449,10 +446,11 @@ public:
 
     trajectory_msgs::JointTrajectoryPoint point;
     point.time_from_start = ros::Duration(1.0 / RATE);
-    point.positions = q_meas_.position;
+//     point.positions = q_meas_.position;
     for (int i = 0; i < 6; i++)
     {
-      point.positions[i] = theta[i];
+//       point.positions[i] = theta[i];
+      point.positions.push_back(theta[i]);
     }
 
     // Important : do not send velocity as cubic interpolation is done !
@@ -536,9 +534,7 @@ private:
   // joints directly.
   void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
   {
-    //     pthread_mutex_lock(&q_meas_mutex_);
     q_meas_ = *msg;
-    //     pthread_mutex_unlock(&q_meas_mutex_);
     ROS_DEBUG_STREAM("q_meas_: \n" << q_meas_ << "\n");
   }
 
