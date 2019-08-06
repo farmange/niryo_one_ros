@@ -9,7 +9,8 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
 )
 
-# "We do not recommend using GLOB to collect a list of source files from your source tree."
+include_directories(3.2/include)
+
 set(qpOASES_SRC
   3.2/src/BLASReplacement.cpp
   3.2/src/Bounds.cpp
