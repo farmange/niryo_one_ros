@@ -49,7 +49,7 @@ static const int RATE = 10;
 static const double CALC_PERIOD = 1.0 / RATE;
 static const double INIT_DURATION = 1;
 
-int TOOL_ID = 12;  // change this depenidning on the tool mounted
+int TOOL_ID = 11;  // change this depenidning on the tool mounted
 
 using namespace std;
 typedef actionlib::SimpleActionClient<niryo_one_msgs::RobotMoveAction> NiryoClient;
@@ -67,6 +67,7 @@ public:
     gripper_des_sub_ = n_.subscribe("gripper_des", 1, &JoystickCartesianInterface::gripperDesCB, this);
 
     debug_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos", 1);
+    debug_des_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos_des", 1);
     changeToolClient_ = n_.serviceClient<niryo_one_msgs::SetInt>("/niryo_one/change_tool/");
     
     ros::ServiceServer service = n_.advertiseService("/niryo_one/joystick_interface/enable", &JoystickCartesianInterface::joystickEnableCB, this);
@@ -221,15 +222,15 @@ public:
     {
       ros::spinOnce();
 
-      kinematic_state->setVariableValues(q_meas_);
-//       sensor_msgs::JointState q_meas_forced = q_meas_;
-//       q_meas_forced.position[0] = theta[0];
-//       q_meas_forced.position[1] = theta[1];
-//       q_meas_forced.position[2] = theta[2];
-//       q_meas_forced.position[3] = theta[3];
-//       q_meas_forced.position[4] = theta[4];
-//       q_meas_forced.position[5] = theta[5];
-//       kinematic_state->setVariableValues(q_meas_forced);
+//       kinematic_state->setVariableValues(q_meas_);
+      sensor_msgs::JointState q_meas_forced = q_meas_;
+      q_meas_forced.position[0] = theta[0];
+      q_meas_forced.position[1] = theta[1];
+      q_meas_forced.position[2] = theta[2];
+      q_meas_forced.position[3] = theta[3];
+      q_meas_forced.position[4] = theta[4];
+      q_meas_forced.position[5] = theta[5];
+      kinematic_state->setVariableValues(q_meas_forced);
 
       const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
       std::vector<double> joint_values;
@@ -433,6 +434,15 @@ public:
       ROS_INFO_STREAM("Theta Command: \n[" << theta[0] << ", " << theta[1] << ", " << theta[2] << ", " << theta[3]
                                            << ", " << theta[4] << ", " << theta[5] << "]\n");
 
+      geometry_msgs::Pose pose_des;
+      pose_des.position.x = desiredPosition(0, 0);
+      pose_des.position.y = desiredPosition(1, 0);
+      pose_des.position.z = desiredPosition(2, 0);
+      pose_des.orientation.x = desiredPosition(3, 0);
+      pose_des.orientation.y = desiredPosition(4, 0);
+      pose_des.orientation.z = desiredPosition(5, 0);
+      debug_des_pub_.publish(pose_des);
+
       send6DofCommand();
       sendGripperCommand();
       loop_rate.sleep();
@@ -623,6 +633,7 @@ private:
   ros::NodeHandle n_;
   ros::Publisher command_pub_;
   ros::Publisher debug_pub_;
+  ros::Publisher debug_des_pub_;
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber gripper_des_sub_;
