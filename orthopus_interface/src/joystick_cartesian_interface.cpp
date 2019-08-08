@@ -53,12 +53,13 @@ int TOOL_ID = 11;  // change this depenidning on the tool mounted
 
 using namespace std;
 typedef actionlib::SimpleActionClient<niryo_one_msgs::RobotMoveAction> NiryoClient;
-
+typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix6d;
+typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
 class JoystickCartesianInterface
 {
 public:
-  JoystickCartesianInterface()  :  ac("/niryo_one/commander/robot_action/", true)//: spinner_(NUM_SPINNERS)
+  JoystickCartesianInterface() : ac("/niryo_one/commander/robot_action/", true)  //: spinner_(NUM_SPINNERS)
   {
     command_pub_ = n_.advertise<trajectory_msgs::JointTrajectory>(
         "/niryo_one_follow_joint_trajectory_controller/command", 10);  // TODO check optimal queue size
@@ -69,18 +70,17 @@ public:
     debug_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos", 1);
     debug_des_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos_des", 1);
     changeToolClient_ = n_.serviceClient<niryo_one_msgs::SetInt>("/niryo_one/change_tool/");
-    
-    ros::ServiceServer service = n_.advertiseService("/niryo_one/joystick_interface/enable", &JoystickCartesianInterface::joystickEnableCB, this);
 
+    ros::ServiceServer service = n_.advertiseService("/niryo_one/joystick_interface/enable",
+                                                     &JoystickCartesianInterface::joystickEnableCB, this);
 
-   
     // Connecting to the robot ===========================================
     ROS_INFO("Connecting to robot  ========================");
-//     NiryoClient ac ("/niryo_one/commander/robot_action/", true);
+    //     NiryoClient ac ("/niryo_one/commander/robot_action/", true);
     ROS_INFO("Waiting for action server to start.");
     ac.waitForServer();
     ROS_INFO("Action server started, sending goal.");
-    
+
     // wait for the action server to start
     bool connection_success = false;
     while (!connection_success)
@@ -162,8 +162,8 @@ public:
     ros::Rate loop_rate = ros::Rate(RATE);
 
     // Minimize cartesian velocity : dx
-    Eigen::MatrixXd alpha_weight(6, 6);
-    alpha_weight = Eigen::MatrixXd::Identity(6, 6);
+    Matrix6d alpha_weight;
+    alpha_weight = Matrix6d::Identity(6, 6);
     alpha_weight(0, 0) = alpha_1;
     alpha_weight(1, 1) = alpha_2;
     alpha_weight(2, 2) = alpha_3;
@@ -173,8 +173,8 @@ public:
     ROS_DEBUG_STREAM("alpha_weight: \n" << alpha_weight << "\n");
 
     // Minimize joints velocities : dq
-    Eigen::MatrixXd beta_weight(6, 6);
-    beta_weight = Eigen::MatrixXd::Identity(6, 6);
+    Matrix6d beta_weight;
+    beta_weight = Matrix6d::Identity(6, 6);
     beta_weight(0, 0) = beta_1;
     beta_weight(1, 1) = beta_2;
     beta_weight(2, 2) = beta_3;
@@ -184,8 +184,8 @@ public:
     ROS_DEBUG_STREAM("beta_weight: \n" << beta_weight << "\n");
 
     // Minimize cartesian position : x
-    Eigen::MatrixXd gamma_weight(6, 6);
-    gamma_weight = Eigen::MatrixXd::Identity(6, 6);
+    Matrix6d gamma_weight;
+    gamma_weight = Matrix6d::Identity(6, 6);
     gamma_weight(0, 0) = gamma_1;
     gamma_weight(1, 1) = gamma_2;
     gamma_weight(2, 2) = gamma_3;
@@ -194,7 +194,7 @@ public:
     gamma_weight(5, 5) = gamma_6;
     ROS_DEBUG_STREAM("gamma_weight: \n" << gamma_weight << "\n");
 
-    IK = qpOASES::SQProblem(6, 6);
+    IK = qpOASES::SQProblem(6, 12);
     qpOASES::Options options;
     // options.printLevel = qpOASES::PL_NONE;
     IK.setOptions(options);
@@ -211,7 +211,7 @@ public:
       theta[4] = 0.0;
       theta[5] = 0.0;
       sendInitCommand();
-      ros::Duration(INIT_DURATION+1.0).sleep();
+      ros::Duration(INIT_DURATION + 1.0).sleep();
       break;
       //         }
     }
@@ -222,7 +222,8 @@ public:
     {
       ros::spinOnce();
 
-//       kinematic_state->setVariableValues(q_meas_);
+      //       kinematic_state->setVariableValues(q_meas_);
+      // Use of previous theta command to update the kinematic model
       sensor_msgs::JointState q_meas_forced = q_meas_;
       q_meas_forced.position[0] = theta[0];
       q_meas_forced.position[1] = theta[1];
@@ -240,7 +241,7 @@ public:
       {
         ROS_INFO("Joint %s: %f (q_meas_=%f)", joint_names[i].c_str(), joint_values[i], q_meas_.position[i]);
         joint_values_copy[i] = joint_values[i];
-        //joint_values_copy[i] = theta[i];
+        // joint_values_copy[i] = theta[i];
       }
 
       const Eigen::Affine3d& end_effector_state =
@@ -256,7 +257,7 @@ public:
                                    reference_point_position, jacobian);
       ROS_DEBUG_STREAM("Jacobian: \n" << jacobian << "\n");
 
-      const Eigen::VectorXd dx_des_vect = scaleCartesianCommand(dx_des_);
+      const Vector6d dx_des_vect = scaleCartesianCommand(dx_des_);
       ROS_INFO_STREAM("dx_des_vect: \n" << dx_des_vect << "\n");
       ROS_DEBUG_STREAM("alpha_weight: \n" << alpha_weight << "\n");
       ROS_DEBUG_STREAM("beta_weight: \n" << beta_weight << "\n");
@@ -266,18 +267,10 @@ public:
       //         Eigen::MatrixXd jacobianTranspose = jacobian.transpose();
       //         ROS_DEBUG_STREAM("jacobianTranspose: \n" << jacobianTranspose << "\n");
 
-      Eigen::MatrixXd hessian = (jacobian.transpose() * alpha_weight * jacobian) + beta_weight +
-                                (jacobian.transpose() * CALC_PERIOD * gamma_weight * CALC_PERIOD * jacobian);
-      ROS_INFO_STREAM("hessian: \n" << hessian << "\n");
-      ROS_INFO_STREAM("hessian.determinant(): \n" << hessian.determinant() << "\n");
-      //       Eigen::MatrixXd L = hessian.llt().matrixL();
-
-      Eigen::LLT<Eigen::MatrixXd> lltOfA(hessian);  // compute the Cholesky decomposition of A
-      Eigen::MatrixXd L = lltOfA.matrixL();
-      ROS_INFO_STREAM("L: \n" << L << "\n");
-      ROS_INFO_STREAM("lltOfA.info(): \n" << lltOfA.info() << "\n");
-
-      Eigen::MatrixXd currentPosition(6, 1);
+      //       Eigen::MatrixXd hessian =
+      Matrix6d hessian = (jacobian.transpose() * alpha_weight * jacobian) + beta_weight +
+                         (jacobian.transpose() * CALC_PERIOD * gamma_weight * CALC_PERIOD * jacobian);
+      Vector6d currentPosition;
       currentPosition(0, 0) = current_pose.position.x;
       currentPosition(1, 0) = current_pose.position.y;
       currentPosition(2, 0) = current_pose.position.z;
@@ -285,36 +278,36 @@ public:
       currentPosition(4, 0) = current_pose.orientation.y;
       currentPosition(5, 0) = current_pose.orientation.z;
 
-      Eigen::MatrixXd desiredPosition(6, 1);
+      Vector6d desiredPosition;
       desiredPosition = currentPosition + dx_des_vect * CALC_PERIOD;
-      desiredPosition(0, 0) = 0.2379;  // initial_pose.position.x;
+      desiredPosition(0, 0) = 0.28;  // initial_pose.position.x;
       desiredPosition(3, 0) = 0.5;
       desiredPosition(4, 0) = 0.5;
       desiredPosition(5, 0) = 0.5;
 
-      double x_min = 0.2;
-      double x_max = 0.3;
-      double y_min = -0.25;
-      double y_max = 0.25;
-      double z_min = 0.05;
+      double x_min = 0.235;
+      double x_max = 0.24;
+      double y_min = -0.55;
+      double y_max = 0.55;
+      double z_min = -0.05;
       double z_max = 0.55;
-      double r_min = -2.0;
-      double r_max = 2.0;
-      double p_min = -2.0;
-      double p_max = 2.0;
-      double yaw_min = -2.0;
-      double yaw_max = 2.0;
-      desiredPosition(1, 0) = std::min(desiredPosition(1, 0), y_max);
-      desiredPosition(1, 0) = std::max(desiredPosition(1, 0), y_min);
-      desiredPosition(2, 0) = std::min(desiredPosition(2, 0), z_max);
-      desiredPosition(2, 0) = std::max(desiredPosition(2, 0), z_min);
+      double r_min = 0.48;
+      double r_max = 0.52;
+      double p_min = 0.48;
+      double p_max = 0.52;
+      double yaw_min = 0.48;
+      double yaw_max = 0.52;
+      //       desiredPosition(1, 0) = std::min(desiredPosition(1, 0), y_max);
+      //       desiredPosition(1, 0) = std::max(desiredPosition(1, 0), y_min);
+      //       desiredPosition(2, 0) = std::min(desiredPosition(2, 0), z_max);
+      //       desiredPosition(2, 0) = std::max(desiredPosition(2, 0), z_min);
 
       ROS_INFO_STREAM("currentPosition: \n" << currentPosition << "\n");
       ROS_INFO_STREAM("desiredPosition: \n" << desiredPosition << "\n");
 
-      Eigen::MatrixXd g = (-jacobian.transpose() * alpha_weight * dx_des_vect) +
-                          (jacobian.transpose() * CALC_PERIOD * gamma_weight * currentPosition) -
-                          (jacobian.transpose() * CALC_PERIOD * gamma_weight * desiredPosition);
+      Vector6d g = (-jacobian.transpose() * alpha_weight * dx_des_vect) +
+                   (jacobian.transpose() * CALC_PERIOD * gamma_weight * currentPosition) -
+                   (jacobian.transpose() * CALC_PERIOD * gamma_weight * desiredPosition);
       ROS_DEBUG_STREAM("g = \n" << g << "\n");
 
       // control max and min velocity of joint (dq)
@@ -329,8 +322,13 @@ public:
       // lb < q0 + dq*T < ub
       // (lb-q0) < dq.T < (ub-q0)
 
-      Eigen::MatrixXd A(6, 6);
-      A = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
+      Eigen::Matrix<double, 12, 6, Eigen::RowMajor> A;
+      A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
+      A.bottomLeftCorner(6, 6) = jacobian * CALC_PERIOD;
+
+      //       Eigen::Matrix< double, 6, 6, Eigen::RowMajor > A;
+      //       Matrix6d A;
+      //       A = Matrix6d::Identity(6, 6) * CALC_PERIOD;
 
       double lbA[] = { (joints_limits_min[0] - joint_values_copy[0]),
                        (joints_limits_min[1] - joint_values_copy[1]),
@@ -393,7 +391,7 @@ public:
         // Check joints limits
         for (int i = 0; i < 6; i++)
         {
-          ROS_INFO_STREAM("========= joint  "<<i+1<<"  ==========");
+          ROS_INFO_STREAM("========= joint  " << i + 1 << "  ==========");
           if (theta_tmp[i] > joints_limits_max[i])
           {
             ROS_WARN_STREAM("joint_" << i + 1 << " max limit overshoot : " << theta_tmp[i] << ">"
@@ -411,7 +409,7 @@ public:
             ROS_INFO_STREAM("theta = " << theta[i]);
             ROS_INFO_STREAM("joint_values_copy = " << joint_values_copy[i]);
             ROS_INFO_STREAM("xOpt = " << xOpt[i]);
-            ROS_INFO_STREAM("q_meas_ = " << q_meas_.position[i]);          
+            ROS_INFO_STREAM("q_meas_ = " << q_meas_.position[i]);
           }
         }
         if (!limit_detected)
@@ -456,10 +454,10 @@ public:
 
     trajectory_msgs::JointTrajectoryPoint point;
     point.time_from_start = ros::Duration(1.0 / RATE);
-//     point.positions = q_meas_.position;
+    //     point.positions = q_meas_.position;
     for (int i = 0; i < 6; i++)
     {
-//       point.positions[i] = theta[i];
+      //       point.positions[i] = theta[i];
       point.positions.push_back(theta[i]);
     }
 
@@ -550,7 +548,7 @@ private:
 
   void dxDesCB(const geometry_msgs::TwistStampedPtr& msg)
   {
-    if(enable_joy_)
+    if (enable_joy_)
     {
       dx_des_ = *msg;
       ROS_DEBUG_STREAM("dx_des_: \n" << dx_des_ << "\n");
@@ -559,24 +557,24 @@ private:
 
   void gripperDesCB(const std_msgs::BoolPtr& msg)
   {
-    if(enable_joy_)
+    if (enable_joy_)
     {
       gripper_des_ = *msg;
       ROS_DEBUG_STREAM("gripper_des_: \n" << dx_des_ << "\n");
     }
   }
 
-  bool joystickEnableCB(niryo_one_msgs::SetInt::Request &req, niryo_one_msgs::SetInt::Response &res)
+  bool joystickEnableCB(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res)
   {
     std::string result_message = "";
     int result = 0;
-    if(req.value == 1)
+    if (req.value == 1)
     {
-      if(can_enable())
+      if (can_enable())
       {
-          enable_joy();
-          result = 200;
-          result_message = "Joystick has been enabled";
+        enable_joy();
+        result = 200;
+        result_message = "Joystick has been enabled";
       }
       else
       {
@@ -590,7 +588,7 @@ private:
       result = 200;
       result_message = "Joystick has been disabled";
     }
-    
+
     res.status = result;
     res.message = result_message;
     return true;
@@ -599,12 +597,13 @@ private:
   bool can_enable()
   {
     ros::service::waitForService("/niryo_one/commander/is_active");
-    niryo_one_msgs::GetInt is_active;      
-    ros::ServiceClient commander_active_client = n_.serviceClient<niryo_one_msgs::GetInt>("/niryo_one/commander/is_active");
+    niryo_one_msgs::GetInt is_active;
+    ros::ServiceClient commander_active_client =
+        n_.serviceClient<niryo_one_msgs::GetInt>("/niryo_one/commander/is_active");
     commander_active_client.call(is_active);
-    return (is_active.response.value == 0);    
+    return (is_active.response.value == 0);
   };
-  
+
   void enable_joy()
   {
     enable_joy_ = true;
@@ -614,18 +613,18 @@ private:
     // TODO handle current motion : wait the arm reach a stable state
     enable_joy_ = false;
   };
-  
-  // Scale the incoming desired velocity
-  Eigen::VectorXd scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const
-  {
-    Eigen::VectorXd result(6);
 
-    result[0] = LINEAR_SCALE * command.twist.linear.x;
-    result[1] = LINEAR_SCALE * command.twist.linear.y;
-    result[2] = LINEAR_SCALE * command.twist.linear.z;
-    result[3] = ROTATIONAL_SCALE * command.twist.angular.x;
-    result[4] = ROTATIONAL_SCALE * command.twist.angular.y;
-    result[5] = ROTATIONAL_SCALE * command.twist.angular.z;
+  // Scale the incoming desired velocity
+  Vector6d scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const
+  {
+    Vector6d result;
+
+    result(0) = LINEAR_SCALE * command.twist.linear.x;
+    result(1) = LINEAR_SCALE * command.twist.linear.y;
+    result(2) = LINEAR_SCALE * command.twist.linear.z;
+    result(3) = ROTATIONAL_SCALE * command.twist.angular.x;
+    result(4) = ROTATIONAL_SCALE * command.twist.angular.y;
+    result(5) = ROTATIONAL_SCALE * command.twist.angular.z;
 
     return result;
   }

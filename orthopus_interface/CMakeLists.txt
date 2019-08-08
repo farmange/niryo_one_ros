@@ -24,8 +24,8 @@ catkin_package(
     EIGEN3
     )
   
-
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
 )
@@ -44,3 +44,20 @@ add_executable(xbox_to_twist
 target_link_libraries(xbox_to_twist ${catkin_LIBRARIES})
 add_dependencies(xbox_to_twist ${catkin_EXPORTED_TARGETS})
 
+############ wrapper test
+add_executable(xbox_wrapper
+  src/device_wrapper.cpp
+  src/xbox_wrapper.cpp
+)
+target_link_libraries(xbox_wrapper ${catkin_LIBRARIES})
+add_dependencies(xbox_wrapper ${catkin_EXPORTED_TARGETS})
+
+
+############ wrapper test
+add_executable(cartesian_controller
+  src/inverse_kinematic.cpp
+  src/tool_controller.cpp
+  src/cartesian_controller.cpp
+)
+target_link_libraries(cartesian_controller ${catkin_LIBRARIES})
+add_dependencies(cartesian_controller ${catkin_EXPORTED_TARGETS})
