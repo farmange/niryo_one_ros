@@ -64,7 +64,6 @@ InverseKinematic::InverseKinematic()
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/min", joints_limits_min[5]);
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/max", joints_limits_max[5]);
 
-
   x_min = 0.235;
   x_max = 0.24;
   y_min = -0.55;
@@ -77,7 +76,7 @@ InverseKinematic::InverseKinematic()
   p_max = 0.52;
   yaw_min = 0.48;
   yaw_max = 0.52;
-  
+
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
@@ -129,33 +128,36 @@ InverseKinematic::InverseKinematic()
   options.printLevel = qpOASES::PL_NONE;
   IK->setOptions(options);
 }
-void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState &current_joint_state, double (&cartesian_velocity_desired)[6] )
+void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[6],
+                                               sensor_msgs::JointState& current_joint_state,
+                                               double (&cartesian_velocity_desired)[6])
 {
-  kinematic_state->setVariableValues(current_joint_state);
-  
-  
-// -2.20717e-13     -0.02345     -0.00245  -5.6137e-15      0.00055  1.65443e-30
-//      0.02452 -1.19674e-13 -1.25032e-14      0.00055  2.80685e-15 -1.62093e-19
-//            0      0.02452      0.02452 -8.36963e-15      0.00237  8.83524e-30
-//            0  5.10336e-13  5.10336e-13          0.1  5.10336e-13          0.1
-//            0         -0.1         -0.1  1.02067e-12         -0.1  1.02067e-12
-//          0.1            0            0 -2.22045e-17            0 -2.22045e-17
-         
+  sensor_msgs::JointState local_joint_state = current_joint_state;
+
+  for (std::size_t i = 0; i < local_joint_state.name.size(); ++i)
+  {
+    local_joint_state.position[i] = joint_position_command[i];
+  }
+
+  kinematic_state->setVariableValues(local_joint_state);
+
   const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
   std::vector<double> joint_values;
   std::vector<double> joint_values_copy = std::vector<double>(6);
   kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
   for (std::size_t i = 0; i < joint_names.size(); ++i)
   {
-    ROS_INFO("Joint %s: %f (current_joint_state=%f)", joint_names[i].c_str(), joint_values[i], current_joint_state.position[i]);
+    ROS_INFO("Joint %s: %f (local_joint_state=%f)", joint_names[i].c_str(), joint_values[i],
+             local_joint_state.position[i]);
     joint_values_copy[i] = joint_values[i];
     // joint_values_copy[i] = theta[i];
   }
 
-  const Eigen::Affine3d& end_effector_state = kinematic_state->getGlobalLinkTransform("hand_link");  // TODO Add configuration parameter
+  const Eigen::Affine3d& end_effector_state =
+      kinematic_state->getGlobalLinkTransform("hand_link");  // TODO Add configuration parameter
   geometry_msgs::Pose current_pose;
   tf::poseEigenToMsg(end_effector_state, current_pose);
-  //debug_pub_.publish(current_pose);
+  // debug_pub_.publish(current_pose);
 
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
@@ -207,28 +209,41 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   // lb < q0 + dq*T < ub
   // (lb-q0) < dq.T < (ub-q0)
 
+  //   double delta_pos = 0.01;
+  //   x_min = current_pose.position.x + (dx_des_vect[0] * CALC_PERIOD) - delta_pos;
+  //   y_min = current_pose.position.y + (dx_des_vect[1] * CALC_PERIOD) - delta_pos;
+  //   z_min = current_pose.position.z + (dx_des_vect[2] * CALC_PERIOD) - delta_pos;
+  //
+  //   x_max = current_pose.position.x + (dx_des_vect[0] * CALC_PERIOD) + delta_pos;
+  //   y_max = current_pose.position.y + (dx_des_vect[1] * CALC_PERIOD) + delta_pos;
+  //   z_max = current_pose.position.z + (dx_des_vect[2] * CALC_PERIOD) + delta_pos;
+
+  ROS_DEBUG_STREAM("x_min = " << x_min << ", x_max =" << x_max);
+  ROS_DEBUG_STREAM("y_min = " << y_min << ", y_max =" << y_max);
+  ROS_DEBUG_STREAM("z_min = " << z_min << ", z_max =" << z_max);
+
   Eigen::Matrix<double, 12, 6, Eigen::RowMajor> A;
   A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
   A.bottomLeftCorner(6, 6) = jacobian * CALC_PERIOD;
 
-  double lbA[] = { (joints_limits_min[0] - current_joint_state.position[0]),
-                   (joints_limits_min[1] - current_joint_state.position[1]),
-                   (joints_limits_min[2] - current_joint_state.position[2]),
-                   (joints_limits_min[3] - current_joint_state.position[3]),
-                   (joints_limits_min[4] - current_joint_state.position[4]),
-                   (joints_limits_min[5] - current_joint_state.position[5]),
+  double lbA[] = { (joints_limits_min[0] - local_joint_state.position[0]),
+                   (joints_limits_min[1] - local_joint_state.position[1]),
+                   (joints_limits_min[2] - local_joint_state.position[2]),
+                   (joints_limits_min[3] - local_joint_state.position[3]),
+                   (joints_limits_min[4] - local_joint_state.position[4]),
+                   (joints_limits_min[5] - local_joint_state.position[5]),
                    x_min - currentPosition(0, 0),
                    y_min - currentPosition(1, 0),
                    z_min - currentPosition(2, 0),
                    r_min - currentPosition(3, 0),
                    p_min - currentPosition(4, 0),
                    yaw_min - currentPosition(5, 0) };
-  double ubA[] = { (joints_limits_max[0] - current_joint_state.position[0]),
-                   (joints_limits_max[1] - current_joint_state.position[1]),
-                   (joints_limits_max[2] - current_joint_state.position[2]),
-                   (joints_limits_max[3] - current_joint_state.position[3]),
-                   (joints_limits_max[4] - current_joint_state.position[4]),
-                   (joints_limits_max[5] - current_joint_state.position[5]),
+  double ubA[] = { (joints_limits_max[0] - local_joint_state.position[0]),
+                   (joints_limits_max[1] - local_joint_state.position[1]),
+                   (joints_limits_max[2] - local_joint_state.position[2]),
+                   (joints_limits_max[3] - local_joint_state.position[3]),
+                   (joints_limits_max[4] - local_joint_state.position[4]),
+                   (joints_limits_max[5] - local_joint_state.position[5]),
                    x_max - currentPosition(0, 0),
                    y_max - currentPosition(1, 0),
                    z_max - currentPosition(2, 0),
@@ -260,12 +275,12 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
 
     IK->getPrimalSolution(xOpt);
     double theta_tmp[6];
-    theta_tmp[0] = current_joint_state.position[0] + xOpt[0] * CALC_PERIOD;
-    theta_tmp[1] = current_joint_state.position[1] + xOpt[1] * CALC_PERIOD;
-    theta_tmp[2] = current_joint_state.position[2] + xOpt[2] * CALC_PERIOD;
-    theta_tmp[3] = current_joint_state.position[3] + xOpt[3] * CALC_PERIOD;
-    theta_tmp[4] = current_joint_state.position[4] + xOpt[4] * CALC_PERIOD;
-    theta_tmp[5] = current_joint_state.position[5] + xOpt[5] * CALC_PERIOD;
+    theta_tmp[0] = local_joint_state.position[0] + xOpt[0] * CALC_PERIOD;
+    theta_tmp[1] = local_joint_state.position[1] + xOpt[1] * CALC_PERIOD;
+    theta_tmp[2] = local_joint_state.position[2] + xOpt[2] * CALC_PERIOD;
+    theta_tmp[3] = local_joint_state.position[3] + xOpt[3] * CALC_PERIOD;
+    theta_tmp[4] = local_joint_state.position[4] + xOpt[4] * CALC_PERIOD;
+    theta_tmp[5] = local_joint_state.position[5] + xOpt[5] * CALC_PERIOD;
 
     bool limit_detected = false;
     // Check joints limits
@@ -297,8 +312,10 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
     ROS_ERROR_STREAM("qpOASES : Failed !!!");
   }
 
-  ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1] << ", " << joint_position_command[2] << ", " << joint_position_command[3] << ", "
-                                       << joint_position_command[4] << ", " << joint_position_command[5] << "]\n");
+  ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1]
+                                                 << ", " << joint_position_command[2] << ", "
+                                                 << joint_position_command[3] << ", " << joint_position_command[4]
+                                                 << ", " << joint_position_command[5] << "]\n");
 
   geometry_msgs::Pose pose_des;
   pose_des.position.x = desiredPosition(0, 0);
@@ -307,7 +324,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   pose_des.orientation.x = desiredPosition(3, 0);
   pose_des.orientation.y = desiredPosition(4, 0);
   pose_des.orientation.z = desiredPosition(5, 0);
-//   debug_des_pub_.publish(pose_des);
-  
+  //   debug_des_pub_.publish(pose_des);
 }
 }

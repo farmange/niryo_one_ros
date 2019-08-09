@@ -24,20 +24,18 @@ public:
   void setToolId(int id_);
   // Send gripper command to action server, only if the state is update
   void sendGripperCommand(bool new_state);
+
 protected:
-  
 private:
   void sendOpenGripperCommand();
   void sendCloseGripperCommand();
 
-  
   ros::NodeHandle n_;
   NiryoClient ac_;
-  
+
   int tool_id_;
   // Close = true / Open = false
   bool tool_state_;
-
 };
 }
 #endif

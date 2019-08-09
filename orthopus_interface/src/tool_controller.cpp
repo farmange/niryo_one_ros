@@ -10,28 +10,41 @@ namespace cartesian_controller
 {
 ToolController::ToolController() : ac_("/niryo_one/commander/robot_action/", true)
 {
-    ROS_INFO("Waiting for action server to start.");
+  ROS_INFO("Waiting for action server to start.");
 
-    tool_id_ = 0;
-    
-    // wait for the action server to start
-    bool connection_success = false;
-    while (!connection_success)
+  tool_id_ = 0;
+
+  // wait for the action server to start
+  bool connection_success = false;
+  while (!connection_success)
+  {
+    connection_success = ac_.waitForServer(ros::Duration(3.0));
+    if (connection_success)
     {
-      connection_success = ac_.waitForServer(ros::Duration(3.0));
-      if (connection_success)
-      {
-        ROS_INFO("  Robot Connection established");
-      }
-      else
-      {
-        ROS_WARN("  Error connecting to Robot. Trying again");
-      }
+      ROS_INFO("  Robot Connection established");
     }
+    else
+    {
+      ROS_WARN("  Error connecting to Robot. Trying again");
+    }
+  }
 }
 void ToolController::setToolId(int id_)
 {
   tool_id_ = id_;
+
+  ros::ServiceClient changeToolClient_;
+  changeToolClient_ = n_.serviceClient<niryo_one_msgs::SetInt>("/niryo_one/change_tool/");
+  // Setting Gripper
+  ROS_INFO("Setting gripper");
+  niryo_one_msgs::SetInt change_tool_srv;
+  change_tool_srv.request.value = tool_id_;
+  while (!changeToolClient_.call(change_tool_srv))
+  {
+    ROS_WARN("  Could not set the tool type. Trying again in one second");
+    ros::Duration(1.0).sleep();
+  }
+  ROS_INFO("  Success");
 }
 
 void ToolController::sendOpenGripperCommand()
@@ -77,6 +90,4 @@ void ToolController::sendGripperCommand(bool new_state)
   }
   tool_state_ = new_state;
 }
-
-
 }

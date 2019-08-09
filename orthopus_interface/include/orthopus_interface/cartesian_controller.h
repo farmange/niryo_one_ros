@@ -9,7 +9,6 @@
 
 #include "geometry_msgs/TwistStamped.h"
 
-
 #include "orthopus_interface/inverse_kinematic.h"
 #include "orthopus_interface/tool_controller.h"
 
@@ -22,15 +21,14 @@ public:
 
 protected:
 private:
-
   void sendInitCommand();
   void send6DofCommand();
-  
+
   // Callbacks
   void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
   void dxDesCB(const geometry_msgs::TwistStampedPtr& msg);
   void gripperCB(const std_msgs::BoolPtr& msg);
-  
+
   Vector6d scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const;
 
   ros::NodeHandle n_;
@@ -45,9 +43,9 @@ private:
   ToolController tool_controller_;
 
   double joint_position_cmd[6];
-//   sensor_msgs::JointState q_meas_forced, q_meas_;
+  //   sensor_msgs::JointState q_meas_forced, q_meas_;
   geometry_msgs::TwistStamped dx_des_;
-  
+
   sensor_msgs::JointState current_joint_state;
   double cartesian_velocity_desired[6];
   bool gripper_state_;

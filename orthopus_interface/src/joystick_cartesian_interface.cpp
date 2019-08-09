@@ -473,9 +473,7 @@ public:
     trajectory_msgs::JointTrajectory new_jt_traj;
 
     new_jt_traj.header.stamp = ros::Time::now();
-    ROS_INFO_STREAM("new_jt_traj=" << new_jt_traj);
     new_jt_traj.joint_names = q_meas_.name;
-    ROS_INFO_STREAM("new_jt_traj=" << new_jt_traj);
     trajectory_msgs::JointTrajectoryPoint point;
     point.time_from_start = ros::Duration(INIT_DURATION);
     point.positions = q_meas_.position;
@@ -638,8 +636,8 @@ private:
   ros::Subscriber gripper_des_sub_;
 
   ros::ServiceClient changeToolClient_;
-  ros::ServiceClient openGripperClient_;
-  ros::ServiceClient closeGripperClient_;
+  //   ros::ServiceClient openGripperClient_;
+  //   ros::ServiceClient closeGripperClient_;
 
   NiryoClient ac;
   bool enable_joy_ = false;

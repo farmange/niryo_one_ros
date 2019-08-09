@@ -55,7 +55,6 @@
 
 namespace cartesian_controller
 {
-  
 XboxWrapper::XboxWrapper()
 {
   device_sub_ = n_.subscribe("joy", 1, &XboxWrapper::joyCallback, this);
@@ -64,17 +63,20 @@ XboxWrapper::XboxWrapper()
   debounce_button_start_ = ros::Time::now();
   debounce_button_lb_ = ros::Time::now();
   debounce_button_rb_ = ros::Time::now();
+  debounce_button_b_ = ros::Time::now();
 
   button_a_ = 0;
   button_start_ = 0;
   button_lb_ = 0;
   button_rb_ = 0;
+  button_b_ = 0;
+
   learning_mode_ = 0;
 
   velocity_factor_ = 0.0;
   ros::spin();
 }
-
+// TODO Put publish action on parent class
 // Convert incoming xbox (joy) commands in require topics
 void XboxWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
 {
@@ -85,6 +87,7 @@ void XboxWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   updateGripperCmd();
   updateVelocityFactor();
   updateLearningMode();
+  updateCartesianMode();
   // Up/Down Axis of the right stick
   cartesian_vel.twist.linear.x = velocity_factor_ * msg->axes[JOY_AXIS_VERTICAL_RIGHT];
   // Left/Right Axis of the left stick
@@ -94,6 +97,7 @@ void XboxWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
 
   cartesian_cmd_pub_.publish(cartesian_vel);
   gripper_cmd_pub_.publish(gripper_cmd_);
+  //   cartesian_mode_pub_.publish(cartesian_mode_);
 }
 
 void XboxWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
@@ -102,15 +106,17 @@ void XboxWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
   button_start_ = 0;
   button_lb_ = 0;
   button_rb_ = 0;
+  button_b_ = 0;
 
   debounceButtons(msg, JOY_BUTTON_A, debounce_button_a_, button_a_);
   debounceButtons(msg, JOY_BUTTON_START, debounce_button_start_, button_start_);
   debounceButtons(msg, JOY_BUTTON_LB, debounce_button_lb_, button_lb_);
   debounceButtons(msg, JOY_BUTTON_RB, debounce_button_rb_, button_rb_);
+  debounceButtons(msg, JOY_BUTTON_B, debounce_button_b_, button_b_);
 }
 
 void XboxWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const int button_id,
-                                             ros::Time& debounce_timer_ptr, int& button_value_ptr)
+                                  ros::Time& debounce_timer_ptr, int& button_value_ptr)
 {
   if (msg->buttons[button_id])
   {
@@ -119,6 +125,23 @@ void XboxWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const i
       debounce_timer_ptr = ros::Time::now() + ros::Duration(JOY_DEBOUNCE_BUTTON_TIME);
       button_value_ptr = msg->buttons[button_id];
     }
+  }
+}
+
+void XboxWrapper::updateCartesianMode()
+{
+  // Use B to change cartesian mode
+  if (button_b_ == 1 && cartesian_mode_ == XY)
+  {
+    cartesian_mode_ = YZ;
+  }
+  else if (button_start_ == 1 && learning_mode_ == YZ)
+  {
+    cartesian_mode_ = XZ;
+  }
+  else if (button_start_ == 1 && learning_mode_ == XZ)
+  {
+    cartesian_mode_ = XY;
   }
 }
 
@@ -134,7 +157,6 @@ void XboxWrapper::updateVelocityFactor()
   }
   velocity_factor_ = std::min(velocity_factor_, 1.0);
   velocity_factor_ = std::max(velocity_factor_, 0.0);
-  //   ROS_DEBUG_STREAM("Velocity factor : " << velocity_factor_);
 }
 
 void XboxWrapper::updateGripperCmd()
@@ -148,12 +170,11 @@ void XboxWrapper::updateGripperCmd()
   {
     gripper_cmd_.data = false;
   }
-  //   ROS_DEBUG_STREAM("Gripper command state : " << ((gripper_cmd_.data)? "open" : "close"));
 }
 
 void XboxWrapper::updateLearningMode()
 {
-  // Use A to toggle gripper state (open/close)
+  // Use START to toggle learning mode state (open/close)
   if (button_start_ == 1 && learning_mode_ == 0)
   {
     learning_mode_ = 1;
@@ -164,7 +185,6 @@ void XboxWrapper::updateLearningMode()
     learning_mode_ = 0;
     requestLearningMode(learning_mode_);
   }
-  //   ROS_DEBUG_STREAM("Learning mode state : " << learning_mode_);
 }
 }
 
@@ -178,5 +198,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-
-

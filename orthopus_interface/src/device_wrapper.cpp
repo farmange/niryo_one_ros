@@ -15,6 +15,7 @@ DeviceWrapper::DeviceWrapper()
   //     device_sub_;
   cartesian_cmd_pub_ = n_.advertise<geometry_msgs::TwistStamped>("dx_des" /*"cartesian_vel_des"*/, 1);
   gripper_cmd_pub_ = n_.advertise<std_msgs::Bool>("gripper_des", 1);
+  cartesian_mode_pub_ = n_.advertise<std_msgs::Bool>("cartesian_mode", 1);
 
   ros::service::waitForService("/niryo_one/activate_learning_mode");
   learning_mode_client_ = n_.serviceClient<niryo_one_msgs::SetInt>("/niryo_one/activate_learning_mode");

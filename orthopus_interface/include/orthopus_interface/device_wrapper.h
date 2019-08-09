@@ -17,6 +17,14 @@ class DeviceWrapper
 public:
   DeviceWrapper();
 
+  /** Summarises possible plan to navigate. */
+  typedef enum {
+    XY, /**< Navigate in the XY plan */
+    YZ, /**< Navigate in the YZ plan */
+    XZ  /**< Navigate in the XZ plan */
+  } CartesianMode_t;
+  //    CartesianMode CartesianMode_t;
+
 protected:
   void requestLearningMode(int state);
 
@@ -26,7 +34,11 @@ protected:
   // Publish
   ros::Publisher cartesian_cmd_pub_;
   ros::Publisher gripper_cmd_pub_;
+  ros::Publisher cartesian_mode_pub_;
+
   ros::ServiceClient learning_mode_client_;
+
+  CartesianMode_t cartesian_mode_;
 };
 }
 
