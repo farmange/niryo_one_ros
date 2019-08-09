@@ -10,8 +10,10 @@
 #include "geometry_msgs/TwistStamped.h"
 #include "sensor_msgs/Joy.h"
 #include "std_msgs/Bool.h"
+#include "std_msgs/Int8.h"
 
 #include <orthopus_interface/device_wrapper.h>
+
 namespace cartesian_controller
 {
 class XboxWrapper : public DeviceWrapper

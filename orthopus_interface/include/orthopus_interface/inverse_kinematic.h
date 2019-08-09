@@ -34,8 +34,14 @@ class InverseKinematic
 {
 public:
   InverseKinematic();
+  void Reset(sensor_msgs::JointState& current_joint_state);
+
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
                                double (&cartesian_velocity_desired)[6]);  // TODO should not use magic number
+
+  void UpdateAxisConstraints(bool (&axis_constraint)[6], double tolerance);
+  void setCartesianMode(int mode);
+  int getCartesianMode();
 
 protected:
 private:
@@ -74,6 +80,15 @@ private:
   double p_max;
   double yaw_min;
   double yaw_max;
+
+  double x_des[6];
+  double x_min_limit[6];
+  double x_max_limit[6];
+
+  Vector6d currentPosition;
+  Vector6d desiredPosition;
+
+  int cartesian_mode_;
 };
 }
 #endif

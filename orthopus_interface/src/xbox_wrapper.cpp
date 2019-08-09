@@ -51,7 +51,7 @@
 #define JOY_CROSS_VERTICAL 7
 
 #define JOY_DEBOUNCE_BUTTON_TIME 0.4
-#define JOY_VELOCITY_FACTOR_INC 0.1
+#define JOY_VELOCITY_FACTOR_INC 0.02
 
 namespace cartesian_controller
 {
@@ -72,7 +72,7 @@ XboxWrapper::XboxWrapper()
   button_b_ = 0;
 
   learning_mode_ = 0;
-
+  cartesian_mode_ = YZ;
   velocity_factor_ = 0.0;
   ros::spin();
 }
@@ -80,14 +80,15 @@ XboxWrapper::XboxWrapper()
 // Convert incoming xbox (joy) commands in require topics
 void XboxWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
 {
-  // Cartesian jogging with the axes
-  geometry_msgs::TwistStamped cartesian_vel;
-  cartesian_vel.header.stamp = ros::Time::now();
   processButtons(msg);
   updateGripperCmd();
   updateVelocityFactor();
   updateLearningMode();
   updateCartesianMode();
+
+  // Cartesian control with the axes
+  geometry_msgs::TwistStamped cartesian_vel;
+  cartesian_vel.header.stamp = ros::Time::now();
   // Up/Down Axis of the right stick
   cartesian_vel.twist.linear.x = velocity_factor_ * msg->axes[JOY_AXIS_VERTICAL_RIGHT];
   // Left/Right Axis of the left stick
@@ -95,9 +96,11 @@ void XboxWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   // Up/Down Axis of the left stick
   cartesian_vel.twist.linear.z = velocity_factor_ * msg->axes[JOY_AXIS_VERTICAL_LEFT];
 
+  std_msgs::Int8 cartesian_mode;
+  cartesian_mode.data = cartesian_mode_;
   cartesian_cmd_pub_.publish(cartesian_vel);
   gripper_cmd_pub_.publish(gripper_cmd_);
-  //   cartesian_mode_pub_.publish(cartesian_mode_);
+  cartesian_mode_pub_.publish(cartesian_mode);
 }
 
 void XboxWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
@@ -135,11 +138,11 @@ void XboxWrapper::updateCartesianMode()
   {
     cartesian_mode_ = YZ;
   }
-  else if (button_start_ == 1 && learning_mode_ == YZ)
+  else if (button_b_ == 1 && cartesian_mode_ == YZ)
   {
     cartesian_mode_ = XZ;
   }
-  else if (button_start_ == 1 && learning_mode_ == XZ)
+  else if (button_b_ == 1 && cartesian_mode_ == XZ)
   {
     cartesian_mode_ = XY;
   }

@@ -7,7 +7,10 @@
 
 #include <ros/ros.h>
 
+// Messages
 #include "geometry_msgs/TwistStamped.h"
+#include "std_msgs/Bool.h"
+#include "std_msgs/Int8.h"
 
 #include "orthopus_interface/inverse_kinematic.h"
 #include "orthopus_interface/tool_controller.h"
@@ -28,6 +31,7 @@ private:
   void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
   void dxDesCB(const geometry_msgs::TwistStampedPtr& msg);
   void gripperCB(const std_msgs::BoolPtr& msg);
+  void UpdateCartesianModeCB(const std_msgs::Int8Ptr& msg);
 
   Vector6d scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const;
 
@@ -38,6 +42,7 @@ private:
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber gripper_sub_;
+  ros::Subscriber cartesian_mode_sub_;
 
   InverseKinematic ik_;
   ToolController tool_controller_;
