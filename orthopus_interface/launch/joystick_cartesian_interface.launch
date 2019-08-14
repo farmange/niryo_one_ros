@@ -1,11 +1,12 @@
 <launch>
     <arg name="joy_enabled" default="true" />
+    <arg name="joy_device" default="js0" />
 
     <group if="$(arg joy_enabled)">
         <param name="joy_node/deadzone" value="0.2" type="double"/>
         <param name="joy_node/coalesce_interval" value="0.01" type="double"/>
         <param name="joy_node/autorepeat_rate" value="50" type="double"/>
-        <param name="joy_node/dev" value="/dev/input/js1" type="string"/>
+        <param name="joy_node/dev" value="/dev/input/$(arg joy_device)" type="string"/>
         <node name="joy_node" pkg="joy" type="joy_node" output="screen" respawn="false" />
     </group>
     

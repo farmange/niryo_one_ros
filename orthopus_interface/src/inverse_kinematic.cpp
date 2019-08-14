@@ -74,16 +74,16 @@ InverseKinematic::InverseKinematic()
   x_min_limit[0] = 0.235;
   x_min_limit[1] = -1.0;
   x_min_limit[2] = -1.0;
-  x_min_limit[3] = 0.45;
-  x_min_limit[4] = 0.45;
-  x_min_limit[5] = 0.45;
+  x_min_limit[3] = 0.49;
+  x_min_limit[4] = 0.49;
+  x_min_limit[5] = 0.49;
 
   x_max_limit[0] = 0.24;
   x_max_limit[1] = 1.0;
   x_max_limit[2] = 1.0;
-  x_max_limit[3] = 0.55;
-  x_max_limit[4] = 0.55;
-  x_max_limit[5] = 0.55;
+  x_max_limit[3] = 0.51;
+  x_max_limit[4] = 0.51;
+  x_max_limit[5] = 0.51;
 
   x_min = 0.235;
   x_max = 0.24;
@@ -91,12 +91,12 @@ InverseKinematic::InverseKinematic()
   y_max = 0.55;
   z_min = -0.05;
   z_max = 0.55;
-  r_min = 0.48;
-  r_max = 0.52;
-  p_min = 0.48;
-  p_max = 0.52;
-  yaw_min = 0.48;
-  yaw_max = 0.52;
+  r_min = 0.495;
+  r_max = 0.505;
+  p_min = 0.499;
+  p_max = 0.505;
+  yaw_min = 0.495;
+  yaw_max = 0.505;
 
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
