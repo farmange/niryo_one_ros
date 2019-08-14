@@ -48,7 +48,7 @@ CartesianController::CartesianController()
   }
 
   ros::spinOnce();
-  ik_.Reset(current_joint_state);
+  ik_.Init(current_joint_state, debug_pub_, debug_des_pub_);
   ik_.setCartesianMode(0);
 
   while (ros::ok())

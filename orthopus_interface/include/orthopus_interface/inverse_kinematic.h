@@ -34,7 +34,7 @@ class InverseKinematic
 {
 public:
   InverseKinematic();
-  void Reset(sensor_msgs::JointState& current_joint_state);
+  void Init(sensor_msgs::JointState& current_joint_state, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
 
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
                                double (&cartesian_velocity_desired)[6]);  // TODO should not use magic number
@@ -46,7 +46,11 @@ public:
 protected:
 private:
   ros::NodeHandle n_;
-
+  ros::Publisher debug_pos_pub_;
+  ros::Publisher debug_pos_des_pub_;
+  ros::Publisher debug_joint_pub_;
+  ros::Publisher debug_joint_des_pub_;
+  
   double alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6;
   double beta_1, beta_2, beta_3, beta_4, beta_5, beta_6;
   double gamma_1, gamma_2, gamma_3, gamma_4, gamma_5, gamma_6;

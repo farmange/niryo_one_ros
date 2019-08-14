@@ -150,7 +150,7 @@ InverseKinematic::InverseKinematic()
   IK->setOptions(options);
 }
 
-void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
+void InverseKinematic::Init(sensor_msgs::JointState& current_joint_state, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_)
 {
   kinematic_state->setVariableValues(current_joint_state);
 
@@ -165,6 +165,9 @@ void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
   currentPosition(3, 0) = current_pose.orientation.x;
   currentPosition(4, 0) = current_pose.orientation.y;
   currentPosition(5, 0) = current_pose.orientation.z;
+  
+  debug_pos_pub_ = debug_pub_;
+  debug_pos_des_pub_ = debug_des_pub_;
 }
 
 void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[6],
@@ -193,7 +196,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
       kinematic_state->getGlobalLinkTransform("hand_link");  // TODO Add configuration parameter
   geometry_msgs::Pose current_pose;
   tf::poseEigenToMsg(end_effector_state, current_pose);
-  // debug_pub_.publish(current_pose);
+  debug_pos_pub_.publish(current_pose);
 
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
@@ -352,7 +355,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   pose_des.orientation.x = desiredPosition(3, 0);
   pose_des.orientation.y = desiredPosition(4, 0);
   pose_des.orientation.z = desiredPosition(5, 0);
-  //   debug_des_pub_.publish(pose_des);
+  debug_pos_des_pub_.publish(pose_des);
 }
 
 void InverseKinematic::UpdateAxisConstraints(bool (&axis_constraint)[6], double tolerance)
