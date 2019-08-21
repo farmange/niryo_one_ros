@@ -1,11 +1,15 @@
 // TODO copyright
 #include <ros/ros.h>
 
+#include <tf2/LinearMath/Quaternion.h>
+
+
 #include "orthopus_interface/cartesian_controller.h"
+
 
 #define RATE 10
 #define TOOL_ID_GRIPPER_1 11
-#define INIT_TIME 5
+#define INIT_TIME 2
 
 namespace cartesian_controller
 {
@@ -17,7 +21,6 @@ CartesianController::CartesianController()
   joints_sub_ = n_.subscribe("joint_states", 1, &CartesianController::jointStatesCB, this);
   dx_des_sub_ = n_.subscribe("dx_des", 1, &CartesianController::dxDesCB, this);
   gripper_sub_ = n_.subscribe("gripper_des", 1, &CartesianController::gripperCB, this);
-  cartesian_mode_sub_ = n_.subscribe("cartesian_mode", 1, &CartesianController::UpdateCartesianModeCB, this);
 
   command_pub_ = n_.advertise<trajectory_msgs::JointTrajectory>("/niryo_one_follow_joint_trajectory_controller/command",
                                                                 1);  // TODO check optimal queue size
@@ -49,7 +52,6 @@ CartesianController::CartesianController()
 
   ros::spinOnce();
   ik_.Init(current_joint_state, debug_pub_, debug_des_pub_);
-  ik_.setCartesianMode(0);
 
   while (ros::ok())
   {
@@ -151,27 +153,26 @@ void CartesianController::jointStatesCB(const sensor_msgs::JointStateConstPtr& m
 
 void CartesianController::dxDesCB(const geometry_msgs::TwistStampedPtr& msg)
 {
+  ROS_ERROR_STREAM("dxDesCB");
+
   cartesian_velocity_desired[0] = msg->twist.linear.x;
   cartesian_velocity_desired[1] = msg->twist.linear.y;
   cartesian_velocity_desired[2] = msg->twist.linear.z;
+  
   cartesian_velocity_desired[3] = msg->twist.angular.x;
   cartesian_velocity_desired[4] = msg->twist.angular.y;
   cartesian_velocity_desired[5] = msg->twist.angular.z;
+
+  cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+  } 
+
+
+
 }
 
 void CartesianController::gripperCB(const std_msgs::BoolPtr& msg)
 {
   gripper_state_ = msg->data;
-}
-
-void CartesianController::UpdateCartesianModeCB(const std_msgs::Int8Ptr& msg)
-{
-  ROS_INFO_STREAM("UpdateCartesianModeCB : " << int(msg->data));
-
-  if (ik_.getCartesianMode() != msg->data)
-  {
-    ik_.setCartesianMode(msg->data);
-  }
 }
 }
 

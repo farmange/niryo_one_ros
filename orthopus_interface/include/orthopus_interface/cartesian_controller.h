@@ -31,7 +31,6 @@ private:
   void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
   void dxDesCB(const geometry_msgs::TwistStampedPtr& msg);
   void gripperCB(const std_msgs::BoolPtr& msg);
-  void UpdateCartesianModeCB(const std_msgs::Int8Ptr& msg);
 
   Vector6d scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const;
 
@@ -42,7 +41,6 @@ private:
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber gripper_sub_;
-  ros::Subscriber cartesian_mode_sub_;
 
   InverseKinematic ik_;
   ToolController tool_controller_;
@@ -53,6 +51,7 @@ private:
 
   sensor_msgs::JointState current_joint_state;
   double cartesian_velocity_desired[6];
+  double cartesian_velocity_desired_prev[6];
   bool gripper_state_;
 };
 }

@@ -39,9 +39,7 @@ public:
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
                                double (&cartesian_velocity_desired)[6]);  // TODO should not use magic number
 
-  void UpdateAxisConstraints(bool (&axis_constraint)[6], double tolerance);
-  void setCartesianMode(int mode);
-  int getCartesianMode();
+  void UpdateAxisConstraints(int axis, double tolerance);
 
 protected:
 private:
