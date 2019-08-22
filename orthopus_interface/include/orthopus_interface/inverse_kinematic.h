@@ -25,8 +25,14 @@
 // Messages
 #include <geometry_msgs/TwistStamped.h>
 
+
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix6d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
+
+typedef Eigen::Matrix<double, 7, 7, Eigen::RowMajor> Matrix7d;
+typedef Eigen::Matrix<double, 7, 1> Vector7d;
 
 namespace cartesian_controller
 {
@@ -37,7 +43,7 @@ public:
   void Init(sensor_msgs::JointState& current_joint_state, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
 
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
-                               double (&cartesian_velocity_desired)[6]);  // TODO should not use magic number
+                               double (&cartesian_velocity_desired)[7]);  // TODO should not use magic number
 
   void UpdateAxisConstraints(int axis, double tolerance);
 
@@ -49,17 +55,17 @@ private:
   ros::Publisher debug_joint_pub_;
   ros::Publisher debug_joint_des_pub_;
   
-  double alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6;
+  double alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6, alpha_7;
   double beta_1, beta_2, beta_3, beta_4, beta_5, beta_6;
-  double gamma_1, gamma_2, gamma_3, gamma_4, gamma_5, gamma_6;
+  double gamma_1, gamma_2, gamma_3, gamma_4, gamma_5, gamma_6, gamma_7;
   double joints_limits_max[6];
   double joints_limits_min[6];
   // Weight for cartesian velocity minimization
-  Matrix6d alpha_weight;
+  Matrix7d alpha_weight;
   // Weight for joint velocity minimization
   Matrix6d beta_weight;
   // Weight for cartesian position minimization
-  Matrix6d gamma_weight;
+  Matrix7d gamma_weight;
   // QP solver
   qpOASES::SQProblem* IK;
 
@@ -83,14 +89,22 @@ private:
   double yaw_min;
   double yaw_max;
 
-  double x_des[6];
-  double x_min_limit[6];
-  double x_max_limit[6];
+  double x_des[7];
+  double x_min_limit[7];
+  double x_max_limit[7];
 
-  Vector6d currentPosition;
-  Vector6d desiredPosition;
+  Vector7d currentPosition;
+  Vector7d currentPositionForDesiredPosition;
+  Vector7d desiredPosition;
 
   int cartesian_mode_;
+  
+  geometry_msgs::Pose current_pose;
+  
+  tf2::Quaternion q_saved;
+  tf2::Quaternion q_des;
+
+    
 };
 }
 #endif

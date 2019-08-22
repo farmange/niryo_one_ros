@@ -159,15 +159,51 @@ void CartesianController::dxDesCB(const geometry_msgs::TwistStampedPtr& msg)
   cartesian_velocity_desired[1] = msg->twist.linear.y;
   cartesian_velocity_desired[2] = msg->twist.linear.z;
   
-  cartesian_velocity_desired[3] = msg->twist.angular.x;
-  cartesian_velocity_desired[4] = msg->twist.angular.y;
-  cartesian_velocity_desired[5] = msg->twist.angular.z;
 
-  cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+
+  tf2::Quaternion converted_quaternion;
+  converted_quaternion.setRPY(msg->twist.angular.x, msg->twist.angular.y, msg->twist.angular.z);
+  
+  cartesian_velocity_desired[3] = converted_quaternion.getW();
+  cartesian_velocity_desired[4] = converted_quaternion.getX();
+  cartesian_velocity_desired[5] = converted_quaternion.getY();
+  cartesian_velocity_desired[6] = converted_quaternion.getZ();
+  if(cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0)
+  {
+      cartesian_velocity_desired[3] = 0;
+  }
+
+  if(cartesian_velocity_desired[4] != 0 || cartesian_velocity_desired[5] != 0 || cartesian_velocity_desired[6] != 0)
+  {
+    ik_.UpdateAxisConstraints(3, 1.0);      
+    ik_.UpdateAxisConstraints(4, 1.0);      
+    ik_.UpdateAxisConstraints(5, 1.0);      
+    ik_.UpdateAxisConstraints(6, 1.0);      
+  }
+  else if((cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0) &&
+          (cartesian_velocity_desired_prev[4] != 0 || cartesian_velocity_desired_prev[5] != 0 || cartesian_velocity_desired_prev[6] != 0))
+  {
+    ik_.UpdateAxisConstraints(3, 0.05);      
+    ik_.UpdateAxisConstraints(4, 0.05);      
+    ik_.UpdateAxisConstraints(5, 0.05);      
+    ik_.UpdateAxisConstraints(6, 0.05);   
+  }
+  
+  for(int i=0; i<7;i++)
+  {
+    if(i<3)
+    {
+      if(cartesian_velocity_desired[i] != 0)
+      {
+        ik_.UpdateAxisConstraints(i, 1.0);      
+      }
+      else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
+      {
+        ik_.UpdateAxisConstraints(i, 0.005);
+      }
+    }
+    cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
   } 
-
-
-
 }
 
 void CartesianController::gripperCB(const std_msgs::BoolPtr& msg)
