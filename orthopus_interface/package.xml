@@ -12,7 +12,8 @@
   <depend>qpoases_ros</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>actionlib</depend>
-
+  <depend>spacenav_node</depend>
+  <depend>joy</depend>
   <export>
   </export>
 </package>

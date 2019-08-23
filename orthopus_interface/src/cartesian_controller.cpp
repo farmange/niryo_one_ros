@@ -173,21 +173,21 @@ void CartesianController::dxDesCB(const geometry_msgs::TwistStampedPtr& msg)
       cartesian_velocity_desired[3] = 0;
   }
 
-  if(cartesian_velocity_desired[4] != 0 || cartesian_velocity_desired[5] != 0 || cartesian_velocity_desired[6] != 0)
-  {
-    ik_.UpdateAxisConstraints(3, 1.0);      
-    ik_.UpdateAxisConstraints(4, 1.0);      
-    ik_.UpdateAxisConstraints(5, 1.0);      
-    ik_.UpdateAxisConstraints(6, 1.0);      
-  }
-  else if((cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0) &&
-          (cartesian_velocity_desired_prev[4] != 0 || cartesian_velocity_desired_prev[5] != 0 || cartesian_velocity_desired_prev[6] != 0))
-  {
-    ik_.UpdateAxisConstraints(3, 0.05);      
-    ik_.UpdateAxisConstraints(4, 0.05);      
-    ik_.UpdateAxisConstraints(5, 0.05);      
-    ik_.UpdateAxisConstraints(6, 0.05);   
-  }
+//   if(cartesian_velocity_desired[4] != 0 || cartesian_velocity_desired[5] != 0 || cartesian_velocity_desired[6] != 0)
+//   {
+//     ik_.UpdateAxisConstraints(3, 1.0);      
+//     ik_.UpdateAxisConstraints(4, 1.0);      
+//     ik_.UpdateAxisConstraints(5, 1.0);      
+//     ik_.UpdateAxisConstraints(6, 1.0);      
+//   }
+//   else if((cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0) &&
+//           (cartesian_velocity_desired_prev[4] != 0 || cartesian_velocity_desired_prev[5] != 0 || cartesian_velocity_desired_prev[6] != 0))
+//   {
+//     ik_.UpdateAxisConstraints(3, 0.05);      
+//     ik_.UpdateAxisConstraints(4, 0.05);      
+//     ik_.UpdateAxisConstraints(5, 0.05);      
+//     ik_.UpdateAxisConstraints(6, 0.05);   
+//   }
   
   for(int i=0; i<7;i++)
   {

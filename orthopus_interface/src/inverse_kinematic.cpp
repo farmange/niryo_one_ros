@@ -160,6 +160,8 @@ void InverseKinematic::Init(sensor_msgs::JointState& current_joint_state, ros::P
       kinematic_state->getGlobalLinkTransform("hand_link");  // TODO Add configuration parameter
   tf::poseEigenToMsg(end_effector_state, current_pose);
   tf2::convert(current_pose.orientation , q_des);
+  tf2::convert(current_pose.orientation , q_new);
+  ROS_ERROR_STREAM("q_new  : \t[" << q_new.getW() << ", \t" << q_new.getX() << ", \t" << q_new.getY() << ", \t" << q_new.getZ() << "]");
 
   currentPosition(0, 0) = current_pose.position.x;
   currentPosition(1, 0) = current_pose.position.y;
@@ -277,16 +279,46 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   
   }
   
+//     gamma_weight(3,3) = 0.0;
+//     gamma_weight(4,4) = 0.0;
+//     gamma_weight(5,5) = 0.0;
+//     gamma_weight(6,6) = 0.0;
+    gamma_weight(0,0) = gamma_1;
+    gamma_weight(1,1) = gamma_2;
+    gamma_weight(2,2) = gamma_3;
+    gamma_weight(3,3) = gamma_3;
+    gamma_weight(4,4) = gamma_4;
+    gamma_weight(5,5) = gamma_5;
+    gamma_weight(6,6) = gamma_7;
   Matrix6d hessian = (jacobian.transpose() * alpha_weight * jacobian) + beta_weight +
                      (jacobian.transpose() * CALC_PERIOD * gamma_weight * CALC_PERIOD * jacobian);
   ROS_DEBUG_STREAM("hessian: \n" << hessian << "\n");
 
   
-  //desiredPosition = currentPosition + dx_des_vect * CALC_PERIOD;
-  desiredPosition(3,0) = q_des.getW();
-  desiredPosition(4,0) = q_des.getX();
-  desiredPosition(5,0) = q_des.getY();
-  desiredPosition(6,0) = q_des.getZ();
+  desiredPosition = currentPosition + dx_des_vect * CALC_PERIOD;
+//   desiredPosition(3,0) = q_des.getW();
+//   desiredPosition(4,0) = q_des.getX();
+//   desiredPosition(5,0) = q_des.getY();
+//   desiredPosition(6,0) = q_des.getZ();
+  ROS_ERROR_STREAM("q_des  : \t[" << q_des.getW() << ", \t" << q_des.getX() << ", \t" << q_des.getY() << ", \t" << q_des.getZ() << "]");
+
+  q_rot.setW(dx_des_vect[3]);
+  q_rot.setX(dx_des_vect[4]);
+  q_rot.setY(dx_des_vect[5]);
+  q_rot.setZ(dx_des_vect[6]);
+  ROS_ERROR_STREAM("q_rot  : \t[" << q_rot.getW() << ", \t" << q_rot.getX() << ", \t" << q_rot.getY() << ", \t" << q_rot.getZ() << "]");
+
+  q_new = q_new*q_rot;
+  q_new = q_new*0.5;
+  q_new = q_new*CALC_PERIOD;
+  q_new = q_new+q_des;
+  q_new.normalize();
+  ROS_ERROR_STREAM("q_new  : \t[" << q_new.getW() << ", \t" << q_new.getX() << ", \t" << q_new.getY() << ", \t" << q_new.getZ() << "]");
+
+  desiredPosition(3,0) = q_new.getW();
+  desiredPosition(4,0) = q_new.getX();
+  desiredPosition(5,0) = q_new.getY();
+  desiredPosition(6,0) = q_new.getZ();
   ROS_DEBUG_STREAM("desiredPosition: \n" << desiredPosition << "\n");
   
   Vector6d g = (-jacobian.transpose() * alpha_weight * dx_des_vect) +
@@ -317,7 +349,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
   A.bottomLeftCorner(3, 6) = jacobian.topLeftCorner(3, 6) * CALC_PERIOD;
 
-  
   double lbA[] = { (joints_limits_min[0] - local_joint_state.position[0]),
                    (joints_limits_min[1] - local_joint_state.position[1]),
                    (joints_limits_min[2] - local_joint_state.position[2]),

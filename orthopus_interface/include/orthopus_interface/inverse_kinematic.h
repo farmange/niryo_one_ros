@@ -103,6 +103,7 @@ private:
   
   tf2::Quaternion q_saved;
   tf2::Quaternion q_des;
+  tf2::Quaternion q_rot, q_new;
 
     
 };

@@ -10,7 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   qpoases_ros
   actionlib
-
+  spacenav_node
+  joy
 )
 find_package(Eigen3 REQUIRED)
 
@@ -44,13 +45,21 @@ add_executable(xbox_to_twist
 target_link_libraries(xbox_to_twist ${catkin_LIBRARIES})
 add_dependencies(xbox_to_twist ${catkin_EXPORTED_TARGETS})
 
-############ wrapper test
+############ xbox wrapper 
 add_executable(xbox_wrapper
   src/device_wrapper.cpp
   src/xbox_wrapper.cpp
 )
 target_link_libraries(xbox_wrapper ${catkin_LIBRARIES})
 add_dependencies(xbox_wrapper ${catkin_EXPORTED_TARGETS})
+
+############ spacenav wrapper
+add_executable(spacenav_wrapper
+  src/device_wrapper.cpp
+  src/spacenav_wrapper.cpp
+)
+target_link_libraries(spacenav_wrapper ${catkin_LIBRARIES})
+add_dependencies(spacenav_wrapper ${catkin_EXPORTED_TARGETS})
 
 
 ############ wrapper test
