@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   spacenav_node
   joy
+  tf2_geometry_msgs
+  rospy
 )
 find_package(Eigen3 REQUIRED)
 
