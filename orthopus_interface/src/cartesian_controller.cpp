@@ -46,15 +46,15 @@ CartesianController::CartesianController()
     cartesian_velocity_desired[i] = 0.0;
   }
 
-  ROS_INFO("Initialize robot position");
-  // initialize robot in zero position
-  while (ros::ok())
-  {
-    ros::spinOnce();
-    sendInitCommand();
-    ros::Duration(INIT_TIME + 1.0).sleep();
-    break;
-  }
+//   ROS_INFO("Initialize robot position");
+//   // initialize robot in zero position
+//   while (ros::ok())
+//   {
+//     ros::spinOnce();
+//     sendInitCommand();
+//     ros::Duration(INIT_TIME + 1.0).sleep();
+//     break;
+//   }
 
   ros::spinOnce();
   ik_ = new InverseKinematic(debug_pub_, debug_des_pub_);

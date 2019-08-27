@@ -4,6 +4,7 @@
     <arg name="xbox" default="false" />
     <arg name="spacenav" default="false" />
     <arg name="webapp" default="true" />
+    <arg name="host_ip" default="127.0.0.1" />
 
     <group if="$(arg joy_enabled)">
         <group if="$(arg xbox)">
@@ -22,7 +23,9 @@
             <node name="spacenav_wrapper" pkg="orthopus_interface" type="spacenav_wrapper" output="screen" respawn="false"/>
         </group>
         <group if="$(arg webapp)">
-            <node name="web_app_flask" pkg="orthopus_interface" type="web_app.py" output="screen" respawn="false"/>
+            <node name="web_app_flask" pkg="orthopus_interface" type="web_app.py" output="screen" respawn="false">
+                    <param name="host_ip" type="string" value="$(arg host_ip)" />
+            </node>
             <node name="web_app_wrapper" pkg="orthopus_interface" type="web_app_wrapper" output="screen" respawn="false"/>
         </group>
     </group>

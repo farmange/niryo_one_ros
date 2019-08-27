@@ -17,7 +17,7 @@ class OrthopusWebApp(threading.Thread):
       # The parameter *disable_signals* must be set if node is not initialized
       # in the main thread.
       rospy.init_node('orthopus_webapp', disable_signals=True)
-      
+
       self.niryo_api = NiryoOne()
 
       self._lock = threading.Lock()
@@ -70,10 +70,10 @@ class OrthopusWebApp(threading.Thread):
         return self.enabled
       
     def closeGripper(self):
-      self.niryo_api.close_gripper(11, 300)
+      self.niryo_api.close_gripper(12, 300)
             
     def openGripper(self):
-      self.niryo_api.open_gripper(11, 300)
+      self.niryo_api.open_gripper(12, 300)
 
           
 app = Flask(__name__)
@@ -293,11 +293,11 @@ def move():
         data = {"message":message, "error":str(e)}
         return jsonify(data)
       
-
 if __name__ == '__main__':
     print "RUN FLASK"
+    host_ip = rospy.get_param("~host_ip")
     app.run(
-      host="127.0.0.1", 
+      host=host_ip, 
       port=8080,
       debug=True
       )
