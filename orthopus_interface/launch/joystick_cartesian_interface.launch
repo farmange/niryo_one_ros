@@ -2,7 +2,8 @@
     <arg name="joy_enabled" default="true" />
     <arg name="joy_device" default="js0" />
     <arg name="xbox" default="false" />
-    <arg name="spacenav" default="true" />
+    <arg name="spacenav" default="false" />
+    <arg name="webapp" default="true" />
 
     <group if="$(arg joy_enabled)">
         <group if="$(arg xbox)">
@@ -11,15 +12,18 @@
             <param name="joy_node/autorepeat_rate" value="50" type="double"/>
             <param name="joy_node/dev" value="/dev/input/$(arg joy_device)" type="string"/>
             <node name="joy_node" pkg="joy" type="joy_node" output="screen" respawn="false" />
-            <node name="xbox_wrapper" pkg="orthopus_interface" type="xbox_wrapper" output="screen" />
-
+            <node name="xbox_wrapper" pkg="orthopus_interface" type="xbox_wrapper" output="screen" respawn="false"/>
         </group>
         <group if="$(arg spacenav)">
             <node name="spacenav_node" pkg="spacenav_node" type="spacenav_node" output="screen" respawn="false">
               <rosparam param="static_rot_deadband">0.5</rosparam>
               <rosparam param="static_trans_deadband">0.5</rosparam>
             </node>
-            <node name="spacenav_wrapper" pkg="orthopus_interface" type="spacenav_wrapper" output="screen" />
+            <node name="spacenav_wrapper" pkg="orthopus_interface" type="spacenav_wrapper" output="screen" respawn="false"/>
+        </group>
+        <group if="$(arg webapp)">
+            <node name="web_app_flask" pkg="orthopus_interface" type="web_app.py" output="screen" respawn="false"/>
+            <node name="web_app_wrapper" pkg="orthopus_interface" type="web_app_wrapper" output="screen" respawn="false"/>
         </group>
     </group>
     
@@ -51,9 +55,9 @@
         <param name="gamma_1" type="double" value="0.0" />
         <param name="gamma_2" type="double" value="0.0" />
         <param name="gamma_3" type="double" value="0.0" />
-        <param name="gamma_4" type="double" value="1000.0" />
-        <param name="gamma_5" type="double" value="1000.0" />
-        <param name="gamma_6" type="double" value="1000.0" />
-        <param name="gamma_7" type="double" value="1000.0" />
+        <param name="gamma_4" type="double" value="5000.0" />
+        <param name="gamma_5" type="double" value="5000.0" />
+        <param name="gamma_6" type="double" value="5000.0" />
+        <param name="gamma_7" type="double" value="5000.0" />
     </node>
 </launch>

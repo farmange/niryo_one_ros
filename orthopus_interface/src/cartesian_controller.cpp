@@ -3,9 +3,9 @@
 
 #include <tf2/LinearMath/Quaternion.h>
 
+#include <niryo_one_msgs/GetInt.h>
 
 #include "orthopus_interface/cartesian_controller.h"
-
 
 #define RATE 10
 #define TOOL_ID_GRIPPER_1 11
@@ -27,12 +27,18 @@ CartesianController::CartesianController()
   debug_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos", 1);
   debug_des_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos_des", 1);
 
+
+  ros::ServiceServer enable_service = n_.advertiseService("/niryo_one/joystick_interface/enable",
+                                  &CartesianController::enableCB, this);
+  
   tool_controller_.setToolId(TOOL_ID_GRIPPER_1);
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
   ROS_INFO("Received first joint msg.");
 
+  enable_joy_ = false;
+  
   // Initialize attributes
   for (int i = 0; i < 6; i++)
   {
@@ -51,41 +57,31 @@ CartesianController::CartesianController()
   }
 
   ros::spinOnce();
-  ik_.Init(current_joint_state, debug_pub_, debug_des_pub_);
+  ik_ = new InverseKinematic(debug_pub_, debug_des_pub_);
+  ik_->Init(current_joint_state);
 
   while (ros::ok())
   {
     ros::spinOnce();
+    if (enable_joy_)
+    {
+      ROS_INFO("=== Start IK computation...");
+      ik_->ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
+      ROS_INFO("    Done.");
 
-    ROS_INFO("=== Start IK computation...");
-    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
-    ROS_INFO("    Done.");
-
-    ROS_INFO("=== Send Niryo One commands...");
-    send6DofCommand();
-    tool_controller_.sendGripperCommand(gripper_state_);
-    ROS_INFO("    Done.");
-
+      ROS_INFO("=== Send Niryo One commands...");
+      send6DofCommand();
+      tool_controller_.sendGripperCommand(gripper_state_);
+      ROS_INFO("    Done.");
+    }
     loop_rate.sleep();
   }
 }
 
 void CartesianController::sendInitCommand()
 {
-  ROS_INFO("sendInitCommand");
-
   trajectory_msgs::JointTrajectory new_jt_traj;
 
-  //   new_jt_traj.header.stamp = ros::Time::now();
-  //   const std::vector<std::string> joint_names = { "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"
-  //   };
-  //   new_jt_traj.joint_names = joint_names;
-  //   trajectory_msgs::JointTrajectoryPoint point;
-  //   point.time_from_start = ros::Duration(INIT_TIME);
-  // //   const std::vector<double> positions = current_joint_state.position;
-  // //     point.time_from_start = ros::Duration(INIT_DURATION);
-  //     point.positions = current_joint_state.position;
-  //
   new_jt_traj.header.stamp = ros::Time::now();
   new_jt_traj.joint_names = current_joint_state.name;
   trajectory_msgs::JointTrajectoryPoint point;
@@ -97,34 +93,34 @@ void CartesianController::sendInitCommand()
     point.positions[i] = 0;
   }
 
-  //  point.positions.push_back(0.0);
-
   // Important : do not send velocity as cubic interpolation is done !
   // It should be better to handle that by proper velocity command (force velocity ramp on xbox controller)
   // point.velocities = current_joint_state.velocity;
   new_jt_traj.points.push_back(point);
-  ROS_INFO_STREAM("new_jt_traj=" << new_jt_traj);
   command_pub_.publish(new_jt_traj);
 };
 
 void CartesianController::send6DofCommand()
 {
-  trajectory_msgs::JointTrajectory new_jt_traj;
-  new_jt_traj.header.stamp = ros::Time::now();
-  new_jt_traj.joint_names = current_joint_state.name;
-
-  trajectory_msgs::JointTrajectoryPoint point;
-  point.time_from_start = ros::Duration(1.0 / RATE);
-  for (int i = 0; i < 6; i++)
+  if (enable_joy_)
   {
-    point.positions.push_back(joint_position_cmd[i]);
-  }
+    trajectory_msgs::JointTrajectory new_jt_traj;
+    new_jt_traj.header.stamp = ros::Time::now();
+    new_jt_traj.joint_names = current_joint_state.name;
 
-  // Important : do not send velocity as cubic interpolation is done !
-  // It should be better to handle that by proper velocity command (force velocity ramp on xbox controller)
-  // point.velocities = current_joint_state.velocity;
-  new_jt_traj.points.push_back(point);
-  command_pub_.publish(new_jt_traj);
+    trajectory_msgs::JointTrajectoryPoint point;
+    point.time_from_start = ros::Duration(1.0 / RATE);
+    for (int i = 0; i < 6; i++)
+    {
+      point.positions.push_back(joint_position_cmd[i]);
+    }
+
+    // Important : do not send velocity as cubic interpolation is done !
+    // It should be better to handle that by proper velocity command (force velocity ramp on xbox controller)
+    // point.velocities = current_joint_state.velocity;
+    new_jt_traj.points.push_back(point);
+    command_pub_.publish(new_jt_traj);
+  }
 };
 
 // Scale the incoming desired velocity
@@ -148,68 +144,112 @@ Vector6d CartesianController::scaleCartesianCommand(const geometry_msgs::TwistSt
 void CartesianController::jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
 {
   current_joint_state = *msg;
-  ROS_DEBUG_STREAM("current_joint_state: \n" << current_joint_state << "\n");
 }
 
 void CartesianController::dxDesCB(const geometry_msgs::TwistStampedPtr& msg)
 {
-  ROS_ERROR_STREAM("dxDesCB");
-
-  cartesian_velocity_desired[0] = msg->twist.linear.x;
-  cartesian_velocity_desired[1] = msg->twist.linear.y;
-  cartesian_velocity_desired[2] = msg->twist.linear.z;
-  
-
-
-  tf2::Quaternion converted_quaternion;
-  converted_quaternion.setRPY(msg->twist.angular.x, msg->twist.angular.y, msg->twist.angular.z);
-  
-  cartesian_velocity_desired[3] = converted_quaternion.getW();
-  cartesian_velocity_desired[4] = converted_quaternion.getX();
-  cartesian_velocity_desired[5] = converted_quaternion.getY();
-  cartesian_velocity_desired[6] = converted_quaternion.getZ();
-  if(cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0)
-  {
-      cartesian_velocity_desired[3] = 0;
-  }
-
-//   if(cartesian_velocity_desired[4] != 0 || cartesian_velocity_desired[5] != 0 || cartesian_velocity_desired[6] != 0)
-//   {
-//     ik_.UpdateAxisConstraints(3, 1.0);      
-//     ik_.UpdateAxisConstraints(4, 1.0);      
-//     ik_.UpdateAxisConstraints(5, 1.0);      
-//     ik_.UpdateAxisConstraints(6, 1.0);      
-//   }
-//   else if((cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0) &&
-//           (cartesian_velocity_desired_prev[4] != 0 || cartesian_velocity_desired_prev[5] != 0 || cartesian_velocity_desired_prev[6] != 0))
-//   {
-//     ik_.UpdateAxisConstraints(3, 0.05);      
-//     ik_.UpdateAxisConstraints(4, 0.05);      
-//     ik_.UpdateAxisConstraints(5, 0.05);      
-//     ik_.UpdateAxisConstraints(6, 0.05);   
-//   }
-  
+//   ROS_DEBUG_STREAM("dxDesCB");
   for(int i=0; i<7;i++)
   {
-    if(i<3)
+    cartesian_velocity_desired[i] = 0.0;
+  }
+  
+  if (enable_joy_)
+  {
+    cartesian_velocity_desired[0] = msg->twist.linear.x;
+    cartesian_velocity_desired[1] = msg->twist.linear.y;
+    cartesian_velocity_desired[2] = msg->twist.linear.z;
+
+    tf2::Quaternion converted_quaternion;
+    converted_quaternion.setRPY(msg->twist.angular.x, msg->twist.angular.y, msg->twist.angular.z);
+    
+    cartesian_velocity_desired[3] = converted_quaternion.getW();
+    cartesian_velocity_desired[4] = converted_quaternion.getX();
+    cartesian_velocity_desired[5] = converted_quaternion.getY();
+    cartesian_velocity_desired[6] = converted_quaternion.getZ();
+    if(cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0)
     {
-      if(cartesian_velocity_desired[i] != 0)
-      {
-        ik_.UpdateAxisConstraints(i, 1.0);      
-      }
-      else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
-      {
-        ik_.UpdateAxisConstraints(i, 0.005);
-      }
+        cartesian_velocity_desired[3] = 0;
     }
-    cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
-  } 
+    
+    for(int i=0; i<7;i++)
+    {
+      if(i<3)
+      {
+        if(cartesian_velocity_desired[i] != 0)
+        {
+          ik_->UpdateAxisConstraints(i, 1.0);      
+        }
+        else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
+        {
+          ik_->UpdateAxisConstraints(i, 0.005);
+        }
+      }
+      cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+    } 
+  }
 }
 
 void CartesianController::gripperCB(const std_msgs::BoolPtr& msg)
 {
-  gripper_state_ = msg->data;
+    gripper_state_ = msg->data;
 }
+
+bool CartesianController::enableCB(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res)
+{
+  std::string result_message = "";
+  int result = 0;
+  if (req.value == 1)
+  {
+    if (can_enable())
+    {
+      enable_joy();
+      result = 200;
+      result_message = "Cartesian control has been enabled";
+    }
+    else
+    {
+      result = 400;
+      result_message = "Wait for the end of command to enable the cartesian control";
+    }
+  }
+  else
+  {
+    disable_joy();
+    result = 200;
+    result_message = "Cartesian control has been disabled";
+  }
+  res.status = result;
+  res.message = result_message;
+  return true;
+}
+
+bool CartesianController::can_enable()
+{
+  ros::service::waitForService("/niryo_one/commander/is_active");
+  niryo_one_msgs::GetInt is_active;
+  ros::ServiceClient commander_active_client =
+      n_.serviceClient<niryo_one_msgs::GetInt>("/niryo_one/commander/is_active");
+  commander_active_client.call(is_active);
+  return (is_active.response.value == 0);
+}
+
+void CartesianController::enable_joy()
+{
+  ik_->Init(current_joint_state);
+  for(int i=0; i<7; i++)
+  {
+    joint_position_cmd[i] = current_joint_state.position[i];
+  }
+  enable_joy_ = true;
+}
+
+void CartesianController::disable_joy()
+{
+  // TODO handle current motion : wait the arm reach a stable state
+  enable_joy_ = false;
+}
+
 }
 
 using namespace cartesian_controller;

@@ -39,8 +39,8 @@ namespace cartesian_controller
 class InverseKinematic
 {
 public:
-  InverseKinematic();
-  void Init(sensor_msgs::JointState& current_joint_state, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
+  InverseKinematic(ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
+  void Init(sensor_msgs::JointState& current_joint_state);
 
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
                                double (&cartesian_velocity_desired)[7]);  // TODO should not use magic number
@@ -76,18 +76,6 @@ private:
   double theta[6];
 
   robot_state::JointModelGroup* joint_model_group;
-  double x_min;
-  double x_max;
-  double y_min;
-  double y_max;
-  double z_min;
-  double z_max;
-  double r_min;
-  double r_max;
-  double p_min;
-  double p_max;
-  double yaw_min;
-  double yaw_max;
 
   double x_des[7];
   double x_min_limit[7];

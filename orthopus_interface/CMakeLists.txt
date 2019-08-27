@@ -63,6 +63,13 @@ add_executable(spacenav_wrapper
 target_link_libraries(spacenav_wrapper ${catkin_LIBRARIES})
 add_dependencies(spacenav_wrapper ${catkin_EXPORTED_TARGETS})
 
+############ spacenav wrapper
+add_executable(web_app_wrapper
+  src/device_wrapper.cpp
+  src/web_app_wrapper.cpp
+)
+target_link_libraries(web_app_wrapper ${catkin_LIBRARIES})
+add_dependencies(web_app_wrapper ${catkin_EXPORTED_TARGETS})
 
 ############ wrapper test
 add_executable(cartesian_controller
