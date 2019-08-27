@@ -15,41 +15,9 @@
 <body>
     <div class="container">
         <h1>Bravo!</h1>
+        
         <h3>Start</h3>
         <a href=# id=calibrate><button type="button" class="btn btn-info">Calibrate</button></a>
-        <h3>Useful positions</h3>
-        <a href=# id=goto_rest_position><button type="button" class="btn btn-primary">Goto Home</button></a>
-        <a href=# id=goto_zero><button type="button" class="btn btn-primary">Goto Zero</button></a>
-        <h3>Learning mode</h3>
-        <a href=# id=activate_learning_mode><button type="button" class="btn btn-success">On</button></a>
-        <a href=# id=deactivate_learning_mode><button type="button" class="btn btn-danger">Off</button></a>
-        <h3>Video</h3>
-        <div>
-            <img src="http://192.168.1.139:8081/">
-        </div>
-        <h3>Movements</h3>
-        <form id="ajax_movements_form" action="" method="get">
-            <div class="form-group">
-                <label for="joint_1">Joint 1</label>
-                <input type="range" min="-3.05" max="3.05" step="0.01" value ="0.0" class="form-control-range" id="joint_1" name="joint_1">
-
-                <label for="joint_2">Joint 2</label>
-                <input type="range" min="-1.91" max="0.64" step="0.01" value ="0.0" class="form-control-range" id="joint_2" name="joint_2">
-
-                <label for="joint_3">Joint 3</label>
-                <input type="range" min="-1.39" max="1.57" step="0.01" value ="0.0" class="form-control-range" id="joint_3" name="joint_3">
-
-                <label for="joint_4">Joint 4</label>
-                <input type="range" min="-3.05" max="3.05" step="0.01" value ="0.0" class="form-control-range" id="joint_4" name="joint_4">
-
-                <label for="joint_5">Joint 5</label>
-                <input type="range" min="-1.74" max="1.91" step="0.01" value ="0.0" class="form-control-range" id="joint_5" name="joint_5">
-
-                <label for="joint_6">Joint 6</label>
-                <input type="range" min="-2.57" max="2.57" step="0.01" value ="0.0" class="form-control-range" id="joint_6" name="joint_6">
-            </div>
-            <a href=# id=ajax_movements_button><button type="button" class="btn btn-primary">Go</button></a>
-        </form>
         
         <h3>Gripper Control</h3>
         <a href=# id=gripper_open><button type="button" class="btn btn-success">Open</button></a>
@@ -96,8 +64,43 @@
           <div class="col col-xs-12">
             <a href=# id=linear_z_neg><button type="button" class="btn btn-primary">Z-</button></a>
           </div>
-        </div>      
+        </div>
         
+        <h3>Useful positions</h3>
+        <a href=# id=goto_rest_position><button type="button" class="btn btn-primary">Goto Home</button></a>
+        <a href=# id=goto_zero><button type="button" class="btn btn-primary">Goto Zero</button></a>
+        
+        <h3>Learning mode</h3>
+        <a href=# id=activate_learning_mode><button type="button" class="btn btn-success">On</button></a>
+        <a href=# id=deactivate_learning_mode><button type="button" class="btn btn-danger">Off</button></a>
+        
+        <h3>Video</h3>
+        <div>
+            <img src="http://192.168.1.139:8081/">
+        </div>
+        <h3>Movements</h3>
+        <form id="ajax_movements_form" action="" method="get">
+            <div class="form-group">
+                <label for="joint_1">Joint 1</label>
+                <input type="range" min="-3.05" max="3.05" step="0.01" value ="0.0" class="form-control-range" id="joint_1" name="joint_1">
+
+                <label for="joint_2">Joint 2</label>
+                <input type="range" min="-1.91" max="0.64" step="0.01" value ="0.0" class="form-control-range" id="joint_2" name="joint_2">
+
+                <label for="joint_3">Joint 3</label>
+                <input type="range" min="-1.39" max="1.57" step="0.01" value ="0.0" class="form-control-range" id="joint_3" name="joint_3">
+
+                <label for="joint_4">Joint 4</label>
+                <input type="range" min="-3.05" max="3.05" step="0.01" value ="0.0" class="form-control-range" id="joint_4" name="joint_4">
+
+                <label for="joint_5">Joint 5</label>
+                <input type="range" min="-1.74" max="1.91" step="0.01" value ="0.0" class="form-control-range" id="joint_5" name="joint_5">
+
+                <label for="joint_6">Joint 6</label>
+                <input type="range" min="-2.57" max="2.57" step="0.01" value ="0.0" class="form-control-range" id="joint_6" name="joint_6">
+            </div>
+            <a href=# id=ajax_movements_button><button type="button" class="btn btn-primary">Go</button></a>
+        </form>        
     </div>
 
     <!-- Optional JavaScript -->
