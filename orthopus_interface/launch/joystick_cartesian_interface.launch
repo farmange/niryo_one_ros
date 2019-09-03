@@ -25,7 +25,6 @@
         <group if="$(arg webapp)">
 
             <node name="web_app_wrapper" pkg="orthopus_interface" type="web_app_wrapper" output="screen" respawn="false"/>    
-            <node pkg="web_video_server" type="web_video_server" name="web_video_server" output="screen"/>
             <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen"/>
 
             <node pkg="nodelet" type="nodelet" name="libuvc_camera" args="load libuvc_camera/driver /nodelet_manager" output="screen">
@@ -40,6 +39,7 @@
               <param name="video_mode" value="mjpeg"/>
               <param name="frame_rate" value="20"/>
             </node>
+            <node pkg="web_video_server" type="web_video_server" name="web_video_server" output="screen"/>
           </group>
     </group>
     
