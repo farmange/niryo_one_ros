@@ -8,7 +8,7 @@
 #include "orthopus_interface/cartesian_controller.h"
 
 #define RATE 10
-#define TOOL_ID_GRIPPER_1 11
+#define TOOL_ID_GRIPPER_1 12
 #define INIT_TIME 2
 
 namespace cartesian_controller
