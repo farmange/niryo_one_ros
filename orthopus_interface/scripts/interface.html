@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!-- Required meta tags -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="icon" type="image/png" href="Logo_100x100px.png" />
+<title>ORTHOPUS WebApp</title>
+
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<!--
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+-->
+
+<script type="text/javascript" src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+<script type="text/javascript" src="http://static.robotwebtools.org/roslibjs/current/roslib.min.js"></script>
+<script src="http://yoannmoinet.github.io/nipplejs/javascripts/nipplejs.js"></script>
+<script type="text/javascript" src="javascript/orthopus_webui.js"></script>
+      
+</head>
+
+<body>
+    <div class="container">     
+        <nav class="navbar navbar-light bg-light">
+          <a class="navbar-brand" href="#"><h5>ORTHOPUS WebApp</h5></a>
+          <img src="Logo_Orthopus.png" height="80" alt="" class="d-inline-block align-top">
+        </nav>
+
+        <div class="custom-control custom-switch d-flex align-items-center">
+          <input type="checkbox" class="custom-control-input" id="enable_switch">
+          <label class="custom-control-label" for="enable_switch">Enable/Disable</label>
+          <div class="ml-auto">
+            <div id=enable_spinner_color class="text-danger">
+              <div id="enable_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="custom-control custom-switch d-flex align-items-center">
+          <input type="checkbox" class="custom-control-input" id="cartesian_switch">
+          <label class="custom-control-label" for="cartesian_switch">Cartesian Control</label>
+          <!--          
+          <div class="ml-auto">
+            <div id=cartesian_spinner_color class="text-danger">
+              <div id="cartesian_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+            </div>
+          </div>
+          -->
+        </div>
+        
+        <div class="row ">
+            <div class="col col-xs-12 justify-content-center d-flex">
+                <img src="" class="img-responsive p-1 bg-dark" alt="" id="video" height="150" />
+            </div>
+        </div>
+  
+        <!-- JOYSTICK -->
+        <div class="container">        
+          <div class="row justify-content-center">
+            <div class="col col-xs-12">
+                <div class="d-flex" id="YZ_joystick" style="height: 110px;"></div>
+            </div>
+            <div class="col col-xs-12">
+                <div class="d-flex" id="YX_joystick" style="height: 110px;"></div>
+            </div>
+            <div class="col col-xs-12 d-flex align-items-center justify-content-center">
+              <div class="btn-group-vertical btn-group-sm flex-fill " aria-label="Basic example">
+                <button class="btn btn-info" disabled>Gripper</button>
+                <button id="gripper_open" class="btn btn-primary">Open</button>
+                <button id="gripper_close" class="btn btn-primary">Close</button>
+              </div>
+            </div>
+
+            <div class="w-100"></div>
+
+            <div class="col col-xs-12">
+                <div class="d-flex" id="rotYZ_joystick" style="height: 110px;"></div>
+            </div>
+            <div class="col col-xs-12">
+                <div class="d-flex" id="rotYX_joystick" style="height: 110px;"></div>
+            </div>
+            <div class="col col-xs-12 d-flex align-items-center justify-content-center">
+              <div class="btn-group-vertical btn-group-sm flex-fill ">
+                <button class="btn btn-info" disabled>Poses</button>
+                <button id="goto_rest" class="btn btn-primary">Rest</button>
+                <button id="goto_home" class="btn btn-primary">Home</button>
+              </div>  
+            </div>    
+          </div>
+        </div>
+         
+    </div>
+</body>
+</html>

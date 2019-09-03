@@ -16,6 +16,8 @@
   <depend>spacenav_node</depend>
   <depend>joy</depend>
   <depend>tf2_geometry_msgs</depend>
+  <depend>web_video_server</depend>
+  <depend>libuvc_camera</depend>
   <export>
   </export>
 </package>

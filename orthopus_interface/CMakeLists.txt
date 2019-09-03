@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   joy
   tf2_geometry_msgs
   rospy
+  web_video_server
+  libuvc_camera
 )
 find_package(Eigen3 REQUIRED)
 

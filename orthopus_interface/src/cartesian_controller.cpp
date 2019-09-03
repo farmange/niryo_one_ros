@@ -24,9 +24,10 @@ CartesianController::CartesianController()
 
   command_pub_ = n_.advertise<trajectory_msgs::JointTrajectory>("/niryo_one_follow_joint_trajectory_controller/command",
                                                                 1);  // TODO check optimal queue size
+  
+  joystick_enabled_pub_ = n_.advertise<std_msgs::Bool>("/niryo_one/joystick_interface/is_enabled",1); 
   debug_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos", 1);
   debug_des_pub_ = n_.advertise<geometry_msgs::Pose>("/debug_cartesian_pos_des", 1);
-
 
   ros::ServiceServer enable_service = n_.advertiseService("/niryo_one/joystick_interface/enable",
                                   &CartesianController::enableCB, this);
@@ -74,6 +75,9 @@ CartesianController::CartesianController()
       tool_controller_.sendGripperCommand(gripper_state_);
       ROS_INFO("    Done.");
     }
+    std_msgs::Bool joystick_enable_msg;
+    joystick_enable_msg.data = enable_joy_;
+    joystick_enabled_pub_.publish(joystick_enable_msg);
     loop_rate.sleep();
   }
 }
@@ -242,12 +246,15 @@ void CartesianController::enable_joy()
     joint_position_cmd[i] = current_joint_state.position[i];
   }
   enable_joy_ = true;
+  ROS_INFO("Activate cartesian control : %d", 1);
 }
 
 void CartesianController::disable_joy()
 {
   // TODO handle current motion : wait the arm reach a stable state
   enable_joy_ = false;
+  ROS_INFO("Activate cartesian control : %d", 0);
+
 }
 
 }

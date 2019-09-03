@@ -44,6 +44,7 @@ private:
 
   ros::NodeHandle n_;
   ros::Publisher command_pub_;
+  ros::Publisher joystick_enabled_pub_;
   ros::Publisher debug_pub_;
   ros::Publisher debug_des_pub_;
   ros::Subscriber joints_sub_;
