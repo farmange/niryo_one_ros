@@ -58,8 +58,8 @@ CartesianController::CartesianController()
 //   }
 
   ros::spinOnce();
-  ik_ = new InverseKinematic(debug_pub_, debug_des_pub_);
-  ik_->Init(current_joint_state);
+  ik_.Init(debug_pub_, debug_des_pub_);
+  ik_.Reset(current_joint_state);
 
   while (ros::ok())
   {
@@ -67,7 +67,7 @@ CartesianController::CartesianController()
     if (enable_joy_)
     {
       ROS_INFO("=== Start IK computation...");
-      ik_->ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
+      ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
       ROS_INFO("    Done.");
 
       ROS_INFO("=== Send Niryo One commands...");
@@ -182,11 +182,11 @@ void CartesianController::dxDesCB(const geometry_msgs::TwistStampedPtr& msg)
       {
         if(cartesian_velocity_desired[i] != 0)
         {
-          ik_->UpdateAxisConstraints(i, 1.0);      
+          ik_.UpdateAxisConstraints(i, 1.0);      
         }
         else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
         {
-          ik_->UpdateAxisConstraints(i, 0.005);
+          ik_.UpdateAxisConstraints(i, 0.005);
         }
       }
       cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
@@ -240,7 +240,7 @@ bool CartesianController::can_enable()
 
 void CartesianController::enable_joy()
 {
-  ik_->Init(current_joint_state);
+  ik_.Reset(current_joint_state);
   for(int i=0; i<7; i++)
   {
     joint_position_cmd[i] = current_joint_state.position[i];

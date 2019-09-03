@@ -51,7 +51,7 @@ private:
   ros::Subscriber dx_des_sub_;
   ros::Subscriber gripper_sub_;
 
-  InverseKinematic* ik_;
+  InverseKinematic ik_;
   ToolController tool_controller_;
 
   double joint_position_cmd[6];

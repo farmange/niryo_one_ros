@@ -39,8 +39,9 @@ namespace cartesian_controller
 class InverseKinematic
 {
 public:
-  InverseKinematic(ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
-  void Init(sensor_msgs::JointState& current_joint_state);
+  InverseKinematic();
+  void Init(ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
+  void Reset(sensor_msgs::JointState& current_joint_state);
 
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
                                double (&cartesian_velocity_desired)[7]);  // TODO should not use magic number

@@ -10,7 +10,7 @@ static const double CALC_PERIOD = 1.0 / RATE;
 
 namespace cartesian_controller
 {
-InverseKinematic::InverseKinematic(ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_)
+InverseKinematic::InverseKinematic()
 {
   ros::param::get("~alpha_1", alpha_1);
   ros::param::get("~alpha_2", alpha_2);
@@ -45,9 +45,6 @@ InverseKinematic::InverseKinematic(ros::Publisher &debug_pub_, ros::Publisher &d
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j5/max", joints_limits_max[4]);
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/min", joints_limits_min[5]);
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/max", joints_limits_max[5]);
-
-  debug_pos_pub_ = debug_pub_;
-  debug_pos_des_pub_ = debug_des_pub_;
   
   x_des[0] = 0.2379;
   x_des[1] = 0.0;
@@ -118,11 +115,14 @@ InverseKinematic::InverseKinematic(ros::Publisher &debug_pub_, ros::Publisher &d
   IK->setOptions(options);
 }
 
-void InverseKinematic::Init(sensor_msgs::JointState& current_joint_state)
+void InverseKinematic::Init(ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_)
 {
-  ROS_ERROR_STREAM("InverseKinematic::Init");
-  ROS_ERROR_STREAM("current_joint_state  : \n" << current_joint_state);
- 
+  debug_pos_pub_ = debug_pub_;
+  debug_pos_des_pub_ = debug_des_pub_;
+}
+
+void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
+{ 
   kinematic_state->setVariableValues(current_joint_state);
 
   const Eigen::Affine3d& end_effector_state =

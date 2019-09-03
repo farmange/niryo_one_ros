@@ -368,25 +368,16 @@ cmd_vel_pub = new ROSLIB.Topic({
       messageType : 'sensor_msgs/Joy'
     });
 
- 
   // Construct joystick objects 
   // ----------------------
   var yz_joy = Joystick($('#YZ_joystick')[0], '#0066ff', Y_AXIS, true, Z_AXIS, false);
   var yx_joy = Joystick($('#YX_joystick')[0], '#0066ff', Y_AXIS, true, X_AXIS, false);
   var rot_yz_joy = Joystick($('#rotYZ_joystick')[0], '#0066ff', ROTY_AXIS, false, ROTZ_AXIS, false);
   var rot_yx_joy = Joystick($('#rotYX_joystick')[0], '#0066ff', ROTY_AXIS, false, ROTX_AXIS, false);
-  
-  // get handle for video placeholder
-  video = document.getElementById('video');
+
   // Populate video source 
-//   $('#video')[0].src = "http://" + robot_IP + ":8080/stream_viewer?topic=/image_raw";
   $('#video')[0].src = "http://" + robot_IP + ":8080/stream?topic=/image_raw";
-//   video.onload = function () {
-//       // joystick and keyboard controls will be available only when video is correctly loaded
-//       createJoystick();
-//       initTeleopKeyboard();
-//   };
-    
+
   // Setup main loop timer
   // ----------------------
   mainTimer = setInterval(function(){mainLoop();}, 100);
