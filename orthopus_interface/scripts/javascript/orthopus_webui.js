@@ -155,18 +155,21 @@ function SetLearningMode(state) {
       + result.message);
   });
 }
+var ACTION_NONE         =0; 
+var ACTION_CARTESIAN    =1;
+var ACTION_GOTO_HOME    =2;
+var ACTION_GOTO_REST    =3;
 
 function SetJoystickEnable(state) {
-  console.log('SetJoystickEnable :  ' + state);
-    
-  var i = state ? 1 : 0;
+  console.log('SetJoystickEnable');
+  
   var request = new ROSLIB.ServiceRequest({
-    value : i
+    value : ACTION_CARTESIAN
   });
   
   var joystick_enable_srv = new ROSLIB.Service({
     ros : ros,
-    name : '/niryo_one/joystick_interface/enable',
+    name : '/niryo_one/orthopus_interface/action',
     serviceType : 'niryo_one_msgs/SetInt'
   });
   joystick_enable_srv.callService(request, function(result) {
@@ -179,111 +182,177 @@ function SetJoystickEnable(state) {
   });
 }
 
-function SetEnable(state) {
-  if(state == true)
-  {
-    if(hardware_status.calibration_needed == 1)
-    {
-      console.debug('You need to calibrate the robot !');
-      return false;
-    }
-  }  
-  
-  SetLearningMode(!state);
-  SetJoystickEnable(state);
-  return state;    
-}
 
 function GripperOpen() {
-  GripperAction(GRIPPER_2, OPEN_GRIPPER)
+  console.log('GripperOpen');
+
+  var request = new ROSLIB.ServiceRequest({
+    id : GRIPPER_2,
+    open_position : 640,
+    open_speed : 300,
+    open_hold_torque : 128
+  });
+  
+  var open_gripper_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/tools/open_gripper',
+    serviceType : 'niryo_one_msgs/OpenGripper'
+  });
+  open_gripper_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+      + open_gripper_srv.name
+      + ': '
+      + result.state
+    );
+  });
+//   GripperAction(GRIPPER_2, OPEN_GRIPPER)
 }
 
 function GripperClose() {
-  GripperAction(GRIPPER_2, CLOSE_GRIPPER)
+  console.log('GripperClose');
+
+  var request = new ROSLIB.ServiceRequest({
+    id : GRIPPER_2,
+    close_position : 400,
+    close_speed : 300,
+    close_hold_torque : 128,
+    close_max_torque : 1023
+  });
+  
+  var open_gripper_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/tools/close_gripper',
+    serviceType : 'niryo_one_msgs/CloseGripper'
+  });
+  open_gripper_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+      + open_gripper_srv.name
+      + ': '
+      + result.state
+    );
+  });
+
+//   GripperAction(GRIPPER_2, CLOSE_GRIPPER)
 }
 
 function GripperAction(id, action) {
-  console.log('Gripper : ' + ((action==1)?"Open":((action==2)?"Close":"Unknown action")));
-  
-  SetJoystickEnable(false);
-      
-  var robotActionClient = new ROSLIB.ActionClient({
-    ros : ros,
-    serverName : '/niryo_one/commander/robot_action',
-    actionName : 'niryo_one_msgs/RobotMoveAction'
-  });
-
-  var goal = new ROSLIB.Goal({
-    actionClient : robotActionClient,
-    goalMessage : {
-      cmd : {
-        cmd_type : CMD_TOOL,
-        tool_cmd : {
-          tool_id : id,
-          cmd_type : action,
-          gripper_open_speed : GRIPPER_SPEED,
-        }
-      }
-    }
-  });
-
-  goal.on('feedback', function(feedback) {
-    console.log('Feedback: ' + feedback.state);
-  });
-
-  goal.on('result', function(result) {
-    console.log('Final Result: ' + result.message);
-  });
-  
-  goal.send();
+//   console.log('Gripper : ' + ((action==1)?"Open":((action==2)?"Close":"Unknown action")));
+//   
+//   SetJoystickEnable(false);
+//       
+//   var robotActionClient = new ROSLIB.ActionClient({
+//     ros : ros,
+//     serverName : '/niryo_one/commander/robot_action',
+//     actionName : 'niryo_one_msgs/RobotMoveAction'
+//   });
+// 
+//   var goal = new ROSLIB.Goal({
+//     actionClient : robotActionClient,
+//     goalMessage : {
+//       cmd : {
+//         cmd_type : CMD_TOOL,
+//         tool_cmd : {
+//           tool_id : id,
+//           cmd_type : action,
+//           gripper_open_speed : GRIPPER_SPEED,
+//         }
+//       }
+//     }
+//   });
+// 
+//   goal.on('feedback', function(feedback) {
+//     console.log('Feedback: ' + feedback.state);
+//   });
+// 
+//   goal.on('result', function(result) {
+//     console.log('Final Result: ' + result.message);
+//   });
+//   
+//   goal.send();
 }
 
 function GotoHome() {
-  Goto("Home");
+  console.log('GotoHome');
+  
+  var request = new ROSLIB.ServiceRequest({
+    value : ACTION_GOTO_HOME
+  });
+  
+  var joystick_enable_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/orthopus_interface/action',
+    serviceType : 'niryo_one_msgs/SetInt'
+  });
+  joystick_enable_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+      + joystick_enable_srv.name
+      + ': '
+      + result.status 
+      + ', '
+      + result.message);
+  });
 }
 
 function GotoRest() {
-  Goto("Rest");
+  console.log('GotoRest');
+  
+  var request = new ROSLIB.ServiceRequest({
+    value : ACTION_GOTO_REST
+  });
+  
+  var joystick_enable_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/orthopus_interface/action',
+    serviceType : 'niryo_one_msgs/SetInt'
+  });
+  joystick_enable_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+      + joystick_enable_srv.name
+      + ': '
+      + result.status 
+      + ', '
+      + result.message);
+  });
+  
 }
 
 function Goto(positionName) {
-  console.log('Got to ' + positionName);
-  
-  SetJoystickEnable(false);
-  
-  joints_positions = position_map.get(positionName);
-    
-  var robotActionClient = new ROSLIB.ActionClient({
-    ros : ros,
-    serverName : '/niryo_one/commander/robot_action',
-    actionName : 'niryo_one_msgs/RobotMoveAction'
-  });
-
-  var goal = new ROSLIB.Goal({
-    actionClient : robotActionClient,
-    goalMessage : {
-      cmd : {
-        cmd_type : CMD_JOINTS,
-        joints : joints_positions
-      }
-    }
-  });
-
-  goal.on('feedback', function(feedback) {
-    console.log('Feedback: ' + feedback.state);
-  });
-
-  goal.on('result', function(result) {
-    console.log('Final Result: ' + result.message);
-    GotoPoseEnd();
-  });
-  
-  goal.send();
+//   console.log('Got to ' + positionName);
+//   
+//   SetJoystickEnable(false);
+//   
+//   joints_positions = position_map.get(positionName);
+//     
+//   var robotActionClient = new ROSLIB.ActionClient({
+//     ros : ros,
+//     serverName : '/niryo_one/commander/robot_action',
+//     actionName : 'niryo_one_msgs/RobotMoveAction'
+//   });
+// 
+//   var goal = new ROSLIB.Goal({
+//     actionClient : robotActionClient,
+//     goalMessage : {
+//       cmd : {
+//         cmd_type : CMD_JOINTS,
+//         joints : joints_positions
+//       }
+//     }
+//   });
+// 
+//   goal.on('feedback', function(feedback) {
+//     console.log('Feedback: ' + feedback.state);
+//   });
+// 
+//   goal.on('result', function(result) {
+//     console.log('Final Result: ' + result.message);
+//     GotoPoseEnd();
+//   });
+//   
+//   goal.send();
 }
 
 function GotoPoseEnd() {
-  // restore joystick enable state
-//   SetJoystickEnable(true);
+
 }
 
 window.onload = function () {

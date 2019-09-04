@@ -67,7 +67,7 @@ void WebAppWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   cartesian_vel.twist.linear.y = velocity_factor_ * msg->axes[JOY_AXIS_HORIZONTAL_LEFT];
   // Up/Down Axis of the left stick
   cartesian_vel.twist.linear.z = velocity_factor_ * msg->axes[JOY_AXIS_VERTICAL_LEFT];
-  
+
   // Up/Down Axis of the cross
   cartesian_vel.twist.angular.x = velocity_factor_ * msg->axes[JOY_CROSS_VERTICAL];
   // Left/Right Axis of the cross
@@ -75,7 +75,6 @@ void WebAppWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   // Left/Right Axis of the right stick
   cartesian_vel.twist.angular.z = velocity_factor_ * msg->axes[JOY_AXIS_HORIZONTAL_RIGHT];
 
-  
   std_msgs::Int8 cartesian_mode;
   cartesian_mode.data = cartesian_mode_;
   cartesian_cmd_pub_.publish(cartesian_vel);
@@ -97,7 +96,7 @@ void WebAppWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
 }
 
 void WebAppWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const int button_id,
-                                  ros::Time& debounce_timer_ptr, int& button_value_ptr)
+                                    ros::Time& debounce_timer_ptr, int& button_value_ptr)
 {
   if (msg->buttons[button_id])
   {

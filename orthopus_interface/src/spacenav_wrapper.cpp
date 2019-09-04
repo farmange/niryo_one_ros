@@ -3,7 +3,6 @@
 
 #include "orthopus_interface/spacenav_wrapper.h"
 
-
 #define JOY_BUTTON_LEFT 0
 #define JOY_BUTTON_RIGHT 1
 
@@ -33,9 +32,9 @@ void SpacenavWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
 {
   processButtons(msg);
   updateGripperCmd();
-//   updateVelocityFactor();
-//   updateLearningMode();
-//   updateCartesianMode();
+  //   updateVelocityFactor();
+  //   updateLearningMode();
+  //   updateCartesianMode();
 
   // Cartesian control with the axes
   geometry_msgs::TwistStamped cartesian_vel;
@@ -44,12 +43,11 @@ void SpacenavWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   cartesian_vel.twist.linear.x = velocity_factor_ * msg->axes[0];
   cartesian_vel.twist.linear.y = velocity_factor_ * msg->axes[1];
   cartesian_vel.twist.linear.z = velocity_factor_ * msg->axes[2];
-  
-//   cartesian_vel.twist.angular.x = velocity_factor_ * msg->axes[3];
-//   cartesian_vel.twist.angular.y = velocity_factor_ * msg->axes[4];
-//   cartesian_vel.twist.angular.z = velocity_factor_ * msg->axes[5];
 
-  
+  //   cartesian_vel.twist.angular.x = velocity_factor_ * msg->axes[3];
+  //   cartesian_vel.twist.angular.y = velocity_factor_ * msg->axes[4];
+  //   cartesian_vel.twist.angular.z = velocity_factor_ * msg->axes[5];
+
   std_msgs::Int8 cartesian_mode;
   cartesian_mode.data = cartesian_mode_;
   cartesian_cmd_pub_.publish(cartesian_vel);
@@ -61,13 +59,13 @@ void SpacenavWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
 {
   button_left_ = 0;
   button_right_ = 0;
-  
+
   debounceButtons(msg, JOY_BUTTON_LEFT, debounce_button_left_, button_left_);
   debounceButtons(msg, JOY_BUTTON_RIGHT, debounce_button_right_, button_right_);
 }
 
 void SpacenavWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const int button_id,
-                                  ros::Time& debounce_timer_ptr, int& button_value_ptr)
+                                      ros::Time& debounce_timer_ptr, int& button_value_ptr)
 {
   if (msg->buttons[button_id])
   {
