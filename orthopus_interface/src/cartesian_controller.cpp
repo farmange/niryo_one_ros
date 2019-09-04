@@ -129,6 +129,10 @@ void CartesianController::updateFsm()
                fsm_prev_state == FsmState::GotoHome)  // TODO temporary hack to prevent go to cartesian if not in home
       {
         ik_.Reset(current_joint_state);
+        for (int i = 0; i < 7; i++)
+        {
+          joint_position_cmd[i] = current_joint_state.position[i];
+        }
         fsm_state = FsmState::CartesianMode;
       }
     }

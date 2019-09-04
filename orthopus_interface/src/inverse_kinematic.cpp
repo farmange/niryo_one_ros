@@ -151,6 +151,8 @@ void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
   UpdateAxisConstraints(4, 0.05);
   UpdateAxisConstraints(5, 0.05);
   UpdateAxisConstraints(6, 0.05);
+  
+  start_flag = true; // reinit QP
 }
 
 void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[6],
@@ -416,7 +418,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   else
   {
     ROS_ERROR_STREAM("qpOASES : Failed !!!");
-    exit(0);
+//     exit(0);
   }
 
   ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1]
