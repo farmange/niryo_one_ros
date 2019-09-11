@@ -92,9 +92,13 @@
    {
      robot_state::RobotState start_state(*move_group_.getCurrentState());
      geometry_msgs::Pose current_pose = move_group_.getCurrentPose().pose;
-     if(req.cmd.cmd_type == 2)
+     if(req.cmd.cmd_type == 666)
      {
-      move_group_.setJointValueTarget(req.cmd.joints);
+       move_group_.stop();
+     }
+     else if(req.cmd.cmd_type == 2)
+     {
+       move_group_.setJointValueTarget(req.cmd.joints);
      }
      else
      {

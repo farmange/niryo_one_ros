@@ -137,6 +137,16 @@ void CartesianController::updateFsm()
         {
           joint_position_cmd[i] = current_joint_state.position[i];
         }
+        ros::service::waitForService("/orthopus_interface/move_groupe_node/move"); 
+        niryo_one_msgs::RobotMove robot_move_msg;
+        robot_move_msg.request.cmd.cmd_type = 666; //stop
+        ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+        move_group_client.call(robot_move_msg);
+        ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+//         if(robot_move_msg.response.status == 8000)
+//         {
+//           planning_pending_ = true;
+//         }
         fsm_state = FsmState::CartesianMode;
       }
     }
