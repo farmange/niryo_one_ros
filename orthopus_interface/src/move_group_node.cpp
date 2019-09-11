@@ -13,11 +13,13 @@
    MoveGroupNode::MoveGroupNode() : spinner_(4), move_group_("arm")
    {
      ROS_DEBUG_STREAM("MoveGroupNode constructor");
+     ros::Rate loop_rate = ros::Rate(10);
+     
      initializeSubscribers();
      initializePublishers();
      initializeServices();
      initializeActions();
-     
+    
      state_ = 0;
 
      // Wait for initial messages
@@ -42,11 +44,18 @@
       
       if(state_cpy == 1)
       {
+        ROS_ERROR_STREAM("===> Start move group ");
+        
         move_group_.move();
+        ROS_ERROR_STREAM("    Done ");
+        
       }
       else if(state_cpy == 2)
       {
+        ROS_ERROR_STREAM("===> Stop move group ");
+        
         move_group_.stop();
+        ROS_ERROR_STREAM("    Done ");
       }
       state_cpy = 0;
       
@@ -55,7 +64,7 @@
       state_ = state_cpy;
       state_mutex_.unlock();
       
-      ros::Duration(0.1).sleep();
+      loop_rate.sleep();
     }
      
      ROS_ERROR_STREAM("Wait for shutdown....");
