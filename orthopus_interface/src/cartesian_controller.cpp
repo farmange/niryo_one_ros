@@ -117,6 +117,7 @@ void CartesianController::updateFsm()
       else if (action_requested == FsmAction::GotoRest)
       {
         fsm_state = FsmState::GotoRest;
+        gotoRestState();
       }
       else if (action_requested == FsmAction::GotoDrink)
       {
@@ -143,10 +144,10 @@ void CartesianController::updateFsm()
         ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
         move_group_client.call(robot_move_msg);
         ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-//         if(robot_move_msg.response.status == 8000)
-//         {
-//           planning_pending_ = true;
-//         }
+        if(robot_move_msg.response.status == 8000)
+        {
+          planning_pending_ = true;
+        }
         fsm_state = FsmState::CartesianMode;
       }
     }
@@ -176,7 +177,18 @@ void CartesianController::runFsm()
   
   if (fsm_state == FsmState::CartesianMode)
   {
-    cartesianState();
+    if(planning_pending_ == true)
+    {
+      ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state");
+      niryo_one_msgs::GetInt state_msg;
+      ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
+      get_state_client.call(state_msg);
+      planning_pending_ = (state_msg.response.value == 0)?false:true;
+    }
+    else
+    {
+      cartesianState();
+    }
   }  
   else if (fsm_state == FsmState::GotoBackDrink || fsm_state == FsmState::GotoDrink || fsm_state == FsmState::GotoRest || fsm_state == FsmState::GotoHome)
   {
