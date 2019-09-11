@@ -155,10 +155,12 @@ function SetLearningMode(state) {
       + result.message);
   });
 }
-var ACTION_NONE         =0; 
-var ACTION_CARTESIAN    =1;
-var ACTION_GOTO_HOME    =2;
-var ACTION_GOTO_REST    =3;
+var ACTION_NONE             = 0; 
+var ACTION_CARTESIAN        = 1;
+var ACTION_GOTO_HOME        = 2;
+var ACTION_GOTO_REST        = 3;
+var ACTION_GOTO_DRINK       = 4;
+var ACTION_GOTO_BACK_DRINK  = 5;
 
 function SetJoystickEnable(state) {
   console.log('SetJoystickEnable');
@@ -278,14 +280,14 @@ function GotoHome() {
     value : ACTION_GOTO_HOME
   });
   
-  var joystick_enable_srv = new ROSLIB.Service({
+  var goto_srv = new ROSLIB.Service({
     ros : ros,
     name : '/niryo_one/orthopus_interface/action',
     serviceType : 'niryo_one_msgs/SetInt'
   });
-  joystick_enable_srv.callService(request, function(result) {
+  goto_srv.callService(request, function(result) {
     console.log('Result for service call on '
-      + joystick_enable_srv.name
+      + goto_srv.name
       + ': '
       + result.status 
       + ', '
@@ -300,20 +302,63 @@ function GotoRest() {
     value : ACTION_GOTO_REST
   });
   
-  var joystick_enable_srv = new ROSLIB.Service({
+  var goto_srv = new ROSLIB.Service({
     ros : ros,
     name : '/niryo_one/orthopus_interface/action',
     serviceType : 'niryo_one_msgs/SetInt'
   });
-  joystick_enable_srv.callService(request, function(result) {
+  goto_srv.callService(request, function(result) {
     console.log('Result for service call on '
-      + joystick_enable_srv.name
+      + goto_srv.name
       + ': '
       + result.status 
       + ', '
       + result.message);
   });
+}
+
+function GotoDrink() {
+  console.log('GotoDrink');
   
+  var request = new ROSLIB.ServiceRequest({
+    value : ACTION_GOTO_DRINK
+  });
+  
+  var goto_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/orthopus_interface/action',
+    serviceType : 'niryo_one_msgs/SetInt'
+  });
+  goto_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+    + goto_srv.name
+    + ': '
+    + result.status 
+    + ', '
+    + result.message);
+  });
+}
+
+function GotoBackDrink() {
+  console.log('GotoBackDrink');
+  
+  var request = new ROSLIB.ServiceRequest({
+    value : ACTION_GOTO_BACK_DRINK
+  });
+  
+  var goto_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/orthopus_interface/action',
+    serviceType : 'niryo_one_msgs/SetInt'
+  });
+  goto_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+    + goto_srv.name
+    + ': '
+    + result.status 
+    + ', '
+    + result.message);
+  });
 }
 
 function Goto(positionName) {
@@ -471,6 +516,14 @@ $(function() {
     $('#goto_rest')
         .click(function() {
             GotoRest();
+        });
+    $('#goto_drink')
+        .click(function() {
+          GotoDrink();
+        });
+    $('#goto_back_drink')
+        .click(function() {
+          GotoBackDrink();
         });
     $('#gripper_open')
         .click(function() {

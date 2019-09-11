@@ -73,11 +73,20 @@ add_executable(web_app_wrapper
 target_link_libraries(web_app_wrapper ${catkin_LIBRARIES})
 add_dependencies(web_app_wrapper ${catkin_EXPORTED_TARGETS})
 
-############ wrapper test
+############ cartesian controller
 add_executable(cartesian_controller
   src/inverse_kinematic.cpp
   src/tool_controller.cpp
+  src/pose_manager.cpp
+  src/robot_manager.cpp
   src/cartesian_controller.cpp
 )
 target_link_libraries(cartesian_controller ${catkin_LIBRARIES})
 add_dependencies(cartesian_controller ${catkin_EXPORTED_TARGETS})
+
+############ move group node
+add_executable(move_group_node
+  src/move_group_node.cpp
+)
+target_link_libraries(move_group_node ${catkin_LIBRARIES})
+add_dependencies(move_group_node ${catkin_EXPORTED_TARGETS})

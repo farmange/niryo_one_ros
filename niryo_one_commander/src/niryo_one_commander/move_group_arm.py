@@ -19,6 +19,7 @@
 
 import rospy
 import moveit_commander
+from moveit_msgs.msg import Constraints, OrientationConstraint, PositionConstraint
 
 
 class MoveGroupArm: 
@@ -79,6 +80,9 @@ class MoveGroupArm:
         while trajectory_found_but_not_correct:
             plan = self.arm.plan()
             plan_counter += 1
+            trajectory_found_but_not_correct = False
+            next_plan = plan
+            return(next_plan)
 
             if not plan.joint_trajectory.points:
                 return None 
@@ -131,6 +135,38 @@ class MoveGroupArm:
         self.arm.stop()
 
     def set_joint_value_target(self, joint_array):
+        #############################
+        #rospy.logwarn("set_pose_quat_target")
+
+        ## Create a contraints list and give it a name
+        #constraints = Constraints()
+        #constraints.name = "Keep gripper horizontal"
+        #start_pose = self.arm.get_current_pose(self.end_effector_link)
+        #rospy.logwarn("start_pose:")
+        #rospy.logwarn(start_pose)
+        #rospy.logwarn("pose:")
+        #rospy.logwarn(pose)
+        ## Create an orientation constraint for gripper
+        #orientation_constraint = OrientationConstraint()
+        #orientation_constraint.header = start_pose.header
+        #orientation_constraint.link_name = self.end_effector_link
+        #orientation_constraint.orientation.x = start_pose.pose.orientation.x
+        #orientation_constraint.orientation.y = start_pose.pose.orientation.y
+        #orientation_constraint.orientation.z = start_pose.pose.orientation.z
+        #orientation_constraint.orientation.w = start_pose.pose.orientation.w
+        #orientation_constraint.absolute_x_axis_tolerance = 0.1
+        #orientation_constraint.absolute_y_axis_tolerance = 0.1
+        #orientation_constraint.absolute_z_axis_tolerance = 3.14
+        #orientation_constraint.weight = 1.0
+
+        ## Append the constraint to the list of contraints
+        #constraints.orientation_constraints.append(orientation_constraint)
+        #rospy.logwarn("constraints:")
+        #rospy.logwarn(constraints)
+
+        ## Set the path constraints on the right_arm
+        #self.arm.set_path_constraints(constraints)
+        #############################
         self.arm.set_joint_value_target(joint_array)
 
     def set_position_target(self, x, y, z):
@@ -143,6 +179,39 @@ class MoveGroupArm:
         self.arm.set_pose_target([x, y, z, roll, pitch, yaw], self.end_effector_link)
         
     def set_pose_quat_target(self, pose):
+        ############################
+        rospy.logwarn("set_pose_quat_target")
+
+        # Create a contraints list and give it a name
+        constraints = Constraints()
+        constraints.name = "Keep gripper horizontal"
+        start_pose = self.arm.get_current_pose(self.end_effector_link)
+        rospy.logwarn(self.end_effector_link)
+        rospy.logwarn("start_pose:")
+        rospy.logwarn(start_pose)
+        rospy.logwarn("pose:")
+        rospy.logwarn(pose)
+        # Create an orientation constraint for the right gripper
+        orientation_constraint = OrientationConstraint()
+        orientation_constraint.header = start_pose.header
+        orientation_constraint.link_name = self.end_effector_link
+        orientation_constraint.orientation.x = start_pose.pose.orientation.x
+        orientation_constraint.orientation.y = start_pose.pose.orientation.y
+        orientation_constraint.orientation.z = start_pose.pose.orientation.z
+        orientation_constraint.orientation.w = start_pose.pose.orientation.w
+        orientation_constraint.absolute_x_axis_tolerance = 0.1
+        orientation_constraint.absolute_y_axis_tolerance = 0.1
+        orientation_constraint.absolute_z_axis_tolerance = 3.14
+        orientation_constraint.weight = 1.0
+
+        # Append the constraint to the list of contraints
+        constraints.orientation_constraints.append(orientation_constraint)
+        rospy.logwarn("constraints:")
+        rospy.logwarn(constraints)
+
+        # Set the path constraints on the right_arm
+        self.arm.set_path_constraints(constraints)
+        ############################
         self.arm.set_pose_target(pose, self.end_effector_link)
 
     def set_shift_pose_target(self, axis_number, value):

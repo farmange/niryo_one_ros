@@ -10,12 +10,14 @@
 // Messages
 #include "geometry_msgs/TwistStamped.h"
 #include "std_msgs/Bool.h"
-#include "std_msgs/Int8.h"
+#include "std_msgs/Int32.h"
 
 #include <niryo_one_msgs/SetInt.h>
 
 #include "orthopus_interface/inverse_kinematic.h"
 #include "orthopus_interface/tool_controller.h"
+#include "orthopus_interface/pose_manager.h"
+// #include "orthopus_interface/robot_manager.h"
 
 namespace cartesian_controller
 {
@@ -23,19 +25,24 @@ class CartesianController
 {
 public:
   CartesianController();
-
+  void init(PoseManager &pose_manager_, NiryoClient* ac_, ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
+  void run();
+  bool cartesianIsEnable();
+  
+  // Callbacks
+  bool callbackCartesianEnable(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
+  bool callbackAction(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
+  void callbackJointState(const sensor_msgs::JointStateConstPtr& msg);
+  void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
+  void callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg);
+  void callbackLearningMode(const std_msgs::BoolPtr& msg);
+  
 protected:
 private:
-  void send6DofCommand();
+  void sendJointsCommand();
   void updateFsm();
 
-  // Callbacks
-  void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
-  void dxDesCB(const geometry_msgs::TwistStampedPtr& msg);
-  void gripperCB(const std_msgs::BoolPtr& msg);
-  void learningModeCB(const std_msgs::BoolPtr& msg);
-  bool enableCB(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
-  bool actionCB(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
+
   bool can_enable();
   void enable_joy();
   void disable_joy();
@@ -51,12 +58,15 @@ private:
   ros::Publisher debug_des_pub_;
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
-  ros::Subscriber gripper_sub_;
   ros::Subscriber learning_mode_sub_;
 
+  NiryoClient* ac_;
+  
   InverseKinematic ik_;
-  ToolController tool_controller_;
-
+  PoseManager pose_manager_;
+  
+  int move_group_state_;
+  bool planning_pending_;
   double joint_position_cmd[6];
   //   sensor_msgs::JointState q_meas_forced, q_meas_;
   geometry_msgs::TwistStamped dx_des_;
@@ -64,7 +74,6 @@ private:
   sensor_msgs::JointState current_joint_state;
   double cartesian_velocity_desired[7];
   double cartesian_velocity_desired_prev[7];
-  bool gripper_state_;
 
   class FsmState
   {
@@ -74,6 +83,8 @@ private:
       Disable = 0,
       GotoHome,
       GotoRest,
+      GotoDrink,
+      GotoBackDrink,
       CartesianMode,
       Idle
     };
@@ -92,6 +103,12 @@ private:
           break;
         case GotoRest:
           msg = "GotoRest";
+          break;
+        case GotoDrink:
+          msg = "GotoDrink";
+          break;
+        case GotoBackDrink:
+          msg = "GotoBackDrink";
           break;
         case Disable:
           msg = "Disable";
@@ -139,7 +156,9 @@ private:
       None = 0,
       Cartesian,
       GotoHome,
-      GotoRest
+      GotoRest,
+      GotoDrink,
+      GotoBackDrink
     };
 
     FsmAction() = default;
@@ -159,6 +178,12 @@ private:
           break;
         case GotoRest:
           msg = "GotoRest";
+          break;
+        case GotoDrink:
+          msg = "GotoDrink";
+          break;
+        case GotoBackDrink:
+          msg = "GotoBackDrink";
           break;
         default:
           msg = "NaN";
@@ -194,8 +219,10 @@ private:
   void cartesianState();
   void gotoHomeState();
   void gotoRestState();
-  void gotoPosition(const double (&positionsDesired)[6]);
-  double computeDuration(const double (&positionsDesired)[6]);
+  void gotoDrinkState();
+  void gotoBackDrinkState();
+  void gotoPosition(const std::vector<double> position);
+  double computeDuration(const std::vector<double> position);
 };
 }
 #endif
