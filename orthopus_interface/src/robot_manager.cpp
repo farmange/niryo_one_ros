@@ -21,7 +21,7 @@ RobotManager::RobotManager()
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
   ROS_INFO("Received first joint msg.");
-  cartesian_controller_.init(pose_manager_, ac_, command_pub_, debug_pub_, debug_des_pub_);
+  cartesian_controller_.init(pose_manager_, command_pub_, debug_pub_, debug_des_pub_);
 
   while (ros::ok())
   {

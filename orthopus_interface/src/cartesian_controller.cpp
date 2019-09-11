@@ -29,14 +29,13 @@ CartesianController::CartesianController()
   }
 }
 
-void CartesianController::init(PoseManager &pose_manager_, NiryoClient* ac_, ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_)
+void CartesianController::init(PoseManager &pose_manager_,ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_)
 {
   ROS_DEBUG_STREAM("CartesianController init");
   this->pose_manager_ = pose_manager_;
   this->command_pub_ = command_pub_;
   this->debug_pub_ = debug_pub_;
   this->debug_des_pub_ = debug_des_pub_;
-  this->ac_ = ac_;
   /* This is use to update joint state before running anything */
   ros::spinOnce();
   ik_.Init(debug_pub_, debug_des_pub_);

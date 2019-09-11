@@ -41,9 +41,7 @@ private:
   ros::ServiceServer action_service_;
   ros::ServiceServer cartesian_enable_service_;
   ros::ServiceServer manage_pose_service_;
-  
-  NiryoClient* ac_;
-  
+    
   PoseManager pose_manager_;
   CartesianController cartesian_controller_;
   

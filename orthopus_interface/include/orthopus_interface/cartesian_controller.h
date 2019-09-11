@@ -25,7 +25,7 @@ class CartesianController
 {
 public:
   CartesianController();
-  void init(PoseManager &pose_manager_, NiryoClient* ac_, ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
+  void init(PoseManager &pose_manager_, ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
   void run();
   bool cartesianIsEnable();
   
@@ -59,8 +59,6 @@ private:
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber learning_mode_sub_;
-
-  NiryoClient* ac_;
   
   InverseKinematic ik_;
   PoseManager pose_manager_;
