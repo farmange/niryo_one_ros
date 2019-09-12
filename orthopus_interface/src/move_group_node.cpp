@@ -136,7 +136,7 @@
         primitive.dimensions.resize(3);
         
         double constrain_box_scale = 1.0;
-        primitive.dimensions[0] = constrain_box_scale * 2.0 * std::abs(target_pose1.position.x - current_pose.position.x);
+        primitive.dimensions[0] = constrain_box_scale * std::abs(target_pose1.position.x - current_pose.position.x);
         primitive.dimensions[1] = constrain_box_scale * 2.0 * std::abs(target_pose1.position.y - current_pose.position.y);
         primitive.dimensions[2] = constrain_box_scale * 2.0 * std::abs(target_pose1.position.z - current_pose.position.z);
         
@@ -144,7 +144,7 @@
         geometry_msgs::Pose box_pose;
         box_pose.orientation.w = 1.0;
         // place between start point and goal point.
-        box_pose.position.x = target_pose1.position.x;
+        box_pose.position.x = (target_pose1.position.x + current_pose.position.x)/2.0;
         box_pose.position.y = (target_pose1.position.y + current_pose.position.y)/2.0;
         box_pose.position.z = (target_pose1.position.z);
         
