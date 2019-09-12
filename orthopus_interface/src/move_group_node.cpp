@@ -160,14 +160,14 @@
         ocm.link_name = "tool_link";
         ocm.header.frame_id = "ground_link";
         ocm.orientation.w = 1.0;
-        ocm.absolute_x_axis_tolerance = 0.15;
-        ocm.absolute_y_axis_tolerance = 0.15;
+        ocm.absolute_x_axis_tolerance = 0.35;
+        ocm.absolute_y_axis_tolerance = 0.35;
         ocm.absolute_z_axis_tolerance = 5.0;
         ocm.weight = 1.0;
         
         moveit_msgs::Constraints test_constraints;
         test_constraints.orientation_constraints.push_back(ocm);
-        test_constraints.position_constraints.push_back(pcm);
+//         test_constraints.position_constraints.push_back(pcm);
         if (req.cmd.cmd_type == 0)
         {
           move_group_.clearPathConstraints();
