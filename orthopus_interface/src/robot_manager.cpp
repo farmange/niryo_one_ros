@@ -5,6 +5,7 @@
 #include <niryo_one_msgs/CloseGripper.h>
 
 #define RATE 10
+#define TOOL_ID_GRIPPER_2 12
 
 namespace cartesian_controller
 {
@@ -17,6 +18,7 @@ RobotManager::RobotManager()
   initializeActions();
   ros::Rate loop_rate = ros::Rate(RATE);
   
+  tool_controller_.setToolId(TOOL_ID_GRIPPER_2);
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
