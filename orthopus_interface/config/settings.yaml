@@ -16,12 +16,12 @@ alpha_7:          10.
 #
 #  Minimize joints velocities coefs : dq
 #        
-beta_1:           1e-1
-beta_2:           1e-1
-beta_3:           1e-1
-beta_4:           1e-1
-beta_5:           1e-1
-beta_6:           1e-1
+beta_1:           0.1
+beta_2:           0.1
+beta_3:           0.1
+beta_4:           0.1
+beta_5:           0.1
+beta_6:           0.1
 
 #
 #  Minimize cartesian position coefs : x
@@ -45,8 +45,8 @@ drink_position:   [-1.76022055165657, -0.3674548812775953, 0.24066221997959847, 
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"
 allow_replanning            : true
-goal_joint_tolerance        : 0.0001
-goal_position_tolerance     : 0.0001
-goal_orientation_tolerance  : 0.001
+goal_joint_tolerance        : 0.001
+goal_position_tolerance     : 0.001
+goal_orientation_tolerance  : 0.01
         
 planning_plugin             : "ompl_interface/OMPLPlanner"

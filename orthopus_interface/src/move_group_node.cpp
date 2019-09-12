@@ -136,7 +136,7 @@
         primitive.dimensions.resize(3);
         
         double constrain_box_scale = 1.0;
-        primitive.dimensions[0] = constrain_box_scale * std::abs(target_pose1.position.x - current_pose.position.x);
+        primitive.dimensions[0] = constrain_box_scale * 2.0 * std::abs(target_pose1.position.x - current_pose.position.x);
         primitive.dimensions[1] = constrain_box_scale * 2.0 * std::abs(target_pose1.position.y - current_pose.position.y);
         primitive.dimensions[2] = constrain_box_scale * 2.0 * std::abs(target_pose1.position.z - current_pose.position.z);
         
@@ -144,7 +144,7 @@
         geometry_msgs::Pose box_pose;
         box_pose.orientation.w = 1.0;
         // place between start point and goal point.
-        box_pose.position.x = (target_pose1.position.x + current_pose.position.x)/2.0;
+        box_pose.position.x = target_pose1.position.x;
         box_pose.position.y = (target_pose1.position.y + current_pose.position.y)/2.0;
         box_pose.position.z = (target_pose1.position.z);
         
@@ -165,22 +165,23 @@
         ocm.absolute_z_axis_tolerance = 5.0;
         ocm.weight = 1.0;
         
-        
         moveit_msgs::Constraints test_constraints;
         test_constraints.orientation_constraints.push_back(ocm);
         test_constraints.position_constraints.push_back(pcm);
-        if(req.cmd.cmd_type == 1)
+        if (req.cmd.cmd_type == 0)
+        {
+          move_group_.clearPathConstraints();
+          
+        }
+        else if(req.cmd.cmd_type == 1)
         {
           move_group_.setPathConstraints(test_constraints);
           start_state.setFromIK(joint_model_group_, target_pose1);
           move_group_.setStartState(start_state);
-          
         }
-        
-
-        
         move_group_.setPoseTarget(target_pose1);
       }
+      move_group_.setGoalPositionTolerance(0.01);
       move_group_.setPlanningTime(20.0);
       moveit::planning_interface::MoveGroupInterface::Plan my_plan;
       moveit::planning_interface::MoveItErrorCode result = move_group_.plan(my_plan);

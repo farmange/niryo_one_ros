@@ -25,9 +25,9 @@
         <group if="$(arg webapp)">
 
             <node name="web_app_wrapper" pkg="orthopus_interface" type="web_app_wrapper" output="screen" respawn="false"/>    
-            <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen"/>
+            <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen" respawn="true"/>
 
-            <node pkg="nodelet" type="nodelet" name="libuvc_camera" args="load libuvc_camera/driver /nodelet_manager" output="screen">
+            <node pkg="nodelet" type="nodelet" name="libuvc_camera" args="load libuvc_camera/driver /nodelet_manager" output="screen" respawn="true">
               <param name="frame_id" value="hand_link" />
               <!-- Parameters used to find the camera -->
               <param name="vendor" value="0x045e"/>

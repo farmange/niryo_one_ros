@@ -96,7 +96,7 @@ InverseKinematic::InverseKinematic()
   beta_weight(4, 4) = beta_5;
   beta_weight(5, 5) = beta_6;
   ROS_DEBUG_STREAM("beta_weight: \n" << beta_weight << "\n");
-
+  
   // Minimize cartesian position : x
   gamma_weight = Matrix7d::Identity(7, 7);
   gamma_weight(0, 0) = gamma_1;

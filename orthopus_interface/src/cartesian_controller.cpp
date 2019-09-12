@@ -137,16 +137,24 @@ void CartesianController::updateFsm()
         {
           joint_position_cmd[i] = current_joint_state.position[i];
         }
-        ros::service::waitForService("/orthopus_interface/move_groupe_node/move"); 
-        niryo_one_msgs::RobotMove robot_move_msg;
-        robot_move_msg.request.cmd.cmd_type = 666; //stop
-        ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-        move_group_client.call(robot_move_msg);
-        ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-        if(robot_move_msg.response.status == 8000)
+        if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
         {
-          planning_pending_ = true;
+          niryo_one_msgs::RobotMove robot_move_msg;
+          robot_move_msg.request.cmd.cmd_type = 666; //stop
+          ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+          move_group_client.call(robot_move_msg);
+          ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+          if(robot_move_msg.response.status == 8000)
+          {
+            planning_pending_ = true;
+          }
         }
+        else
+        {
+          ROS_ERROR_STREAM("Could not connect to service...");
+        }
+          
+        
         fsm_state = FsmState::CartesianMode;
       }
     }
@@ -178,11 +186,17 @@ void CartesianController::runFsm()
   {
     if(planning_pending_ == true)
     {
-      ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state");
-      niryo_one_msgs::GetInt state_msg;
-      ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
-      get_state_client.call(state_msg);
-      planning_pending_ = (state_msg.response.value == 0)?false:true;
+      if(ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0))) 
+      {
+        niryo_one_msgs::GetInt state_msg;
+        ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
+        get_state_client.call(state_msg);
+        planning_pending_ = (state_msg.response.value == 0)?false:true;
+      }
+      else
+      {
+        ROS_ERROR_STREAM("Could not connect to service...");
+      }
     }
     else
     {
@@ -193,11 +207,17 @@ void CartesianController::runFsm()
   {
     if(planning_pending_ == true)
     {
-      ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state");
-      niryo_one_msgs::GetInt state_msg;
-      ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
-      get_state_client.call(state_msg);
-      planning_pending_ = (state_msg.response.value == 0)?false:true;
+      if(ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0))) 
+      {
+        niryo_one_msgs::GetInt state_msg;
+        ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
+        get_state_client.call(state_msg);
+        planning_pending_ = (state_msg.response.value == 0)?false:true;
+      }
+      else
+      {
+        ROS_ERROR_STREAM("Could not connect to service...");
+      }
     }
     else
     {
@@ -262,26 +282,32 @@ void CartesianController::gotoHomeState()
 
 void CartesianController::gotoRestState()
 {
-  ros::service::waitForService("/orthopus_interface/move_groupe_node/move"); 
-  geometry_msgs::Pose target_pose = pose_manager_.getPose("Rest");
-  niryo_one_msgs::RobotMove robot_move_msg;
-  robot_move_msg.request.cmd.cmd_type = 0; //no constraint 
-  
-  robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-  robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-  robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-  
-  robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-  robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-  robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-  robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-  
-  ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-  move_group_client.call(robot_move_msg);
-  ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-  if(robot_move_msg.response.status == 8000)
+  if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
   {
-    planning_pending_ = true;
+    geometry_msgs::Pose target_pose = pose_manager_.getPose("Rest");
+    niryo_one_msgs::RobotMove robot_move_msg;
+    robot_move_msg.request.cmd.cmd_type = 0; //no constraint 
+    
+    robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
+    robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
+    robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
+    
+    robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
+    robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
+    robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
+    robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
+    
+    ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+    move_group_client.call(robot_move_msg);
+    ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+    if(robot_move_msg.response.status == 8000)
+    {
+      planning_pending_ = true;
+    }
+  }
+  else
+  {
+    ROS_ERROR_STREAM("Could not connect to service...");
   }
 }
 
@@ -289,52 +315,65 @@ void CartesianController::gotoDrinkState()
 {  
   pose_manager_.setJoints("BackDrink", current_joint_state.position);
   
-  ros::service::waitForService("/orthopus_interface/move_groupe_node/move");
-  geometry_msgs::Pose target_pose = pose_manager_.getPose("Drink");
-  niryo_one_msgs::RobotMove robot_move_msg;
-  robot_move_msg.request.cmd.cmd_type = 1;
-  
-  robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-  robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-  robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-  
-  robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-  robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-  robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-  robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-  
-  ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-  move_group_client.call(robot_move_msg);
-  ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-  if(robot_move_msg.response.status == 8000)
+  if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
   {
-    planning_pending_ = true;
+    geometry_msgs::Pose target_pose = pose_manager_.getPose("Drink");
+    niryo_one_msgs::RobotMove robot_move_msg;
+    robot_move_msg.request.cmd.cmd_type = 1;
+    
+    robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
+    robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
+    robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
+    
+    robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
+    robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
+    robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
+    robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
+    
+    ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+    move_group_client.call(robot_move_msg);
+    ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+    if(robot_move_msg.response.status == 8000)
+    {
+      planning_pending_ = true;
+    }
+  }
+  else
+  {
+    ROS_ERROR_STREAM("Could not connect to service...");
   }
 }
 
 void CartesianController::gotoBackDrinkState()
-{   
-  ros::service::waitForService("/orthopus_interface/move_groupe_node/move");
-  geometry_msgs::Pose target_pose = pose_manager_.getPose("BackDrink");
-  niryo_one_msgs::RobotMove robot_move_msg;
-  robot_move_msg.request.cmd.cmd_type = 1;
-  
-  robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-  robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-  robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-  
-  robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-  robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-  robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-  robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-  
-  ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-  move_group_client.call(robot_move_msg);
-  ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-  if(robot_move_msg.response.status == 8000)
+{  
+  if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
   {
-    planning_pending_ = true;
+    geometry_msgs::Pose target_pose = pose_manager_.getPose("BackDrink");
+    niryo_one_msgs::RobotMove robot_move_msg;
+    robot_move_msg.request.cmd.cmd_type = 1;
+    
+    robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
+    robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
+    robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
+    
+    robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
+    robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
+    robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
+    robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
+    
+    ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+    move_group_client.call(robot_move_msg);
+    ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+    if(robot_move_msg.response.status == 8000)
+    {
+      planning_pending_ = true;
+    }
   }
+  else
+  {
+    ROS_ERROR_STREAM("Could not connect to service...");
+  }
+  
 }
 
 
