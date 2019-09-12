@@ -181,7 +181,7 @@
         }
         move_group_.setPoseTarget(target_pose1);
       }
-      move_group_.setGoalPositionTolerance(0.015);
+      move_group_.setGoalPositionTolerance(0.001);
       move_group_.setPlanningTime(30.0);
       moveit::planning_interface::MoveGroupInterface::Plan my_plan;
       moveit::planning_interface::MoveItErrorCode result = move_group_.plan(my_plan);
