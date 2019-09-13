@@ -29,7 +29,8 @@ CartesianController::CartesianController()
   }
 }
 
-void CartesianController::init(PoseManager &pose_manager_,ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_)
+void CartesianController::init(PoseManager& pose_manager_, ros::Publisher& command_pub_, ros::Publisher& debug_pub_,
+                               ros::Publisher& debug_des_pub_)
 {
   ROS_DEBUG_STREAM("CartesianController init");
   this->pose_manager_ = pose_manager_;
@@ -43,7 +44,7 @@ void CartesianController::init(PoseManager &pose_manager_,ros::Publisher &comman
 }
 
 void CartesianController::run()
-{ 
+{
   updateFsm();
   runFsm();
 }
@@ -71,9 +72,9 @@ bool CartesianController::callbackAction(niryo_one_msgs::SetInt::Request& req, n
   {
     action_requested = FsmAction::GotoDrink;
   }
-  else if (req.value == FsmAction::GotoBackDrink)
+  else if (req.value == FsmAction::FlipPinch)
   {
-    action_requested = FsmAction::GotoBackDrink;
+    action_requested = FsmAction::FlipPinch;
   }
   else
   {
@@ -123,28 +124,29 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::GotoDrink;
         gotoDrinkState();
       }
-      else if (action_requested == FsmAction::GotoBackDrink)
+      else if (action_requested == FsmAction::FlipPinch)
       {
-        fsm_state = FsmState::GotoBackDrink;
-        gotoBackDrinkState();
+        fsm_state = FsmState::FlipPinch;
+        flipPinchState();
       }
       else if (action_requested == FsmAction::Cartesian &&
-        (fsm_prev_state == FsmState::GotoHome || fsm_prev_state == FsmState::GotoBackDrink))  
-        // TODO temporary hack to prevent go to cartesian if not in home
+        (fsm_prev_state == FsmState::GotoHome || fsm_prev_state == FsmState::FlipPinch || fsm_prev_state == FsmState::GotoRest))
+      // TODO temporary hack to prevent go to cartesian if not in home
       {
         ik_.Reset(current_joint_state);
         for (int i = 0; i < 7; i++)
         {
           joint_position_cmd[i] = current_joint_state.position[i];
         }
-        if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
+        if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
         {
           niryo_one_msgs::RobotMove robot_move_msg;
-          robot_move_msg.request.cmd.cmd_type = 666; //stop
-          ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+          robot_move_msg.request.cmd.cmd_type = 666;  // stop
+          ros::ServiceClient move_group_client =
+              n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
           move_group_client.call(robot_move_msg);
           ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-          if(robot_move_msg.response.status == 8000)
+          if (robot_move_msg.response.status == 8000)
           {
             planning_pending_ = true;
           }
@@ -153,12 +155,12 @@ void CartesianController::updateFsm()
         {
           ROS_ERROR_STREAM("Could not connect to service...");
         }
-          
-        
+
         fsm_state = FsmState::CartesianMode;
       }
     }
-    else if (fsm_state == FsmState::GotoHome || fsm_state == FsmState::GotoDrink || fsm_state == FsmState::GotoBackDrink)
+    else if (fsm_state == FsmState::GotoHome || fsm_state == FsmState::GotoDrink ||
+             fsm_state == FsmState::FlipPinch)
     {
       /* Do nothing */
     }
@@ -181,17 +183,18 @@ void CartesianController::runFsm()
 {
   printFsm();
   ROS_DEBUG_STREAM("runFsm planning_pending_ :" << planning_pending_);
-  
+
   if (fsm_state == FsmState::CartesianMode)
   {
-    if(planning_pending_ == true)
+    if (planning_pending_ == true)
     {
-      if(ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0))) 
+      if (ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0)))
       {
         niryo_one_msgs::GetInt state_msg;
-        ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
+        ros::ServiceClient get_state_client =
+            n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
         get_state_client.call(state_msg);
-        planning_pending_ = (state_msg.response.value == 0)?false:true;
+        planning_pending_ = (state_msg.response.value == 0) ? false : true;
       }
       else
       {
@@ -202,17 +205,19 @@ void CartesianController::runFsm()
     {
       cartesianState();
     }
-  }  
-  else if (fsm_state == FsmState::GotoBackDrink || fsm_state == FsmState::GotoDrink || fsm_state == FsmState::GotoRest || fsm_state == FsmState::GotoHome)
+  }
+  else if (fsm_state == FsmState::FlipPinch || fsm_state == FsmState::GotoDrink ||
+           fsm_state == FsmState::GotoRest || fsm_state == FsmState::GotoHome)
   {
-    if(planning_pending_ == true)
+    if (planning_pending_ == true)
     {
-      if(ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0))) 
+      if (ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0)))
       {
         niryo_one_msgs::GetInt state_msg;
-        ros::ServiceClient get_state_client = n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
+        ros::ServiceClient get_state_client =
+            n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
         get_state_client.call(state_msg);
-        planning_pending_ = (state_msg.response.value == 0)?false:true;
+        planning_pending_ = (state_msg.response.value == 0) ? false : true;
       }
       else
       {
@@ -243,7 +248,7 @@ void CartesianController::cartesianState()
 {
   if (enable_joy_)
   {
-    ROS_INFO("=== Start IK computation...");
+    ROS_INFO("=== Start IK computation...");   
     ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
     ROS_INFO("    Done.");
 
@@ -255,67 +260,70 @@ void CartesianController::cartesianState()
 
 void CartesianController::gotoHomeState()
 {
-//   ros::service::waitForService("/orthopus_interface/move_groupe_node/move"); 
-//   geometry_msgs::Pose target_pose = pose_manager_.getPose("Home");
-//   niryo_one_msgs::RobotMove robot_move_msg;
-//   robot_move_msg.request.cmd.cmd_type = 0; //no constraint 
-//   
-//   robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-//   robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-//   robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-//   
-//   robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-//   robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-//   robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-//   robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-//   
-//   ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-//   move_group_client.call(robot_move_msg);
-//   ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-//   if(robot_move_msg.response.status == 8000)
-//   {
-//     planning_pending_ = true;
-//   }
+  //   ros::service::waitForService("/orthopus_interface/move_groupe_node/move");
+  //   geometry_msgs::Pose target_pose = pose_manager_.getPose("Home");
+  //   niryo_one_msgs::RobotMove robot_move_msg;
+  //   robot_move_msg.request.cmd.cmd_type = 0; //no constraint
+  //
+  //   robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
+  //   robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
+  //   robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
+  //
+  //   robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
+  //   robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
+  //   robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
+  //   robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
+  //
+  //   ros::ServiceClient move_group_client =
+  //   n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+  //   move_group_client.call(robot_move_msg);
+  //   ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+  //   if(robot_move_msg.response.status == 8000)
+  //   {
+  //     planning_pending_ = true;
+  //   }
   gotoPosition(pose_manager_.getJoints("Home"));
-  
 }
 
 void CartesianController::gotoRestState()
 {
-  if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
-  {
-    geometry_msgs::Pose target_pose = pose_manager_.getPose("Rest");
-    niryo_one_msgs::RobotMove robot_move_msg;
-    robot_move_msg.request.cmd.cmd_type = 0; //no constraint 
-    
-    robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-    robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-    robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-    
-    robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-    robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-    robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-    robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-    
-    ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-    move_group_client.call(robot_move_msg);
-    ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-    if(robot_move_msg.response.status == 8000)
-    {
-      planning_pending_ = true;
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Could not connect to service...");
-  }
+//   if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
+//   {
+//     geometry_msgs::Pose target_pose = pose_manager_.getPose("Rest");
+//     niryo_one_msgs::RobotMove robot_move_msg;
+//     robot_move_msg.request.cmd.cmd_type = 0;  // no constraint
+// 
+//     robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
+//     robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
+//     robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
+// 
+//     robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
+//     robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
+//     robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
+//     robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
+// 
+//     ros::ServiceClient move_group_client =
+//         n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+//     move_group_client.call(robot_move_msg);
+//     ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
+//     if (robot_move_msg.response.status == 8000)
+//     {
+//       planning_pending_ = true;
+//     }
+//   }
+//   else
+//   {
+//     ROS_ERROR_STREAM("Could not connect to service...");
+//   }
+  gotoPosition(pose_manager_.getJoints("Rest"));
+  
 }
 
 void CartesianController::gotoDrinkState()
-{  
+{
   pose_manager_.setJoints("BackDrink", current_joint_state.position);
   
-  if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
+  if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
   {
     geometry_msgs::Pose target_pose = pose_manager_.getPose("Drink");
     niryo_one_msgs::RobotMove robot_move_msg;
@@ -330,10 +338,11 @@ void CartesianController::gotoDrinkState()
     robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
     robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
     
-    ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+    ros::ServiceClient move_group_client =
+    n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
     move_group_client.call(robot_move_msg);
     ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-    if(robot_move_msg.response.status == 8000)
+    if (robot_move_msg.response.status == 8000)
     {
       planning_pending_ = true;
     }
@@ -344,27 +353,18 @@ void CartesianController::gotoDrinkState()
   }
 }
 
-void CartesianController::gotoBackDrinkState()
+void CartesianController::flipPinchState()
 {  
-  if(ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0))) 
+  if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
   {
-    geometry_msgs::Pose target_pose = pose_manager_.getPose("BackDrink");
     niryo_one_msgs::RobotMove robot_move_msg;
-    robot_move_msg.request.cmd.cmd_type = 1;
+    robot_move_msg.request.cmd.cmd_type = 123; // Flip pinch command
     
-    robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-    robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-    robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-    
-    robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-    robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-    robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-    robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-    
-    ros::ServiceClient move_group_client = n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
+    ros::ServiceClient move_group_client =
+    n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
     move_group_client.call(robot_move_msg);
     ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-    if(robot_move_msg.response.status == 8000)
+    if (robot_move_msg.response.status == 8000)
     {
       planning_pending_ = true;
     }
@@ -373,9 +373,7 @@ void CartesianController::gotoBackDrinkState()
   {
     ROS_ERROR_STREAM("Could not connect to service...");
   }
-  
 }
-
 
 void CartesianController::gotoPosition(const std::vector<double> position)
 {
@@ -465,11 +463,10 @@ void CartesianController::callbackJointState(const sensor_msgs::JointStateConstP
 
 void CartesianController::callbackMoveGroupState(const std_msgs::Int32Ptr& msg)
 {
-//   ROS_DEBUG_STREAM("callbackMoveGroupState : " << (msg->data==1)?"true":"false");
-//   move_group_state_ = msg->data;
-//   planning_pending_ = (msg->data==1)?true:false;
-//   ROS_DEBUG_STREAM("callbackMoveGroupState planning_pending_ :" << planning_pending_);
-
+  //   ROS_DEBUG_STREAM("callbackMoveGroupState : " << (msg->data==1)?"true":"false");
+  //   move_group_state_ = msg->data;
+  //   planning_pending_ = (msg->data==1)?true:false;
+  //   ROS_DEBUG_STREAM("callbackMoveGroupState planning_pending_ :" << planning_pending_);
 }
 
 void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg)
@@ -519,7 +516,7 @@ void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistSt
 void CartesianController::callbackLearningMode(const std_msgs::BoolPtr& msg)
 {
   ROS_DEBUG_STREAM("callbackLearningMode");
-  
+
   learning_mode = msg->data;
 }
 
@@ -527,7 +524,7 @@ bool CartesianController::callbackCartesianEnable(niryo_one_msgs::SetInt::Reques
                                                   niryo_one_msgs::SetInt::Response& res)
 {
   ROS_DEBUG_STREAM("callbackCartesianEnable");
-  
+
   std::string result_message = "";
   int result = 0;
   if (req.value == 1)

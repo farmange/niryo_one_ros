@@ -75,7 +75,9 @@ InverseKinematic::InverseKinematic()
   kinematic_state = std::make_shared<robot_state::RobotState>(kinematic_model);
   kinematic_state->setToDefaultValues();
   joint_model_group = kinematic_model->getJointModelGroup("arm");
-
+  ROS_DEBUG_STREAM("joint_model_group->getEndEffectorName(): \n" << joint_model_group->getEndEffectorName() << "\n");
+  ROS_DEBUG_STREAM("joint_model_group->getLinkModelNames().back(): \n" << joint_model_group->getLinkModelNames().back() << "\n");
+  
   // Minimize cartesian velocity : dx
   alpha_weight = Matrix7d::Identity(7, 7);
   alpha_weight(0, 0) = alpha_1;
@@ -96,7 +98,7 @@ InverseKinematic::InverseKinematic()
   beta_weight(4, 4) = beta_5;
   beta_weight(5, 5) = beta_6;
   ROS_DEBUG_STREAM("beta_weight: \n" << beta_weight << "\n");
-  
+
   // Minimize cartesian position : x
   gamma_weight = Matrix7d::Identity(7, 7);
   gamma_weight(0, 0) = gamma_1;
@@ -123,16 +125,18 @@ void InverseKinematic::Init(ros::Publisher& debug_pub_, ros::Publisher& debug_de
 
 void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
 {
+  ROS_WARN("InverseKinematic::Reset");
   kinematic_state->setVariableValues(current_joint_state);
 
   const Eigen::Affine3d& end_effector_state =
-      kinematic_state->getGlobalLinkTransform("hand_link");  // TODO Add configuration parameter
+  kinematic_state->getGlobalLinkTransform("tool_link");  // TODO Add configuration parameter
   tf::poseEigenToMsg(end_effector_state, current_pose);
   tf2::convert(current_pose.orientation, q_des);
   tf2::convert(current_pose.orientation, q_new);
   ROS_DEBUG_STREAM("q_new  : \t[" << q_new.getW() << ", \t" << q_new.getX() << ", \t" << q_new.getY() << ", \t"
                                   << q_new.getZ() << "]");
 
+   
   currentPosition(0, 0) = current_pose.position.x;
   currentPosition(1, 0) = current_pose.position.y;
   currentPosition(2, 0) = current_pose.position.z;
@@ -151,8 +155,8 @@ void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
   UpdateAxisConstraints(4, 0.05);
   UpdateAxisConstraints(5, 0.05);
   UpdateAxisConstraints(6, 0.05);
-  
-  start_flag = true; // reinit QP
+
+  start_flag = true;  // reinit QP
 }
 
 void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[6],
@@ -162,6 +166,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   ROS_WARN_STREAM("InverseKinematic::ResolveInverseKinematic");
   sensor_msgs::JointState local_joint_state = current_joint_state;
 
+  
   for (std::size_t i = 0; i < local_joint_state.name.size(); ++i)
   {
     local_joint_state.position[i] = joint_position_command[i];
@@ -179,10 +184,13 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   //   }
 
   const Eigen::Affine3d& end_effector_state =
-      kinematic_state->getGlobalLinkTransform("hand_link");  // TODO Add configuration parameter
+      kinematic_state->getGlobalLinkTransform("tool_link");  // TODO Add configuration parameter
   tf::poseEigenToMsg(end_effector_state, current_pose);
   debug_pos_pub_.publish(current_pose);
 
+  ROS_ERROR_STREAM("=================current_pose================");
+  ROS_ERROR_STREAM(current_pose); 
+  
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
   if (!kinematic_state->getJacobian(joint_model_group,
@@ -267,18 +275,18 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   ROS_DEBUG_STREAM("hessian: \n" << hessian << "\n");
 
   desiredPosition = currentPosition + dx_des_vect * CALC_PERIOD;
-  ROS_DEBUG_STREAM("q_des  : \t[" << q_des.getW() << ", \t" << q_des.getX() << ", \t" << q_des.getY() << ", \t"
-                                  << q_des.getZ() << "]");
+//   ROS_DEBUG_STREAM("q_des  : \t[" << q_des.getW() << ", \t" << q_des.getX() << ", \t" << q_des.getY() << ", \t"
+//                                   << q_des.getZ() << "]");
 
   q_rot.setW(dx_des_vect[3]);
   q_rot.setX(dx_des_vect[4]);
   q_rot.setY(dx_des_vect[5]);
   q_rot.setZ(dx_des_vect[6]);
 
-  ROS_DEBUG_STREAM("q_new  : \t[" << q_new.getW() << ", \t" << q_new.getX() << ", \t" << q_new.getY() << ", \t"
-                                  << q_new.getZ() << "]");
-  ROS_DEBUG_STREAM("q_rot  : \t[" << q_rot.getW() << ", \t" << q_rot.getX() << ", \t" << q_rot.getY() << ", \t"
-                                  << q_rot.getZ() << "]");
+//   ROS_DEBUG_STREAM("q_new  : \t[" << q_new.getW() << ", \t" << q_new.getX() << ", \t" << q_new.getY() << ", \t"
+//                                   << q_new.getZ() << "]");
+//   ROS_DEBUG_STREAM("q_rot  : \t[" << q_rot.getW() << ", \t" << q_rot.getX() << ", \t" << q_rot.getY() << ", \t"
+//                                   << q_rot.getZ() << "]");
   q_new = q_new * q_rot;
   q_new = q_new * 0.5;
   q_new = q_new * CALC_PERIOD;
@@ -290,8 +298,11 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   desiredPosition(5, 0) = q_new.getY();
   desiredPosition(6, 0) = q_new.getZ();
 
-  ROS_DEBUG_STREAM("desiredPosition: \n" << desiredPosition << "\n");
 
+  ROS_DEBUG_STREAM("desiredPosition: \n" << desiredPosition << "\n");
+  ROS_DEBUG_STREAM("currentPosition: \n" << currentPosition << "\n");
+  ROS_DEBUG_STREAM("currentPosition-desiredPosition: \n" << currentPosition-desiredPosition << "\n");
+  
   Vector6d g = (-jacobian.transpose() * alpha_weight * dx_des_vect) +
                (jacobian.transpose() * CALC_PERIOD * gamma_weight * currentPosition) -
                (jacobian.transpose() * CALC_PERIOD * gamma_weight * desiredPosition);
@@ -301,15 +312,15 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   double maxVel = 0.5;
   double lb[] = { -maxVel, -maxVel, -maxVel, -maxVel, -maxVel, -maxVel };
   double ub[] = { +maxVel, +maxVel, +maxVel, +maxVel, +maxVel, +maxVel };
-  ROS_DEBUG_STREAM("dx_des_vect = {" << dx_des_vect[0] << ", " << dx_des_vect[1] << ", " << dx_des_vect[2] << ", "
-                                     << dx_des_vect[3] << ", " << dx_des_vect[4] << ", " << dx_des_vect[5] << ", "
-                                     << dx_des_vect[6] << "}");
-  ROS_DEBUG_STREAM("currentPosition = {" << currentPosition(0, 0) << ", " << currentPosition(1, 0) << ", "
-                                         << currentPosition(2, 0) << ", " << currentPosition(3, 0) << ", "
-                                         << currentPosition(4, 0) << ", " << currentPosition(5, 0) << ", "
-                                         << currentPosition(6, 0) << "}");
-  ROS_DEBUG_STREAM("x_min_limit = {" << x_min_limit[0] << ", " << x_min_limit[1] << ", " << x_min_limit[2] << "}");
-  ROS_DEBUG_STREAM("x_max_limit = {" << x_max_limit[0] << ", " << x_max_limit[1] << ", " << x_max_limit[2] << "}");
+//   ROS_DEBUG_STREAM("dx_des_vect = {" << dx_des_vect[0] << ", " << dx_des_vect[1] << ", " << dx_des_vect[2] << ", "
+//                                      << dx_des_vect[3] << ", " << dx_des_vect[4] << ", " << dx_des_vect[5] << ", "
+//                                      << dx_des_vect[6] << "}");
+//   ROS_DEBUG_STREAM("currentPosition = {" << currentPosition(0, 0) << ", " << currentPosition(1, 0) << ", "
+//                                          << currentPosition(2, 0) << ", " << currentPosition(3, 0) << ", "
+//                                          << currentPosition(4, 0) << ", " << currentPosition(5, 0) << ", "
+//                                          << currentPosition(6, 0) << "}");
+//   ROS_DEBUG_STREAM("x_min_limit = {" << x_min_limit[0] << ", " << x_min_limit[1] << ", " << x_min_limit[2] << "}");
+//   ROS_DEBUG_STREAM("x_max_limit = {" << x_max_limit[0] << ", " << x_max_limit[1] << ", " << x_max_limit[2] << "}");
 
   // Taylor developpement
   // q = q0 + dq*T
@@ -418,7 +429,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   else
   {
     ROS_ERROR_STREAM("qpOASES : Failed !!!");
-//     exit(0);
+    //     exit(0);
   }
 
   ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1]

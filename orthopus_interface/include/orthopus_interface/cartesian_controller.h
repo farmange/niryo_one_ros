@@ -25,10 +25,11 @@ class CartesianController
 {
 public:
   CartesianController();
-  void init(PoseManager &pose_manager_, ros::Publisher &command_pub_, ros::Publisher &debug_pub_, ros::Publisher &debug_des_pub_);
+  void init(PoseManager& pose_manager_, ros::Publisher& command_pub_, ros::Publisher& debug_pub_,
+            ros::Publisher& debug_des_pub_);
   void run();
   bool cartesianIsEnable();
-  
+
   // Callbacks
   bool callbackCartesianEnable(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
   bool callbackAction(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
@@ -36,12 +37,11 @@ public:
   void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
   void callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg);
   void callbackLearningMode(const std_msgs::BoolPtr& msg);
-  
+
 protected:
 private:
   void sendJointsCommand();
   void updateFsm();
-
 
   bool can_enable();
   void enable_joy();
@@ -59,10 +59,10 @@ private:
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber learning_mode_sub_;
-  
+
   InverseKinematic ik_;
   PoseManager pose_manager_;
-  
+
   int move_group_state_;
   bool planning_pending_;
   double joint_position_cmd[6];
@@ -82,7 +82,7 @@ private:
       GotoHome,
       GotoRest,
       GotoDrink,
-      GotoBackDrink,
+      FlipPinch,
       CartesianMode,
       Idle
     };
@@ -105,8 +105,8 @@ private:
         case GotoDrink:
           msg = "GotoDrink";
           break;
-        case GotoBackDrink:
-          msg = "GotoBackDrink";
+        case FlipPinch:
+          msg = "FlipPinch";
           break;
         case Disable:
           msg = "Disable";
@@ -156,7 +156,7 @@ private:
       GotoHome,
       GotoRest,
       GotoDrink,
-      GotoBackDrink
+      FlipPinch
     };
 
     FsmAction() = default;
@@ -180,8 +180,8 @@ private:
         case GotoDrink:
           msg = "GotoDrink";
           break;
-        case GotoBackDrink:
-          msg = "GotoBackDrink";
+        case FlipPinch:
+          msg = "FlipPinch";
           break;
         default:
           msg = "NaN";
@@ -218,7 +218,8 @@ private:
   void gotoHomeState();
   void gotoRestState();
   void gotoDrinkState();
-  void gotoBackDrinkState();
+  void flipPinchState();
+  
   void gotoPosition(const std::vector<double> position);
   double computeDuration(const std::vector<double> position);
 };
