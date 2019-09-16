@@ -31,8 +31,11 @@ private:
 
   ros::Publisher command_pub_;
   ros::Publisher joystick_enabled_pub_;
-  ros::Publisher debug_pub_;
-  ros::Publisher debug_des_pub_;
+  ros::Publisher debug_pose_current_;
+  ros::Publisher debug_pose_desired_;  
+  ros::Publisher debug_joint_desired_;
+  ros::Publisher debug_joint_min_limit_;
+  ros::Publisher debug_joint_max_limit_;
 
   ros::Subscriber joints_sub_;
   ros::Subscriber move_group_state_;

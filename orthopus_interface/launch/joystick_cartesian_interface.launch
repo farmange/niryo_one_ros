@@ -49,4 +49,30 @@
     <node name="orthopus_move_group" pkg="orthopus_interface" type="move_group_node" output="screen" respawn="false" >
 <!--       <rosparam file="$(find orthopus_interface)/config/settings.yaml"/> -->
     </node>
+    <!--
+    <node name="j1"
+          pkg="rqt_plot"
+          type="rqt_plot"
+          args="/joint_states/position[0] /debug_joint_desired/position[0] /debug_joint_min_limit/position[0] /debug_joint_max_limit/position[0]" />
+    <node name="j2"
+          pkg="rqt_plot"
+          type="rqt_plot"
+          args="/joint_states/position[1] /debug_joint_desired/position[1] /debug_joint_min_limit/position[1] /debug_joint_max_limit/position[1]" />
+    <node name="j3"
+          pkg="rqt_plot"
+          type="rqt_plot"
+          args="/joint_states/position[2] /debug_joint_desired/position[2] /debug_joint_min_limit/position[2] /debug_joint_max_limit/position[2]" />
+    <node name="j4"
+          pkg="rqt_plot"
+          type="rqt_plot"
+          args="/joint_states/position[3] /debug_joint_desired/position[3] /debug_joint_min_limit/position[3] /debug_joint_max_limit/position[3]" />
+    <node name="j5"
+          pkg="rqt_plot"
+          type="rqt_plot"
+          args="/joint_states/position[4] /debug_joint_desired/position[4] /debug_joint_min_limit/position[4] /debug_joint_max_limit/position[4]" />
+    <node name="j6"
+          pkg="rqt_plot"
+          type="rqt_plot"
+          args="/joint_states/position[5] /debug_joint_desired/position[5] /debug_joint_min_limit/position[5] /debug_joint_max_limit/position[5]" />
+    -->
 </launch>

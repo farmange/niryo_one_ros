@@ -29,10 +29,10 @@ beta_6:           0.1
 gamma_1:          0.0
 gamma_2:          0.0
 gamma_3:          0.0
-gamma_4:          5000.0
-gamma_5:          5000.0
-gamma_6:          5000.0
-gamma_7:          5000.0
+gamma_4:          0.0
+gamma_5:          0.0
+gamma_6:          0.0
+gamma_7:          0.0
 
 
 #

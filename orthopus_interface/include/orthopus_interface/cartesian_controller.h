@@ -25,8 +25,12 @@ class CartesianController
 {
 public:
   CartesianController();
-  void init(PoseManager& pose_manager_, ros::Publisher& command_pub_, ros::Publisher& debug_pub_,
-            ros::Publisher& debug_des_pub_);
+  void init(PoseManager& pose_manager_, ros::Publisher& command_pub_, 
+            ros::Publisher& debug_pose_current_,
+            ros::Publisher& debug_pose_desired_,
+            ros::Publisher& debug_joint_desired_,
+            ros::Publisher& debug_joint_min_limit_,
+            ros::Publisher& debug_joint_max_limit_);
   void run();
   bool cartesianIsEnable();
 
@@ -54,8 +58,12 @@ private:
   ros::NodeHandle n_;
   ros::Publisher command_pub_;
   ros::Publisher joystick_enabled_pub_;
-  ros::Publisher debug_pub_;
-  ros::Publisher debug_des_pub_;
+  ros::Publisher debug_pose_current_;
+  ros::Publisher debug_pose_desired_;  
+  ros::Publisher debug_joint_desired_;
+  ros::Publisher debug_joint_min_limit_;
+  ros::Publisher debug_joint_max_limit_;
+  
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber learning_mode_sub_;
@@ -70,8 +78,8 @@ private:
   geometry_msgs::TwistStamped dx_des_;
 
   sensor_msgs::JointState current_joint_state;
-  double cartesian_velocity_desired[7];
-  double cartesian_velocity_desired_prev[7];
+  double cartesian_velocity_desired[6];
+  double cartesian_velocity_desired_prev[6];
 
   class FsmState
   {

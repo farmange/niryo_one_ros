@@ -29,17 +29,29 @@ CartesianController::CartesianController()
   }
 }
 
-void CartesianController::init(PoseManager& pose_manager_, ros::Publisher& command_pub_, ros::Publisher& debug_pub_,
-                               ros::Publisher& debug_des_pub_)
+void CartesianController::init(PoseManager& pose_manager_, ros::Publisher& command_pub_, 
+                               ros::Publisher& debug_pose_current_,
+                               ros::Publisher& debug_pose_desired_,
+                               ros::Publisher& debug_joint_desired_,
+                               ros::Publisher& debug_joint_min_limit_,
+                               ros::Publisher& debug_joint_max_limit_)
 {
   ROS_DEBUG_STREAM("CartesianController init");
   this->pose_manager_ = pose_manager_;
   this->command_pub_ = command_pub_;
-  this->debug_pub_ = debug_pub_;
-  this->debug_des_pub_ = debug_des_pub_;
+  this->debug_pose_current_ = debug_pose_current_;
+  this->debug_pose_desired_ = debug_pose_desired_;  
+  this->debug_joint_desired_ = debug_joint_desired_;
+  this->debug_joint_min_limit_ = debug_joint_min_limit_;
+  this->debug_joint_max_limit_ = debug_joint_max_limit_;
+  
   /* This is use to update joint state before running anything */
   ros::spinOnce();
-  ik_.Init(debug_pub_, debug_des_pub_);
+  ik_.Init(debug_pose_current_,
+           debug_pose_desired_,
+           debug_joint_desired_,
+           debug_joint_min_limit_,
+           debug_joint_max_limit_);
   ik_.Reset(current_joint_state);
 }
 
@@ -134,7 +146,7 @@ void CartesianController::updateFsm()
       // TODO temporary hack to prevent go to cartesian if not in home
       {
         ik_.Reset(current_joint_state);
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < 6; i++)
         {
           joint_position_cmd[i] = current_joint_state.position[i];
         }
@@ -472,7 +484,7 @@ void CartesianController::callbackMoveGroupState(const std_msgs::Int32Ptr& msg)
 void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg)
 {
   ROS_DEBUG_STREAM("callbackVelocitiesDesired");
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < 6; i++)
   {
     cartesian_velocity_desired[i] = 0.0;
   }
@@ -483,30 +495,31 @@ void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistSt
     cartesian_velocity_desired[1] = msg->twist.linear.y;
     cartesian_velocity_desired[2] = msg->twist.linear.z;
 
-    tf2::Quaternion converted_quaternion;
-    converted_quaternion.setRPY(msg->twist.angular.x, msg->twist.angular.y, msg->twist.angular.z);
+    cartesian_velocity_desired[3] = msg->twist.angular.x;
+    cartesian_velocity_desired[4] = msg->twist.angular.y;
+    cartesian_velocity_desired[5] = msg->twist.angular.z;
 
-    cartesian_velocity_desired[3] = converted_quaternion.getW();
-    cartesian_velocity_desired[4] = converted_quaternion.getX();
-    cartesian_velocity_desired[5] = converted_quaternion.getY();
-    cartesian_velocity_desired[6] = converted_quaternion.getZ();
-    if (cartesian_velocity_desired[4] == 0 && cartesian_velocity_desired[5] == 0 && cartesian_velocity_desired[6] == 0)
+    for(int i =0; i<3;i++)
     {
-      cartesian_velocity_desired[3] = 0;
-    }
-
-    for (int i = 0; i < 7; i++)
-    {
-      if (i < 3)
+      if(cartesian_velocity_desired[i] != 0)
       {
-        if (cartesian_velocity_desired[i] != 0)
-        {
-          ik_.UpdateAxisConstraints(i, 1.0);
-        }
-        else if (cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
-        {
-          ik_.UpdateAxisConstraints(i, 0.005);
-        }
+        ik_.RequestUpdateAxisConstraints(i, 1.0);
+      }
+      else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
+      {
+        ik_.RequestUpdateAxisConstraints(i, 0.001);
+      }
+      cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+    }
+    for(int i =3; i<6;i++)
+    {
+      if(cartesian_velocity_desired[i] != 0)
+      {
+        ik_.RequestUpdateAxisConstraints(i, 1.0);
+      }
+      else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
+      {
+        ik_.RequestUpdateAxisConstraints(i, 0.001);
       }
       cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
     }
@@ -565,7 +578,7 @@ bool CartesianController::can_enable()
 void CartesianController::enable_joy()
 {
   ik_.Reset(current_joint_state);
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < 6; i++)
   {
     joint_position_cmd[i] = current_joint_state.position[i];
   }

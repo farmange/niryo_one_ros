@@ -30,30 +30,35 @@
 typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix6d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
-typedef Eigen::Matrix<double, 7, 7, Eigen::RowMajor> Matrix7d;
-typedef Eigen::Matrix<double, 7, 1> Vector7d;
-
 namespace cartesian_controller
 {
 class InverseKinematic
 {
 public:
   InverseKinematic();
-  void Init(ros::Publisher& debug_pub_, ros::Publisher& debug_des_pub_);
+  void Init(ros::Publisher& debug_pose_current_,
+            ros::Publisher& debug_pose_desired_,
+            ros::Publisher& debug_joint_desired_,
+            ros::Publisher& debug_joint_min_limit_,
+            ros::Publisher& debug_joint_max_limit_);
   void Reset(sensor_msgs::JointState& current_joint_state);
 
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
-                               double (&cartesian_velocity_desired)[7]);  // TODO should not use magic number
+                               double (&cartesian_velocity_desired)[6]);  // TODO should not use magic number
 
-  void UpdateAxisConstraints(int axis, double tolerance);
+  void UpdateAxisConstraints();
+  void RequestUpdateAxisConstraints(int axis);
+  void RequestUpdateAxisConstraints(int axis, double tolerance);
+
 
 protected:
 private:
   ros::NodeHandle n_;
-  ros::Publisher debug_pos_pub_;
-  ros::Publisher debug_pos_des_pub_;
-  ros::Publisher debug_joint_pub_;
-  ros::Publisher debug_joint_des_pub_;
+  ros::Publisher debug_pose_current_;
+  ros::Publisher debug_pose_desired_;  
+  ros::Publisher debug_joint_desired_;
+  ros::Publisher debug_joint_min_limit_;
+  ros::Publisher debug_joint_max_limit_;
 
   double alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6, alpha_7;
   double beta_1, beta_2, beta_3, beta_4, beta_5, beta_6;
@@ -61,11 +66,11 @@ private:
   double joints_limits_max[6];
   double joints_limits_min[6];
   // Weight for cartesian velocity minimization
-  Matrix7d alpha_weight;
+  Matrix6d alpha_weight;
   // Weight for joint velocity minimization
   Matrix6d beta_weight;
   // Weight for cartesian position minimization
-  Matrix7d gamma_weight;
+  Matrix6d gamma_weight;
   // QP solver
   qpOASES::SQProblem* IK;
 
@@ -77,13 +82,14 @@ private:
 
   robot_state::JointModelGroup* joint_model_group;
 
-  double x_des[7];
-  double x_min_limit[7];
-  double x_max_limit[7];
+  double x_des[6];
+  double x_min_limit[6];
+  double x_max_limit[6];
 
-  Vector7d currentPosition;
-  Vector7d currentPositionForDesiredPosition;
-  Vector7d desiredPosition;
+  Vector6d currentPosition;
+  Vector6d prevPosition;
+  Vector6d desiredPosition;
+  Vector6d cartesianPosition; 
 
   int cartesian_mode_;
 
@@ -92,6 +98,16 @@ private:
   tf2::Quaternion q_saved;
   tf2::Quaternion q_des;
   tf2::Quaternion q_rot, q_new;
+bool request_update_constraint[6];
+double request_update_constraint_tolerance[6];
+    
+
+  double xlimit_max;
+  double ylimit_max;
+  double zlimit_max;
+  double xlimit_min;
+  double ylimit_min;
+  double zlimit_min;
 };
 }
 #endif
