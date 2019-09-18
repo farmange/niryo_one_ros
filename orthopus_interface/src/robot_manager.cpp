@@ -16,16 +16,20 @@ RobotManager::RobotManager()
   initializePublishers();
   initializeServices();
   initializeActions();
-  ros::Rate loop_rate = ros::Rate(RATE);
+  sampling_freq_ = RATE; // TODO put this param in the config file
+  ros::Rate loop_rate = ros::Rate(sampling_freq_);
 
   tool_controller_.setToolId(TOOL_ID_GRIPPER_2);
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
   ROS_INFO("Received first joint msg.");
-  cartesian_controller_.init(pose_manager_, command_pub_, 
+  cartesian_controller_.init(sampling_freq_,
+                             pose_manager_, 
+                             command_pub_, 
                              debug_pose_current_,
                              debug_pose_desired_,
+                             debug_pose_meas_,
                              debug_joint_desired_,
                              debug_joint_min_limit_,
                              debug_joint_max_limit_);
@@ -40,6 +44,7 @@ RobotManager::RobotManager()
     joystick_enable_msg.data = cartesian_controller_.cartesianIsEnable();
     joystick_enabled_pub_.publish(joystick_enable_msg);
 
+    loop_rate.sleep();
     loop_rate.sleep();
   }
 }
@@ -68,6 +73,7 @@ void RobotManager::initializePublishers()
   
   debug_pose_current_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_current", 1);
   debug_pose_desired_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_desired", 1);
+  debug_pose_meas_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_meas", 1);
   
   debug_joint_desired_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_desired", 1);
   debug_joint_min_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_min_limit", 1);

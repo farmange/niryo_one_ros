@@ -36,8 +36,10 @@ class InverseKinematic
 {
 public:
   InverseKinematic();
-  void Init(ros::Publisher& debug_pose_current_,
+  void Init(int sampling_freq,
+            ros::Publisher& debug_pose_current_,
             ros::Publisher& debug_pose_desired_,
+            ros::Publisher& debug_pose_meas_,
             ros::Publisher& debug_joint_desired_,
             ros::Publisher& debug_joint_min_limit_,
             ros::Publisher& debug_joint_max_limit_);
@@ -56,10 +58,14 @@ private:
   ros::NodeHandle n_;
   ros::Publisher debug_pose_current_;
   ros::Publisher debug_pose_desired_;  
+  ros::Publisher debug_pose_meas_;  
   ros::Publisher debug_joint_desired_;
   ros::Publisher debug_joint_min_limit_;
   ros::Publisher debug_joint_max_limit_;
 
+  int sampling_freq_;
+  double sampling_period_;
+  
   double alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6, alpha_7;
   double beta_1, beta_2, beta_3, beta_4, beta_5, beta_6;
   double gamma_1, gamma_2, gamma_3, gamma_4, gamma_5, gamma_6, gamma_7;
@@ -72,25 +78,27 @@ private:
   // Weight for cartesian position minimization
   Matrix6d gamma_weight;
   // QP solver
-  qpOASES::SQProblem* IK;
+  qpOASES::QProblem* IK;
 
   robot_model::RobotModelPtr kinematic_model;
   robot_state::RobotStatePtr kinematic_state;
-
-  bool start_flag = true;
+  robot_state::JointModelGroup* joint_model_group;
+  
+  bool qp_init_required = true;
   double theta[6];
 
-  robot_state::JointModelGroup* joint_model_group;
 
-  double x_des[6];
-  double x_min_limit[6];
-  double x_max_limit[6];
+  Vector6d x_min_limit;
+  Vector6d x_max_limit;
 
-  Vector6d currentPosition;
-  Vector6d prevPosition;
-  Vector6d desiredPosition;
-  Vector6d cartesianPosition; 
-
+  Vector6d x_cmd_prev;
+  Vector6d x_cmd_prev_without_jump;
+  Vector6d x_meas;
+  Vector6d x_cmd_prev_saved;
+  Vector6d x_computed; 
+  Vector6d x_des; 
+  Vector6d x_des_init; 
+  
   int cartesian_mode_;
 
   geometry_msgs::Pose current_pose;
@@ -108,6 +116,10 @@ double request_update_constraint_tolerance[6];
   double xlimit_min;
   double ylimit_min;
   double zlimit_min;
+  
+  
+  void PrintVector(const std::string name, const Vector6d vector) const;
+  
 };
 }
 #endif

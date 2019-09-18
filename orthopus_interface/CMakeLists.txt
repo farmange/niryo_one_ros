@@ -79,6 +79,7 @@ add_executable(cartesian_controller
   src/tool_controller.cpp
   src/pose_manager.cpp
   src/robot_manager.cpp
+  src/position_compensator.cpp
   src/cartesian_controller.cpp
 )
 target_link_libraries(cartesian_controller ${catkin_LIBRARIES})

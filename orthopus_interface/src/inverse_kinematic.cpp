@@ -5,8 +5,6 @@
 
 #include <eigen_conversions/eigen_msg.h>
 #include <tf/tf.h>
-static const int RATE = 10;  // TODO should be set during class init
-static const double CALC_PERIOD = 1.0 / RATE;
 
 namespace cartesian_controller
 {
@@ -46,29 +44,11 @@ InverseKinematic::InverseKinematic()
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/min", joints_limits_min[5]);
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/max", joints_limits_max[5]);
 
-  x_des[0] = 0.2379;
-  x_des[1] = 0.0;
-  x_des[2] = 0.4175;
-  x_des[3] = 0.5;
-  x_des[4] = 0.5;
-  x_des[5] = 0.5;
-
   // TODO check init all members
   // TODO for loop
-  x_min_limit[0] = 0.0;
-  x_min_limit[1] = 0.0;
-  x_min_limit[2] = 0.0;
-  x_min_limit[3] = 0.0;
-  x_min_limit[4] = 0.0;
-  x_min_limit[5] = 0.0;
 
-  x_max_limit[0] = 0.0;
-  x_max_limit[1] = 0.0;
-  x_max_limit[2] = 0.0;
-  x_max_limit[3] = 0.0;
-  x_max_limit[4] = 0.0;
-  x_max_limit[5] = 0.0;
-
+  sampling_freq_ = 0;
+  sampling_period_ = 0;
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
@@ -80,8 +60,6 @@ InverseKinematic::InverseKinematic()
   kinematic_state = std::make_shared<robot_state::RobotState>(kinematic_model);
   kinematic_state->setToDefaultValues();
   joint_model_group = kinematic_model->getJointModelGroup("arm");
-  ROS_DEBUG_STREAM("joint_model_group->getEndEffectorName(): \n" << joint_model_group->getEndEffectorName() << "\n");
-  ROS_DEBUG_STREAM("joint_model_group->getLinkModelNames().back(): \n" << joint_model_group->getLinkModelNames().back() << "\n");
   
   // Minimize cartesian velocity : dx
   alpha_weight = Matrix6d::Identity(6, 6);
@@ -114,17 +92,28 @@ InverseKinematic::InverseKinematic()
   ROS_DEBUG_STREAM("gamma_weight: \n" << gamma_weight << "\n");
 }
 
-void InverseKinematic::Init(ros::Publisher& debug_pose_current_,
-ros::Publisher& debug_pose_desired_,
-ros::Publisher& debug_joint_desired_,
-ros::Publisher& debug_joint_min_limit_,
-ros::Publisher& debug_joint_max_limit_)
+void InverseKinematic::Init(int sampling_freq,
+                            ros::Publisher& debug_pose_current,
+                            ros::Publisher& debug_pose_desired,
+                            ros::Publisher& debug_pose_meas,
+                            ros::Publisher& debug_joint_desired,
+                            ros::Publisher& debug_joint_min_limit,
+                            ros::Publisher& debug_joint_max_limit)
 {
-  this->debug_pose_current_ = debug_pose_current_;
-  this->debug_pose_desired_ = debug_pose_desired_;  
-  this->debug_joint_desired_ = debug_joint_desired_;
-  this->debug_joint_min_limit_ = debug_joint_min_limit_;
-  this->debug_joint_max_limit_ = debug_joint_max_limit_;
+  debug_pose_current_ = debug_pose_current;
+  debug_pose_desired_ = debug_pose_desired;  
+  debug_pose_meas_ = debug_pose_meas;  
+  debug_joint_desired_ = debug_joint_desired;
+  debug_joint_min_limit_ = debug_joint_min_limit;
+  debug_joint_max_limit_ = debug_joint_max_limit;
+  sampling_freq_ = sampling_freq;
+  if(sampling_freq == 0)
+  {
+    ROS_ERROR("Invalid sampling frequency. Cannot be zero !");
+    sampling_period_ = -1.0;
+    return;
+  }
+  sampling_period_ = 1.0 / sampling_freq_;
 }
 
 void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
@@ -143,47 +132,115 @@ void InverseKinematic::Reset(sensor_msgs::JointState& current_joint_state)
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-  currentPosition(0, 0) = current_pose.position.x;
-  currentPosition(1, 0) = current_pose.position.y;
-  currentPosition(2, 0) = current_pose.position.z;
-  currentPosition(3, 0) = roll;
-  currentPosition(4, 0) = pitch;
-  currentPosition(5, 0) = yaw;
-  ROS_ERROR_STREAM("currentPosition: \n" << currentPosition << "\n");
+  
+//   if(std::abs(roll) >= M_PI/2)
+//   {
+//     pitch = -pitch;
+//     yaw = -yaw;
+//   }
+//   if(std::abs(pitch) >= M_PI/2)
+//   {
+//     roll = -roll;
+//     yaw = -yaw;
+//   }
+//   if(std::abs(yaw) >= M_PI/2)
+//   {
+//     roll = -roll;
+//     pitch = -pitch;
+//   }
+  x_cmd_prev(0, 0) = current_pose.position.x;
+  x_cmd_prev(1, 0) = current_pose.position.y;
+  x_cmd_prev(2, 0) = current_pose.position.z;
+  x_cmd_prev(3, 0) = roll;
+  x_cmd_prev(4, 0) = pitch;
+  x_cmd_prev(5, 0) = yaw;
 
-  prevPosition = currentPosition;
+  /* Initialize previous cartesian state used to order to detect euler jump */
+  x_cmd_prev_saved = x_cmd_prev;
 
-  cartesianPosition = currentPosition;
+  /* Initialize computed cartesian state. This state is only used for debugging purpose 
+   * in order to check concistency between joint positions computed and 
+   * resulting cartesian state */
+  // TODO not used for now because we take the x_cmd_prev each time 
+  x_computed = x_cmd_prev;
+  /* Initialize a flag used to init QP if required */ 
+  qp_init_required = true; 
 
-  start_flag = true;  // reinit QP
-
+  /* Initialize all cartesian constraints */
   for(int i=0; i<6; i++)
   {
     request_update_constraint[i] = true;
     request_update_constraint_tolerance[i] = 0.001;
   }
+  request_update_constraint_tolerance[3] = 0.01;
+  request_update_constraint_tolerance[4] = 0.01;
+  request_update_constraint_tolerance[5] = 0.01;
   UpdateAxisConstraints();
+  
+  x_des = x_cmd_prev;
 }
 
 void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[6],
                                                sensor_msgs::JointState& current_joint_state,
                                                double (&cartesian_velocity_desired)[6])
 {
-  ROS_WARN_STREAM("InverseKinematic::ResolveInverseKinematic");
-  sensor_msgs::JointState local_joint_state = current_joint_state;
-  kinematic_state->setVariableValues(local_joint_state);
-  for (std::size_t i = 0; i < local_joint_state.name.size(); ++i)
-  {
-    local_joint_state.position[i] = joint_position_command[i];
-  }
   
-  const Eigen::Affine3d& end_effector_state =
-      kinematic_state->getGlobalLinkTransform("tool_link");  // TODO Add configuration parameter
+  /**************************************************************/
+  geometry_msgs::Pose current_pose_meas;
+  
+//   /* Set kinemtic state of the robot to the previous joint positions computed */
+//   kinematic_state->setVariableValues(current_joint_state);
+//   
+//   /* Get the cartesian state of the tool_link frame */
+//   const Eigen::Affine3d& end_effector_state_meas =
+//   kinematic_state->getGlobalLinkTransform("tool_link");  // TODO Add configuration parameter
+//   /* Convert cartesian state to goemetry_msgs::Pose */
+//   tf::poseEigenToMsg(end_effector_state_meas, current_pose_meas);
+//   
+//   /* Convert quaternion pose in RPY */
+//   tf::Quaternion q_meas(current_pose_meas.orientation.x, 
+//                         current_pose_meas.orientation.y, 
+//                         current_pose_meas.orientation.z, 
+//                         current_pose_meas.orientation.w);
+//   tf::Matrix3x3 m_meas(q_meas);
+//   double roll_meas, pitch_meas, yaw_meas;
+//   m_meas.getRPY(roll_meas, pitch_meas, yaw_meas);
+//   
+//   /* Store RPY pose in x_cmd_prev vector */
+//   x_meas(0, 0) = current_pose_meas.position.x;
+//   x_meas(1, 0) = current_pose_meas.position.y;
+//   x_meas(2, 0) = current_pose_meas.position.z;
+//   x_meas(3, 0) = roll_meas;
+//   x_meas(4, 0) = pitch_meas;
+//   x_meas(5, 0) = yaw_meas;
+  /**************************************************************/
+  
+  sensor_msgs::JointState q_cmd_prev = current_joint_state;
+  ROS_WARN("current_joint_state \t| joint_position_command \t| q_cmd_prev");
+  for (std::size_t i = 0; i < 6; ++i)
+  {
+    q_cmd_prev.position[i] = joint_position_command[i];
+    if(current_joint_state.position[i] != joint_position_command[i])
+    {
+      ROS_WARN(" %8f         \t| %8f            \t| %8f", current_joint_state.position[i], joint_position_command[i], q_cmd_prev.position[i]);
+    }
+    else
+    {
+      ROS_WARN(" %8f         \t| %8f            \t| %8f", current_joint_state.position[i], joint_position_command[i], q_cmd_prev.position[i]);
+    }      
+  }
+  /* Set kinemtic state of the robot to the previous joint positions computed */
+  kinematic_state->setVariableValues(q_cmd_prev);
+  kinematic_state->updateLinkTransforms();
+ 
+  /* Get the cartesian state of the tool_link frame */
+  const Eigen::Affine3d& end_effector_state = 
+  kinematic_state->getGlobalLinkTransform(kinematic_state->getLinkModel("tool_link"));  // TODO Add configuration parameter  
+
+  /* Convert cartesian state to goemetry_msgs::Pose */
   tf::poseEigenToMsg(end_effector_state, current_pose);
 
-  ROS_ERROR_STREAM("=================current_pose================");
-  ROS_ERROR_STREAM(current_pose); 
-  
+  /* Convert quaternion pose in RPY */
   tf::Quaternion q(current_pose.orientation.x, 
                    current_pose.orientation.y, 
                    current_pose.orientation.z, 
@@ -191,60 +248,81 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-
-  currentPosition(0, 0) = current_pose.position.x;
-  currentPosition(1, 0) = current_pose.position.y;
-  currentPosition(2, 0) = current_pose.position.z;
-  currentPosition(3, 0) = roll;
-  currentPosition(4, 0) = pitch;
-  currentPosition(5, 0) = yaw;
-
-  for(int i=3; i<6;i++)
+  
+  if(std::abs(roll) >= M_PI/2)
   {
-    ROS_DEBUG_STREAM("delta=" << currentPosition(i, 0) - prevPosition(i, 0) <<"");
-
-    if(std::abs(currentPosition(i, 0) - prevPosition(i, 0)) >= M_PI/2)
+    pitch = -pitch;
+    yaw = -yaw;
+  }
+  if(std::abs(pitch) >= M_PI/2)
+  {
+    roll = -roll;
+    yaw = -yaw;
+  }
+  if(std::abs(yaw) >= M_PI/2)
+  {
+    roll = -roll;
+    pitch = -pitch;
+  }
+  
+  /* Store RPY pose in x_cmd_prev vector */
+  x_cmd_prev(0, 0) = current_pose.position.x;
+  x_cmd_prev(1, 0) = current_pose.position.y;
+  x_cmd_prev(2, 0) = current_pose.position.z;
+  x_cmd_prev(3, 0) = roll;
+  x_cmd_prev(4, 0) = pitch;
+  x_cmd_prev(5, 0) = yaw;
+  
+  
+  /* Look for euler jump in RPY and update constraints if needed */
+  for(int i=3; i<6; i++)
+  {
+    if(std::abs(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0)) >= M_PI/2)
     {
-      ROS_ERROR_STREAM("==============> Euler jump detected !!!! delta=" << currentPosition(i, 0) - prevPosition(i, 0) <<"");
+      ROS_ERROR_STREAM("==============> Euler jump detected on axis " << i << " !!!! delta=" << x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) <<"");
       RequestUpdateAxisConstraints(i);
+      if(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) >= M_PI/2)
+      {
+        x_des[i] = x_des[i] + M_PI*2;
+      }
+      else if(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) <= M_PI/2)
+      {
+        x_des[i] = x_des[i] - M_PI*2;
+      }
     }
   }
-  prevPosition = currentPosition;
+  //x_des = x_des_init;// + dx_des_vect * sampling_period_;
   
+  x_cmd_prev_saved = x_cmd_prev;
   UpdateAxisConstraints();
 
+  /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
   if (!kinematic_state->getJacobian(joint_model_group,
-                                    kinematic_state->getLinkModel(joint_model_group->getLinkModelNames().back()),
-                                    reference_point_position, jacobian))
+                                    kinematic_state->getLinkModel("tool_link"),
+                                    reference_point_position, 
+                                    jacobian))
   {
     ROS_ERROR_STREAM("JACOBIAN COMPUTATION ISSUE");
     exit(0);
   }
-  ROS_DEBUG_STREAM("Jacobian: \n" << jacobian << "\n");
 
+  /* Store desired velocity in dx_des_vect for eigen computation */
   const Vector6d dx_des_vect = Vector6d(cartesian_velocity_desired);
-  ROS_DEBUG_STREAM("dx_des_vect: \n" << dx_des_vect << "\n");
-
-  Matrix6d hessian = (jacobian.transpose() * alpha_weight * jacobian) + beta_weight +
-                     (jacobian.transpose() * CALC_PERIOD * gamma_weight * CALC_PERIOD * jacobian);
-  ROS_DEBUG_STREAM("hessian: \n" << hessian << "\n");
-
-  Vector6d g = (-jacobian.transpose() * alpha_weight * dx_des_vect) +
-               (jacobian.transpose() * CALC_PERIOD * gamma_weight * currentPosition) -
-               (jacobian.transpose() * CALC_PERIOD * gamma_weight * desiredPosition);
-  ROS_DEBUG_STREAM("g = \n" << g << "\n");
-
-  ROS_DEBUG_STREAM("desiredPosition: \n" << desiredPosition << "\n");
-  ROS_DEBUG_STREAM("currentPosition: \n" << currentPosition << "\n");
-  ROS_DEBUG_STREAM("currentPosition-desiredPosition: \n" << currentPosition-desiredPosition << "\n");
   
-  // control max and min velocity of joint (dq)
-  double maxVel = 0.5;
+  Matrix6d hessian =  (jacobian.transpose() * alpha_weight * jacobian) + beta_weight +
+                      (jacobian.transpose() * sampling_period_ * gamma_weight * sampling_period_ * jacobian);
+                      
+  Vector6d g =  (-jacobian.transpose() * alpha_weight * dx_des_vect) +
+                (jacobian.transpose() * sampling_period_ * gamma_weight * x_cmd_prev) -
+                (jacobian.transpose() * sampling_period_ * gamma_weight * x_des);
+
+  /* Set joint velocities bound */
+  double maxVel = 0.9;
   double lb[] = { -maxVel, -maxVel, -maxVel, -maxVel, -maxVel, -maxVel };
   double ub[] = { +maxVel, +maxVel, +maxVel, +maxVel, +maxVel, +maxVel };
-
+  
   // Taylor developpement
   // q = q0 + dq*T
   // inequality is :
@@ -252,85 +330,122 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   // lb < q0 + dq*T < ub
   // (lb-q0) < dq.T < (ub-q0)
   Eigen::Matrix<double, 12, 6, Eigen::RowMajor> A;
-  A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * CALC_PERIOD;
-  A.bottomLeftCorner(6, 6) = jacobian.topLeftCorner(6, 6) * CALC_PERIOD;
+   A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * sampling_period_;
+   A.bottomLeftCorner(6, 6) = jacobian.topLeftCorner(6, 6) * sampling_period_;
 
-  double lbA[] = { (joints_limits_min[0] - local_joint_state.position[0]),
-                   (joints_limits_min[1] - local_joint_state.position[1]),
-                   (joints_limits_min[2] - local_joint_state.position[2]),
-                   (joints_limits_min[3] - local_joint_state.position[3]),
-                   (joints_limits_min[4] - local_joint_state.position[4]),
-                   (joints_limits_min[5] - local_joint_state.position[5]),
-                   x_min_limit[0] - currentPosition(0, 0),
-                   x_min_limit[1] - currentPosition(1, 0),
-                   x_min_limit[2] - currentPosition(2, 0),                  
-                   x_min_limit[3] - currentPosition(3, 0),
-                   x_min_limit[4] - currentPosition(4, 0),
-                   x_min_limit[5] - currentPosition(5, 0) };
-  double ubA[] = { (joints_limits_max[0] - local_joint_state.position[0]),
-                   (joints_limits_max[1] - local_joint_state.position[1]),
-                   (joints_limits_max[2] - local_joint_state.position[2]),
-                   (joints_limits_max[3] - local_joint_state.position[3]),
-                   (joints_limits_max[4] - local_joint_state.position[4]),
-                   (joints_limits_max[5] - local_joint_state.position[5]),
-                   x_max_limit[0] - currentPosition(0, 0),
-                   x_max_limit[1] - currentPosition(1, 0),
-                   x_max_limit[2] - currentPosition(2, 0),
-                   x_max_limit[3] - currentPosition(3, 0),
-                   x_max_limit[4] - currentPosition(4, 0),
-                   x_max_limit[5] - currentPosition(5, 0) };
+  double lbA[] = { 
+                  /* Joints min hard limits constraints */
+                  (joints_limits_min[0] - q_cmd_prev.position[0]),
+                  (joints_limits_min[1] - q_cmd_prev.position[1]),  
+                  (joints_limits_min[2] - q_cmd_prev.position[2]),
+                  (joints_limits_min[3] - q_cmd_prev.position[3]),
+                  (joints_limits_min[4] - q_cmd_prev.position[4]),
+                  (joints_limits_min[5] - q_cmd_prev.position[5]),
+                  (x_min_limit(0, 0) - x_cmd_prev(0, 0)),
+                  (x_min_limit(1, 0) - x_cmd_prev(1, 0)),
+                  (x_min_limit(2, 0) - x_cmd_prev(2, 0)),                  
+                  (x_min_limit(3, 0) - x_cmd_prev(3, 0)),
+                  (x_min_limit(4, 0) - x_cmd_prev(4, 0)),
+                  (x_min_limit(5, 0) - x_cmd_prev(5, 0))
 
-  ROS_DEBUG_STREAM("A = \n" << A << "\n");
+  };
+  double ubA[] = {
+                  /* Joints min hard limits constraints */
+                  (joints_limits_max[0] - q_cmd_prev.position[0]),
+                  (joints_limits_max[1] - q_cmd_prev.position[1]),
+                  (joints_limits_max[2] - q_cmd_prev.position[2]),
+                  (joints_limits_max[3] - q_cmd_prev.position[3]),
+                  (joints_limits_max[4] - q_cmd_prev.position[4]),
+                  (joints_limits_max[5] - q_cmd_prev.position[5]),
+                  (x_max_limit(0, 0) - x_cmd_prev(0, 0)),
+                  (x_max_limit(1, 0) - x_cmd_prev(1, 0)),
+                  (x_max_limit(2, 0) - x_cmd_prev(2, 0)),
+                  (x_max_limit(3, 0) - x_cmd_prev(3, 0)),
+                  (x_max_limit(4, 0) - x_cmd_prev(4, 0)),
+                  (x_max_limit(5, 0) - x_cmd_prev(5, 0))
 
-  ROS_DEBUG_STREAM("currentPosition = {" << currentPosition(0, 0) << ", " << currentPosition(1, 0) << ", " << currentPosition(2, 0) << ", " << currentPosition(3, 0) << ", "
-                               << currentPosition(4, 0) << ", " << currentPosition(5, 0) << "}");
-  ROS_DEBUG_STREAM("dx_des_vect = {" << dx_des_vect[0] << ", " << dx_des_vect[1] << ", " << dx_des_vect[2] << ", " << dx_des_vect[3] << ", "
-                               << dx_des_vect[4] << ", " << dx_des_vect[5] << "}");
-  ROS_DEBUG_STREAM("x_min_limit = {" << x_min_limit[0] << ", " << x_min_limit[1] << ", " << x_min_limit[2] << ", " << x_min_limit[3] << ", "
-                               << x_min_limit[4] << ", " << x_min_limit[5] << "}");
-  ROS_DEBUG_STREAM("x_max_limit = {" << x_max_limit[0] << ", " << x_max_limit[1] << ", " << x_max_limit[2] << ", " << x_max_limit[3] << ", "
-                               << x_max_limit[4] << ", " << x_max_limit[5] << "}");
-  
-  ROS_DEBUG_STREAM("lbA = {" << lbA[6] << ", " << lbA[7] << ", " << lbA[8] << ", " << lbA[9] << ", "
-                               << lbA[10] << ", " << lbA[11] << "}");  
-  ROS_DEBUG_STREAM("ubA = {" << ubA[6] << ", " << ubA[7] << ", " << ubA[8] << ", " << ubA[9] << ", "
-                               << ubA[10] << ", " << ubA[11] << "}");
-
-
+  };
+                   
   // Solve first QP.
-  qpOASES::real_t xOpt[6];
-  qpOASES::int_t nWSR = 10;
+  qpOASES::real_t dq_computed[6];
+  qpOASES::real_t yOpt[6+1];
+  qpOASES::int_t nWSR = 20;
   int qp_return = 0;
-  if (start_flag)
+  if (qp_init_required)
   {
     // Initialize QP solver
-    IK = new qpOASES::SQProblem(6, 12);
+    IK = new qpOASES::QProblem(6, 6);
     qpOASES::Options options;
+    options.setToReliable( );
     // options.printLevel = qpOASES::PL_NONE;
+//     options.enableFlippingBounds = qpOASES::BT_TRUE;
+//     options.enableNZCTests = qpOASES::BT_TRUE;
+//     options.enableEqualities = qpOASES::BT_TRUE;
+//     options.boundTolerance = 0.000001;
+//     options.epsNum = 0.0000001;
+//     options.epsDen = 0.0000001;
+//     options.enableCholeskyRefactorisation = 1;
+//     options.enableRegularisation = qpOASES::BT_TRUE;
+    
+    options.printLevel = qpOASES::PL_DEBUG_ITER;
     IK->setOptions(options);
     
     qp_return = IK->init(hessian.data(), g.data(), A.data(), lb, ub, lbA, ubA, nWSR, 0);
-    start_flag = false;
+    //qp_init_required = false;
   }
   else
   {
-    qp_return = IK->hotstart(hessian.data(), g.data(), A.data(), lb, ub, lbA, ubA, nWSR, 0);
+    //qp_return = IK->hotstart(hessian.data(), g.data(), A.data(), lb, ub, lbA, ubA, nWSR, 0);
   }
+  ROS_INFO("_______________START QP DEBUG______________");
+  ROS_INFO("IK->getNC() : %d", IK->getNC());
+  ROS_INFO("IK->getNEC() : %d", IK->getNEC());
+  ROS_INFO("IK->getNAC() : %d", IK->getNAC());
+  ROS_INFO("IK->getNIAC() : %d", IK->getNIAC());
+  ROS_INFO("IK->getNZ() : %d", IK->getNZ());
+  ROS_INFO("IK->getObjVal() : %e", IK->getObjVal());
+  int result = IK->getDualSolution(yOpt);
+  ROS_INFO("resolt of IK->getDualSolution(yOpt) : %d", result);
+  ROS_INFO("yOpt : { %5f, %5f, %5f, %5f, %5f, %5f, %5f }", yOpt[0], yOpt[1], yOpt[2], yOpt[3], yOpt[4], yOpt[5], yOpt[6]);
+  IK->printProperties();
+  IK->printOptions();
 
+  qpOASES::SolutionAnalysis analyser;
+  qpOASES::real_t maxKktViolation = analyser.getKktViolation( IK );
+  ROS_INFO("maxKktViolation: %e\n", maxKktViolation);
+
+  qpOASES::Bounds bounds;
+  qpOASES::SubjectToStatus status;
+//   ST_LOWER = -1,			/**< Bound/constraint is at its lower bound. */
+//   ST_INACTIVE,			/**< Bound/constraint is inactive. */
+//   ST_UPPER,				/**< Bound/constraint is at its upper bound. */
+//   ST_INFEASIBLE_LOWER,	/**< (to be documented) */
+//   ST_INFEASIBLE_UPPER,	/**< (to be documented) */
+//   ST_UNDEFINED			/**< Status of bound/constraint undefined. */
+  IK->getBounds(bounds);
+  for(int i=0; i<6;i++)
+  {
+    status = bounds.getStatus(i);
+    ROS_INFO("Status of bound %d : %d", i, status);
+    
+  }
+  // Get and print solution of first QP
+  IK->getPrimalSolution(dq_computed);
+  
+  ROS_INFO("___________________________________________");
+  
   if (qp_return == qpOASES::SUCCESSFUL_RETURN)
   {
     ROS_INFO_STREAM("qpOASES : succesfully return");
 
-    // Get and print solution of first QP
-
-    IK->getPrimalSolution(xOpt);
+    
     double theta_tmp[6];
-    theta_tmp[0] = local_joint_state.position[0] + xOpt[0] * CALC_PERIOD;
-    theta_tmp[1] = local_joint_state.position[1] + xOpt[1] * CALC_PERIOD;
-    theta_tmp[2] = local_joint_state.position[2] + xOpt[2] * CALC_PERIOD;
-    theta_tmp[3] = local_joint_state.position[3] + xOpt[3] * CALC_PERIOD;
-    theta_tmp[4] = local_joint_state.position[4] + xOpt[4] * CALC_PERIOD;
-    theta_tmp[5] = local_joint_state.position[5] + xOpt[5] * CALC_PERIOD;
+    theta_tmp[0] = q_cmd_prev.position[0] + dq_computed[0] * sampling_period_;
+    theta_tmp[1] = q_cmd_prev.position[1] + dq_computed[1] * sampling_period_;
+    theta_tmp[2] = q_cmd_prev.position[2] + dq_computed[2] * sampling_period_;
+    theta_tmp[3] = q_cmd_prev.position[3] + dq_computed[3] * sampling_period_;
+    theta_tmp[4] = q_cmd_prev.position[4] + dq_computed[4] * sampling_period_;
+    theta_tmp[5] = q_cmd_prev.position[5] + dq_computed[5] * sampling_period_;
     
     bool limit_detected = false;
     // Check joints limits
@@ -349,72 +464,102 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
         limit_detected = true;
       }
     }
-
-    if (!limit_detected)
-    {
+//     if (!limit_detected)
+//     {
       joint_position_command[0] = theta_tmp[0];
       joint_position_command[1] = theta_tmp[1];
       joint_position_command[2] = theta_tmp[2];
       joint_position_command[3] = theta_tmp[3];
       joint_position_command[4] = theta_tmp[4];
       joint_position_command[5] = theta_tmp[5];
-    }
+//     }
   }
   else
   {
-    ROS_ERROR_STREAM("qpOASES : Failed !!!");
-    //     exit(0);
-    
-    xOpt[0] = 0.0;
-    xOpt[1] = 0.0;
-    xOpt[2] = 0.0;
-    xOpt[3] = 0.0;
-    xOpt[4] = 0.0;
-    xOpt[5] = 0.0;
-  }
+    ROS_ERROR("qpOASES : Failed with code : %d !", qp_return);
+    dq_computed[0] = 0.0;
+    dq_computed[1] = 0.0;
+    dq_computed[2] = 0.0;
+    dq_computed[3] = 0.0;
+    dq_computed[4] = 0.0;
+    dq_computed[5] = 0.0;
+  }  
+  PrintVector("joint_state", Vector6d(current_joint_state.position.data()));
+  PrintVector("joints_lim_min", Vector6d(joints_limits_min));
+  PrintVector("q_cmd_prev", Vector6d(q_cmd_prev.position.data()));
+  PrintVector("q_cmd_new", Vector6d(joint_position_command));
+  PrintVector("joints_lim_max", Vector6d(joints_limits_max));
+  PrintVector("dq_computed", Vector6d(dq_computed));
+  ROS_DEBUG_STREAM("================");
+//   ROS_DEBUG_STREAM("Jacobian: \n" << jacobian);
+  PrintVector("dx_des_vect", dx_des_vect);
+//   ROS_DEBUG_STREAM("hessian: \n" << hessian );
+//   ROS_DEBUG_STREAM("g = \n" << g);
+   ROS_DEBUG_STREAM("A: \n" << A );
+  ROS_DEBUG_STREAM("================");
+  PrintVector("x_min_limit", x_min_limit);
+  PrintVector("x_cmd_prev", x_cmd_prev);
+  PrintVector("x_max_limit", x_max_limit);
 
-  ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1]
-                                                 << ", " << joint_position_command[2] << ", "
-                                                 << joint_position_command[3] << ", " << joint_position_command[4]
-                                                 << ", " << joint_position_command[5] << "]\n");
 
-  Vector6d cartesianSpeed = Vector6d::Zero();
-  cartesianSpeed = jacobian*Vector6d(xOpt);
-  ROS_DEBUG_STREAM("cartesianSpeed: \n" << cartesianSpeed << "\n");
-  cartesianPosition = currentPosition + cartesianSpeed*CALC_PERIOD;
-  ROS_DEBUG_STREAM("cartesianPosition: \n" << cartesianPosition << "\n");
-  Vector6d jqt = cartesianSpeed*CALC_PERIOD;
-  ROS_DEBUG_STREAM("jqt: \n" << jqt << "\n");
-
+//   ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1]
+//   << ", " << joint_position_command[2] << ", "
+//   << joint_position_command[3] << ", " << joint_position_command[4]
+//   << ", " << joint_position_command[5] << "]\n");
+  ROS_DEBUG_STREAM("================");
+  Vector6d dx_computed = Vector6d::Zero();
+  dx_computed = jacobian*Vector6d(dq_computed);
+  PrintVector("dx_computed", dx_computed);
+  Vector6d j_dq_t = dx_computed*sampling_period_;
+  ROS_DEBUG_STREAM("================");
+  PrintVector("x_computed (old)", x_computed);
+  PrintVector("x_cmd_prev", x_cmd_prev);
+  x_computed = x_cmd_prev + j_dq_t;
+  ROS_DEBUG_STREAM("================");
+  PrintVector("x_computed (new)", x_computed);
+  ROS_DEBUG_STREAM("================");
   
+  PrintVector("j_dq_t", j_dq_t);
   
-  // Look for cartesian limit overshoots
-  for (int i = 0; i < 3; i++)
+  for(int i=0;i<6;i++)
   {
-    if (cartesianPosition(i, 0) > x_max_limit[i])
+    if((j_dq_t(i,0) < lbA[i]) || (j_dq_t(i,0) > ubA[i]))
     {
-      ROS_WARN_STREAM("Cartesian MAX limit overshoot on axis " << i << " : " << cartesianPosition(i, 0) << " > "
-      << x_max_limit[i]);
-      // limit_detected = true;
+      ROS_WARN("lba < j.dq_des.T < uba (%d) : %10f \t< %10f \t< %10f", i,  lbA[i], j_dq_t(i,0), ubA[i] );
     }
-    else if (cartesianPosition(i, 0) < x_min_limit[i])
+    else
     {
-      ROS_WARN_STREAM("Cartesian MIN limit overshoot on axis " << i << " : " << cartesianPosition(i, 0) << " < "
-      << x_min_limit[i]);
-      // limit_detected = true;
+      ROS_DEBUG("lba < j.dq_des.T < uba (%d) : %10f \t< %10f \t< %10f", i,  lbA[i], j_dq_t(i,0), ubA[i] );
     }
   }
   
-  debug_pose_current_.publish(current_pose);
+  /* Publish debug topics */
+  geometry_msgs::Pose current_pose_debug;
+  current_pose_debug.position.x = x_cmd_prev(0, 0); 
+  current_pose_debug.position.y = x_cmd_prev(1, 0); 
+  current_pose_debug.position.z = x_cmd_prev(2, 0); 
+  current_pose_debug.orientation.x = x_cmd_prev(3, 0); 
+  current_pose_debug.orientation.y = x_cmd_prev(4, 0); 
+  current_pose_debug.orientation.z = x_cmd_prev(5, 0); 
+  debug_pose_current_.publish(current_pose_debug);
   
   geometry_msgs::Pose desired_pose;
-  desired_pose.position.x = cartesianPosition(0, 0); 
-  desired_pose.position.y = cartesianPosition(1, 0); 
-  desired_pose.position.z = cartesianPosition(2, 0); 
-  desired_pose.orientation.x = cartesianPosition(3, 0); 
-  desired_pose.orientation.y = cartesianPosition(4, 0); 
-  desired_pose.orientation.z = cartesianPosition(5, 0); 
+  desired_pose.position.x = current_pose.orientation.w; 
+  desired_pose.position.y = j_dq_t(1, 0); 
+  desired_pose.position.z = j_dq_t(2, 0); 
+  desired_pose.orientation.x = j_dq_t(3, 0); 
+  desired_pose.orientation.y = j_dq_t(4, 0); 
+  desired_pose.orientation.z = j_dq_t(5, 0); 
   debug_pose_desired_.publish(desired_pose);  
+  
+  geometry_msgs::Pose meas_pose;
+  meas_pose.position.x = x_des(0, 0); 
+  meas_pose.position.y = x_des(1, 0); 
+  meas_pose.position.z = x_des(2, 0); 
+  meas_pose.orientation.x = x_des(3, 0); 
+  meas_pose.orientation.y = x_des(4, 0); 
+  meas_pose.orientation.z = x_des(5, 0); 
+  debug_pose_meas_.publish(meas_pose);  
   
   sensor_msgs::JointState desired_joints;
   desired_joints.header = current_joint_state.header;
@@ -448,13 +593,24 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   max_joints.position[4] = joints_limits_max[4];
   max_joints.position[5] = joints_limits_max[5];
   debug_joint_max_limit_.publish(max_joints);
+  
+  if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
+  {
+    
+    exit(0);
+  }
+}
+
+void InverseKinematic::PrintVector(const std::string name, const Vector6d vector) const 
+{
+  std::string reformatted_name = name;
+  reformatted_name.resize(14, ' ');
+  ROS_DEBUG("%s : %5f, \t%5f, \t%5f, \t%5f, \t%5f, \t%5f", reformatted_name.c_str(), vector(0,0), vector(1,0), vector(2,0), vector(3,0), vector(4,0), vector(5,0));
 }
 
 void InverseKinematic::UpdateAxisConstraints()
 {
   ROS_WARN_STREAM("InverseKinematic::UpdateAxisConstraints");
-  ROS_WARN_STREAM("InverseKinematic currentPosition : ");
-  ROS_WARN_STREAM(currentPosition);
   for(int i=0;i<6;i++)
   {
     if(request_update_constraint[i])
@@ -462,15 +618,17 @@ void InverseKinematic::UpdateAxisConstraints()
       ROS_WARN_STREAM("Update axis " << i << " constraints with new tolerance of " << request_update_constraint_tolerance[i] << " m.");
       if(i<6)
       {
-          x_min_limit[i] = currentPosition(i, 0) - request_update_constraint_tolerance[i];
-          x_max_limit[i] = currentPosition(i, 0) + request_update_constraint_tolerance[i];
+          x_min_limit(i,0) = x_cmd_prev(i, 0) - request_update_constraint_tolerance[i];
+          x_max_limit(i,0) = x_cmd_prev(i, 0) + request_update_constraint_tolerance[i];
       }
       else
       {
-        x_min_limit[i] = - request_update_constraint_tolerance[i];
-        x_max_limit[i] = + request_update_constraint_tolerance[i];
+        x_min_limit(i,0) = - request_update_constraint_tolerance[i];
+        x_max_limit(i,0) = + request_update_constraint_tolerance[i];
       }
       request_update_constraint[i] = false;
+      x_des[i] =  x_cmd_prev[i];      
+      ROS_WARN_STREAM("Update the new desired position of " << i << " to " << x_des[i]);
     }
   }
 }

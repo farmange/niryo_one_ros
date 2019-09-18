@@ -11,7 +11,7 @@ alpha_3:          10.
 alpha_4:          10.
 alpha_5:          10.
 alpha_6:          10.
-alpha_7:          10.
+alpha_7:          0.
 
 #
 #  Minimize joints velocities coefs : dq
@@ -26,12 +26,12 @@ beta_6:           0.1
 #
 #  Minimize cartesian position coefs : x
 #        
-gamma_1:          0.0
-gamma_2:          0.0
-gamma_3:          0.0
-gamma_4:          0.0
-gamma_5:          0.0
-gamma_6:          0.0
+gamma_1:          5000.
+gamma_2:          5000.
+gamma_3:          5000.
+gamma_4:          5000.
+gamma_5:          5000.
+gamma_6:          5000.
 gamma_7:          0.0
 
 

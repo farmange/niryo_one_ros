@@ -8,7 +8,6 @@
 
 #include "orthopus_interface/cartesian_controller.h"
 
-#define RATE 10
 #define INIT_TIME 2
 #define MAX_VELOCITY 0.9
 
@@ -29,30 +28,42 @@ CartesianController::CartesianController()
   }
 }
 
-void CartesianController::init(PoseManager& pose_manager_, ros::Publisher& command_pub_, 
-                               ros::Publisher& debug_pose_current_,
-                               ros::Publisher& debug_pose_desired_,
-                               ros::Publisher& debug_joint_desired_,
-                               ros::Publisher& debug_joint_min_limit_,
-                               ros::Publisher& debug_joint_max_limit_)
+void CartesianController::init(int sampling_freq,
+                               PoseManager& pose_manager,
+                               ros::Publisher& command_pub, 
+                               ros::Publisher& debug_pose_current,
+                               ros::Publisher& debug_pose_desired,
+                               ros::Publisher& debug_pose_meas,
+                               ros::Publisher& debug_joint_desired,
+                               ros::Publisher& debug_joint_min_limit,
+                               ros::Publisher& debug_joint_max_limit)
 {
   ROS_DEBUG_STREAM("CartesianController init");
-  this->pose_manager_ = pose_manager_;
-  this->command_pub_ = command_pub_;
-  this->debug_pose_current_ = debug_pose_current_;
-  this->debug_pose_desired_ = debug_pose_desired_;  
-  this->debug_joint_desired_ = debug_joint_desired_;
-  this->debug_joint_min_limit_ = debug_joint_min_limit_;
-  this->debug_joint_max_limit_ = debug_joint_max_limit_;
+  pose_manager_ = pose_manager;
+  command_pub_ = command_pub;
+  debug_pose_current_ = debug_pose_current;
+  debug_pose_desired_ = debug_pose_desired;  
+  debug_pose_meas_ = debug_pose_meas;  
+  debug_joint_desired_ = debug_joint_desired;
+  debug_joint_min_limit_ = debug_joint_min_limit;
+  debug_joint_max_limit_ = debug_joint_max_limit;
+  sampling_freq_ = sampling_freq;
   
   /* This is use to update joint state before running anything */
   ros::spinOnce();
-  ik_.Init(debug_pose_current_,
+  ik_.Init(sampling_freq_,
+           debug_pose_current_,
            debug_pose_desired_,
+           debug_pose_meas_,
            debug_joint_desired_,
            debug_joint_min_limit_,
            debug_joint_max_limit_);
   ik_.Reset(current_joint_state);
+  
+  position_compensator_.init(sampling_freq_,
+                             debug_pose_current_,
+                             debug_pose_desired_,
+                             debug_pose_meas_);
 }
 
 void CartesianController::run()
@@ -168,7 +179,9 @@ void CartesianController::updateFsm()
           ROS_ERROR_STREAM("Could not connect to service...");
         }
 
+        position_compensator_.reset();
         fsm_state = FsmState::CartesianMode;
+        
       }
     }
     else if (fsm_state == FsmState::GotoHome || fsm_state == FsmState::GotoDrink ||
@@ -260,10 +273,14 @@ void CartesianController::cartesianState()
 {
   if (enable_joy_)
   {
+    ROS_INFO("=== Perform position compensation...");   
+//     position_compensator_.run(cartesian_velocity_compensated, cartesian_velocity_desired, current_joint_state);
+    ROS_INFO("    Done.");
+    
     ROS_INFO("=== Start IK computation...");   
     ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
     ROS_INFO("    Done.");
-
+    
     ROS_INFO("=== Send Niryo One commands...");
     sendJointsCommand();
     ROS_INFO("    Done.");
@@ -435,7 +452,7 @@ void CartesianController::sendJointsCommand()
     new_jt_traj.joint_names = current_joint_state.name;
 
     trajectory_msgs::JointTrajectoryPoint point;
-    point.time_from_start = ros::Duration(1.0 / RATE);
+    point.time_from_start = ros::Duration(1.0 / sampling_freq_) * 0.5 ;
     for (int i = 0; i < 6; i++)
     {
       point.positions.push_back(joint_position_cmd[i]);
@@ -471,6 +488,7 @@ void CartesianController::callbackJointState(const sensor_msgs::JointStateConstP
 {
   ROS_DEBUG_STREAM("callbackJointState");
   current_joint_state = *msg;
+//   ROS_DEBUG_STREAM(current_joint_state);
 }
 
 void CartesianController::callbackMoveGroupState(const std_msgs::Int32Ptr& msg)
@@ -498,7 +516,7 @@ void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistSt
     cartesian_velocity_desired[3] = msg->twist.angular.x;
     cartesian_velocity_desired[4] = msg->twist.angular.y;
     cartesian_velocity_desired[5] = msg->twist.angular.z;
-
+    
     for(int i =0; i<3;i++)
     {
       if(cartesian_velocity_desired[i] != 0)

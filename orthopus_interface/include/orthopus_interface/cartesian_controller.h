@@ -17,7 +17,7 @@
 #include "orthopus_interface/inverse_kinematic.h"
 #include "orthopus_interface/tool_controller.h"
 #include "orthopus_interface/pose_manager.h"
-// #include "orthopus_interface/robot_manager.h"
+#include "orthopus_interface/position_compensator.h"
 
 namespace cartesian_controller
 {
@@ -25,12 +25,15 @@ class CartesianController
 {
 public:
   CartesianController();
-  void init(PoseManager& pose_manager_, ros::Publisher& command_pub_, 
-            ros::Publisher& debug_pose_current_,
-            ros::Publisher& debug_pose_desired_,
-            ros::Publisher& debug_joint_desired_,
-            ros::Publisher& debug_joint_min_limit_,
-            ros::Publisher& debug_joint_max_limit_);
+  void init(int sampling_freq,
+            PoseManager& pose_manager, 
+            ros::Publisher& command_pub, 
+            ros::Publisher& debug_pose_current,
+            ros::Publisher& debug_pose_desired,
+            ros::Publisher& debug_pose_meas,
+            ros::Publisher& debug_joint_desired,
+            ros::Publisher& debug_joint_min_limit,
+            ros::Publisher& debug_joint_max_limit);
   void run();
   bool cartesianIsEnable();
 
@@ -60,6 +63,7 @@ private:
   ros::Publisher joystick_enabled_pub_;
   ros::Publisher debug_pose_current_;
   ros::Publisher debug_pose_desired_;  
+  ros::Publisher debug_pose_meas_;  
   ros::Publisher debug_joint_desired_;
   ros::Publisher debug_joint_min_limit_;
   ros::Publisher debug_joint_max_limit_;
@@ -70,7 +74,10 @@ private:
 
   InverseKinematic ik_;
   PoseManager pose_manager_;
-
+  PositionCompensator position_compensator_;
+  
+  int sampling_freq_;
+  
   int move_group_state_;
   bool planning_pending_;
   double joint_position_cmd[6];
@@ -79,6 +86,7 @@ private:
 
   sensor_msgs::JointState current_joint_state;
   double cartesian_velocity_desired[6];
+  double cartesian_velocity_compensated[6];
   double cartesian_velocity_desired_prev[6];
 
   class FsmState
