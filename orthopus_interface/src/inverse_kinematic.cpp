@@ -184,37 +184,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
                                                sensor_msgs::JointState& current_joint_state,
                                                double (&cartesian_velocity_desired)[6])
 {
-  
-  /**************************************************************/
-  geometry_msgs::Pose current_pose_meas;
-  
-//   /* Set kinemtic state of the robot to the previous joint positions computed */
-//   kinematic_state->setVariableValues(current_joint_state);
-//   
-//   /* Get the cartesian state of the tool_link frame */
-//   const Eigen::Affine3d& end_effector_state_meas =
-//   kinematic_state->getGlobalLinkTransform("tool_link");  // TODO Add configuration parameter
-//   /* Convert cartesian state to goemetry_msgs::Pose */
-//   tf::poseEigenToMsg(end_effector_state_meas, current_pose_meas);
-//   
-//   /* Convert quaternion pose in RPY */
-//   tf::Quaternion q_meas(current_pose_meas.orientation.x, 
-//                         current_pose_meas.orientation.y, 
-//                         current_pose_meas.orientation.z, 
-//                         current_pose_meas.orientation.w);
-//   tf::Matrix3x3 m_meas(q_meas);
-//   double roll_meas, pitch_meas, yaw_meas;
-//   m_meas.getRPY(roll_meas, pitch_meas, yaw_meas);
-//   
-//   /* Store RPY pose in x_cmd_prev vector */
-//   x_meas(0, 0) = current_pose_meas.position.x;
-//   x_meas(1, 0) = current_pose_meas.position.y;
-//   x_meas(2, 0) = current_pose_meas.position.z;
-//   x_meas(3, 0) = roll_meas;
-//   x_meas(4, 0) = pitch_meas;
-//   x_meas(5, 0) = yaw_meas;
-  /**************************************************************/
-  
   sensor_msgs::JointState q_cmd_prev = current_joint_state;
   ROS_WARN("current_joint_state \t| joint_position_command \t| q_cmd_prev");
   for (std::size_t i = 0; i < 6; ++i)
@@ -229,6 +198,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
       ROS_WARN(" %8f         \t| %8f            \t| %8f", current_joint_state.position[i], joint_position_command[i], q_cmd_prev.position[i]);
     }      
   }
+  
   /* Set kinemtic state of the robot to the previous joint positions computed */
   kinematic_state->setVariableValues(q_cmd_prev);
   kinematic_state->updateLinkTransforms();
@@ -237,9 +207,11 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   const Eigen::Affine3d& end_effector_state = 
   kinematic_state->getGlobalLinkTransform(kinematic_state->getLinkModel("tool_link"));  // TODO Add configuration parameter  
 
-  /* Convert cartesian state to goemetry_msgs::Pose */
+  /* Convert cartesian state to geometry_msgs::Pose */
   tf::poseEigenToMsg(end_effector_state, current_pose);
-
+  geometry_msgs::Pose saved_quat_pose;
+  tf::poseEigenToMsg(end_effector_state, saved_quat_pose);
+  
   /* Convert quaternion pose in RPY */
   tf::Quaternion q(current_pose.orientation.x, 
                    current_pose.orientation.y, 
@@ -544,12 +516,13 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   debug_pose_current_.publish(current_pose_debug);
   
   geometry_msgs::Pose desired_pose;
-  desired_pose.position.x = current_pose.orientation.w; 
-  desired_pose.position.y = j_dq_t(1, 0); 
-  desired_pose.position.z = j_dq_t(2, 0); 
-  desired_pose.orientation.x = j_dq_t(3, 0); 
-  desired_pose.orientation.y = j_dq_t(4, 0); 
-  desired_pose.orientation.z = j_dq_t(5, 0); 
+  desired_pose.position.x = saved_quat_pose.position.x; 
+  desired_pose.position.y = saved_quat_pose.position.y; 
+  desired_pose.position.z = saved_quat_pose.position.z; 
+  desired_pose.orientation.x = saved_quat_pose.orientation.x; 
+  desired_pose.orientation.y = saved_quat_pose.orientation.y; 
+  desired_pose.orientation.z = saved_quat_pose.orientation.z; 
+  desired_pose.orientation.w = saved_quat_pose.orientation.w; 
   debug_pose_desired_.publish(desired_pose);  
   
   geometry_msgs::Pose meas_pose;
