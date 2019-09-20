@@ -21,10 +21,17 @@ public:
             ros::Publisher& debug_pose_current,
             ros::Publisher& debug_pose_desired,
             ros::Publisher& debug_pose_meas,
-            double max_vel = 1.0);
-  void run(double (&cartesian_velocity_compensated)[6], const double (&cartesian_velocity_desired)[6], sensor_msgs::JointState& current_joint_state);
+            double max_vel = 1.0); 
+  void activeConstraints(double (&dx_response)[6], const double (&dx_request)[6], const double (&x_request)[6], bool force_xyz_constraints);
+  void executeTrajectory(double (&cartesian_velocity_computed)[6], const double (&x_request)[6]);
+  void run(double (&dx_response)[6]);
   void reset();
+  bool isTrajectoryRequested();
+  bool isTrajectoryCompleted();
   
+  void setJointState(sensor_msgs::JointState& current_joint_state);
+  void setVelocitiesCommand(const double (&cartesian_velocity_desired)[6]);
+  void setTrajectoryPose(const geometry_msgs::Pose& traj_des_pose);
 protected:
 private:
   ros::NodeHandle n_;
@@ -39,8 +46,17 @@ private:
   robot_state::JointModelGroup* joint_model_group;
   
   sensor_msgs::JointState current_joint_state_;
-  bool free_position_[6];
-  bool free_position_prev_[6];
+  
+  double velocity_command_[6];
+  double velocity_command_prev_[6];
+  
+  double dx_trajectory_[6];
+  double dx_trajectory_prev_[6];
+  
+  
+  bool constraint_axis_[6];
+  bool constraint_axis_prev_[6];
+  bool traj_requested_;
   
   double prev_xyz_rpy_[6];
   double current_xyz_rpy_[6];
@@ -48,12 +64,30 @@ private:
   double proportional_gain_[6];
   double integral_gain_[6];
   double integral_sum_[6];
+  double euler_factor_[6];
+  
+  double traj_p_gain_[6];
+  double traj_i_gain_[6];
+  double traj_i_sum_[6];
+  double traj_desired_pose_[6]; 
+  double traj_position_tolerance_;
+  double traj_orientation_tolerance_;
   
   double pi_min_, pi_max_;
   
-  void detectFreePosition(const double (&cartesian_velocity_desired)[6]);
+  void updateContraints(const double (&dx_des)[6]);
+  void rolloverHandling();
   void updateDesiredPosition();
+  bool trajectoryIsAchieved();
   
+  enum {
+    X_AXIS = 0,
+    Y_AXIS,
+    Z_AXIS,
+    ROLL_AXIS,
+    PITCH_AXIS,
+    YAW_AXIS
+  };
 };
 }
 #endif

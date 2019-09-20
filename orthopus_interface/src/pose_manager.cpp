@@ -21,6 +21,8 @@ PoseManager::PoseManager()
   position_map_["Rest"] = pose;
   ros::param::get("~drink_position", pose);
   position_map_["Drink"] = pose;
+  ros::param::get("~flip_position", pose);
+  position_map_["Flip"] = pose;
 }
 
 const std::vector<double> PoseManager::getJoints(const std::string position_name)

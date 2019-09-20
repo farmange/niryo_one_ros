@@ -95,6 +95,10 @@ bool CartesianController::callbackAction(niryo_one_msgs::SetInt::Request& req, n
   {
     action_requested = FsmAction::GotoDrink;
   }
+  else if (req.value == FsmAction::GotoStandGlass)
+  {
+    action_requested = FsmAction::GotoStandGlass;
+  }
   else if (req.value == FsmAction::FlipPinch)
   {
     action_requested = FsmAction::FlipPinch;
@@ -130,7 +134,7 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::Idle;
       }
     }
-    else if (fsm_state == FsmState::Idle || fsm_state == FsmState::CartesianMode || fsm_state == FsmState::GotoRest)
+    else if (fsm_state == FsmState::Idle)
     {
       if (action_requested == FsmAction::GotoHome)
       {
@@ -142,52 +146,131 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::GotoRest;
         gotoRestState();
       }
-      else if (action_requested == FsmAction::GotoDrink)
-      {
-        fsm_state = FsmState::GotoDrink;
-        gotoDrinkState();
-      }
-      else if (action_requested == FsmAction::FlipPinch)
-      {
-        fsm_state = FsmState::FlipPinch;
-        flipPinchState();
-      }
-      else if (action_requested == FsmAction::Cartesian &&
-        (fsm_prev_state == FsmState::GotoHome || fsm_prev_state == FsmState::FlipPinch || fsm_prev_state == FsmState::GotoRest))
-      // TODO temporary hack to prevent go to cartesian if not in home
+    }
+    else if (fsm_state == FsmState::CartesianMode)
+    {
+      if (action_requested == FsmAction::GotoDrink)
       {
         ik_.Reset(current_joint_state);
         for (int i = 0; i < 6; i++)
         {
           joint_position_cmd[i] = current_joint_state.position[i];
         }
-        if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
-        {
-          niryo_one_msgs::RobotMove robot_move_msg;
-          robot_move_msg.request.cmd.cmd_type = 666;  // stop
-          ros::ServiceClient move_group_client =
-              n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-          move_group_client.call(robot_move_msg);
-          ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-          if (robot_move_msg.response.status == 8000)
-          {
-            planning_pending_ = true;
-          }
-        }
-        else
-        {
-          ROS_ERROR_STREAM("Could not connect to service...");
-        }
-
         position_compensator_.reset();
-        fsm_state = FsmState::CartesianMode;
+        geometry_msgs::Pose drink_pose;
+        drink_pose.position.x = 0.0237014013867;
+        drink_pose.position.y = -0.226999999994;
+        drink_pose.position.z = 0.423000149945;
+        drink_pose.orientation.x = 0;
+        drink_pose.orientation.y = 0;
+        drink_pose.orientation.z = 0;
+        position_compensator_.setTrajectoryPose(drink_pose);
         
+        fsm_state = FsmState::GotoDrink;
+      }
+      else if (action_requested == FsmAction::GotoStandGlass)
+      {
+        ik_.Reset(current_joint_state);
+        for (int i = 0; i < 6; i++)
+        {
+          joint_position_cmd[i] = current_joint_state.position[i];
+        }
+        position_compensator_.reset();
+        geometry_msgs::Pose stand_pose;
+        stand_pose.position.x = -0.0183778;
+        stand_pose.position.y = -0.233611;
+        stand_pose.position.z = 0.419733;
+        stand_pose.orientation.x = 0;
+        stand_pose.orientation.y = 0;
+        stand_pose.orientation.z = -3.14;
+        position_compensator_.setTrajectoryPose(stand_pose);
+        
+        fsm_state = FsmState::GotoStandGlass;
+      }
+      else if (action_requested == FsmAction::GotoHome)
+      {
+        fsm_state = FsmState::GotoHome;
+        gotoHomeState();
+      }
+      else if (action_requested == FsmAction::GotoRest)
+      {
+        fsm_state = FsmState::GotoRest;
+        gotoRestState();
+      }
+        
+    }
+    else if (fsm_state == FsmState::GotoDrink)
+    {
+      if (action_requested == FsmAction::GotoHome)
+      {
+        fsm_state = FsmState::GotoHome;
+        gotoHomeState();
+      }
+      else if (action_requested == FsmAction::GotoRest)
+      {
+        fsm_state = FsmState::GotoRest;
+        gotoRestState();
+      }
+      if(position_compensator_.isTrajectoryCompleted())
+      {
+        fsm_state = FsmState::FlipPinch;
+        flipPinchState();
       }
     }
-    else if (fsm_state == FsmState::GotoHome || fsm_state == FsmState::GotoDrink ||
-             fsm_state == FsmState::FlipPinch)
+    else if (fsm_state == FsmState::GotoStandGlass)
     {
-      /* Do nothing */
+      if (action_requested == FsmAction::GotoHome)
+      {
+        fsm_state = FsmState::GotoHome;
+        gotoHomeState();
+      }
+      else if (action_requested == FsmAction::GotoRest)
+      {
+        fsm_state = FsmState::GotoRest;
+        gotoRestState();
+      }
+      if(position_compensator_.isTrajectoryCompleted())
+      {
+        fsm_state = FsmState::FlipPinch;
+        flipPinchState();
+      }
+    }
+    else if (fsm_state == FsmState::GotoHome)
+    {
+      /* Switch to cartesian mode when position is completed */
+      if(isPositionCompleted(pose_manager_.getJoints("Home")))
+      {
+        ik_.Reset(current_joint_state);
+        for (int i = 0; i < 6; i++)
+        {
+          joint_position_cmd[i] = current_joint_state.position[i];
+        }
+        position_compensator_.reset();
+        fsm_state = FsmState::CartesianMode;
+      }
+      
+    }
+    else if (fsm_state == FsmState::GotoRest)
+    {
+      /* Switch to idle when position is completed */
+      if(isPositionCompleted(pose_manager_.getJoints("Rest")))
+      {
+        fsm_state = FsmState::Idle;
+      }
+    }
+    else if (fsm_state == FsmState::FlipPinch)
+    {
+      /* Switch to cartesian mode when position is completed */
+      if(isPositionCompleted(pose_manager_.getJoints("Flip")))
+      {
+        ik_.Reset(current_joint_state);
+        for (int i = 0; i < 6; i++)
+        {
+          joint_position_cmd[i] = current_joint_state.position[i];
+        }
+        position_compensator_.reset();
+        fsm_state = FsmState::CartesianMode;
+      }
     }
     else
     {
@@ -211,48 +294,19 @@ void CartesianController::runFsm()
 
   if (fsm_state == FsmState::CartesianMode)
   {
-    if (planning_pending_ == true)
-    {
-      if (ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0)))
-      {
-        niryo_one_msgs::GetInt state_msg;
-        ros::ServiceClient get_state_client =
-            n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
-        get_state_client.call(state_msg);
-        planning_pending_ = (state_msg.response.value == 0) ? false : true;
-      }
-      else
-      {
-        ROS_ERROR_STREAM("Could not connect to service...");
-      }
-    }
-    else
-    {
-      cartesianState();
-    }
+    cartesianState();
   }
-  else if (fsm_state == FsmState::FlipPinch || fsm_state == FsmState::GotoDrink ||
-           fsm_state == FsmState::GotoRest || fsm_state == FsmState::GotoHome)
+  else if (fsm_state == FsmState::GotoDrink)
   {
-    if (planning_pending_ == true)
-    {
-      if (ros::service::waitForService("/orthopus_interface/move_groupe_node/get_state", ros::Duration(3.0)))
-      {
-        niryo_one_msgs::GetInt state_msg;
-        ros::ServiceClient get_state_client =
-            n_.serviceClient<niryo_one_msgs::GetInt>("/orthopus_interface/move_groupe_node/get_state");
-        get_state_client.call(state_msg);
-        planning_pending_ = (state_msg.response.value == 0) ? false : true;
-      }
-      else
-      {
-        ROS_ERROR_STREAM("Could not connect to service...");
-      }
-    }
-    else
-    {
-      fsm_state = FsmState::Idle;
-    }
+    gotoDrinkState();
+  }
+  else if (fsm_state == FsmState::GotoStandGlass)
+  {
+    gotoStandGlassState();
+  }
+  else if (fsm_state == FsmState::FlipPinch || fsm_state == FsmState::GotoRest || fsm_state == FsmState::GotoHome)
+  {
+    /* Do nothing */
   }
   else if (fsm_state == FsmState::Disable)
   {
@@ -271,20 +325,20 @@ void CartesianController::runFsm()
 
 void CartesianController::cartesianState()
 {
-  if (enable_joy_)
-  {
+
     ROS_INFO("=== Perform position compensation...");   
-//     position_compensator_.run(cartesian_velocity_compensated, cartesian_velocity_desired, current_joint_state);
+    position_compensator_.setJointState(current_joint_state);
+    position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
+    position_compensator_.run(cartesian_velocity_compensated);
     ROS_INFO("    Done.");
     
     ROS_INFO("=== Start IK computation...");   
-    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
+    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
     ROS_INFO("    Done.");
     
     ROS_INFO("=== Send Niryo One commands...");
     sendJointsCommand();
     ROS_INFO("    Done.");
-  }
 }
 
 void CartesianController::gotoHomeState()
@@ -349,59 +403,59 @@ void CartesianController::gotoRestState()
 }
 
 void CartesianController::gotoDrinkState()
-{
-  pose_manager_.setJoints("BackDrink", current_joint_state.position);
+{   
+  ROS_INFO("=== Perform position compensation...");   
+  position_compensator_.setJointState(current_joint_state);
+  position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
+  position_compensator_.run(cartesian_velocity_compensated);  
+  ROS_INFO("    Done.");
   
-  if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
-  {
-    geometry_msgs::Pose target_pose = pose_manager_.getPose("Drink");
-    niryo_one_msgs::RobotMove robot_move_msg;
-    robot_move_msg.request.cmd.cmd_type = 1;
-    
-    robot_move_msg.request.cmd.pose_quat.position.x = target_pose.position.x;
-    robot_move_msg.request.cmd.pose_quat.position.y = target_pose.position.y;
-    robot_move_msg.request.cmd.pose_quat.position.z = target_pose.position.z;
-    
-    robot_move_msg.request.cmd.pose_quat.orientation.x = target_pose.orientation.x;
-    robot_move_msg.request.cmd.pose_quat.orientation.y = target_pose.orientation.y;
-    robot_move_msg.request.cmd.pose_quat.orientation.z = target_pose.orientation.z;
-    robot_move_msg.request.cmd.pose_quat.orientation.w = target_pose.orientation.w;
-    
-    ros::ServiceClient move_group_client =
-    n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-    move_group_client.call(robot_move_msg);
-    ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-    if (robot_move_msg.response.status == 8000)
-    {
-      planning_pending_ = true;
-    }
-  }
-  else
-  {
-    ROS_ERROR_STREAM("Could not connect to service...");
-  }
+  ROS_INFO("=== Start IK computation...");   
+  ik_.RequestUpdateAxisConstraints(0, 0.1);
+  ik_.RequestUpdateAxisConstraints(1, 0.1);
+  ik_.RequestUpdateAxisConstraints(2, 0.1);
+  ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
+  ROS_INFO("    Done.");
+  
+  ROS_INFO("=== Send Niryo One commands...");
+  sendJointsCommand();
+  ROS_INFO("    Done.");
+}
+
+void CartesianController::gotoStandGlassState()
+{   
+  ROS_INFO("=== Perform position compensation...");   
+  position_compensator_.setJointState(current_joint_state);
+  position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
+  position_compensator_.run(cartesian_velocity_compensated);  
+  ROS_INFO("    Done.");
+  
+  ROS_INFO("=== Start IK computation...");   
+  ik_.RequestUpdateAxisConstraints(0, 0.1);
+  ik_.RequestUpdateAxisConstraints(1, 0.1);
+  ik_.RequestUpdateAxisConstraints(2, 0.1);
+  ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
+  ROS_INFO("    Done.");
+  
+  ROS_INFO("=== Send Niryo One commands...");
+  sendJointsCommand();
+  ROS_INFO("    Done.");
 }
 
 void CartesianController::flipPinchState()
 {  
-  if (ros::service::waitForService("/orthopus_interface/move_groupe_node/move", ros::Duration(3.0)))
+  std::vector<double> flip_position;
+  flip_position = current_joint_state.position;
+  if(flip_position[4] < 0)
   {
-    niryo_one_msgs::RobotMove robot_move_msg;
-    robot_move_msg.request.cmd.cmd_type = 123; // Flip pinch command
-    
-    ros::ServiceClient move_group_client =
-    n_.serviceClient<niryo_one_msgs::RobotMove>("/orthopus_interface/move_groupe_node/move");
-    move_group_client.call(robot_move_msg);
-    ROS_WARN_STREAM("robot_move_msg.response.status :" << robot_move_msg.response.status);
-    if (robot_move_msg.response.status == 8000)
-    {
-      planning_pending_ = true;
-    }
+    flip_position[4] = flip_position[4] + M_PI;
   }
   else
   {
-    ROS_ERROR_STREAM("Could not connect to service...");
+    flip_position[4] = flip_position[4] - M_PI;
   }
+  pose_manager_.setJoints("Flip", flip_position);
+  gotoPosition(flip_position);  
 }
 
 void CartesianController::gotoPosition(const std::vector<double> position)
@@ -428,6 +482,20 @@ void CartesianController::gotoPosition(const std::vector<double> position)
   command_pub_.publish(new_jt_traj);
 }
 
+bool CartesianController::isPositionCompleted(const std::vector<double> position)
+{
+  bool is_completed = true;
+  for(int i = 0; i<6; i++)
+  {
+    if (std::abs(current_joint_state.position[i] - position[i]) > 0.001)
+    {
+      ROS_ERROR("The current target position %5f of axis %d is not equal to target goal %5f",current_joint_state.position[i], i, position[i]);
+      is_completed = false;
+    }
+  }
+  return is_completed;
+}
+
 double CartesianController::computeDuration(const std::vector<double> position)
 {
   double delta_tmp = 0.0, delta_max = 0.0, duration = 0.0;
@@ -445,8 +513,7 @@ double CartesianController::computeDuration(const std::vector<double> position)
 
 void CartesianController::sendJointsCommand()
 {
-  if (enable_joy_)
-  {
+
     trajectory_msgs::JointTrajectory new_jt_traj;
     new_jt_traj.header.stamp = ros::Time::now();
     new_jt_traj.joint_names = current_joint_state.name;
@@ -463,7 +530,6 @@ void CartesianController::sendJointsCommand()
     // point.velocities = current_joint_state.velocity;
     new_jt_traj.points.push_back(point);
     command_pub_.publish(new_jt_traj);
-  }
 };
 
 // Scale the incoming desired velocity
@@ -507,8 +573,6 @@ void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistSt
     cartesian_velocity_desired[i] = 0.0;
   }
 
-  if (enable_joy_)
-  {
     cartesian_velocity_desired[0] = msg->twist.linear.x;
     cartesian_velocity_desired[1] = msg->twist.linear.y;
     cartesian_velocity_desired[2] = msg->twist.linear.z;
@@ -541,7 +605,7 @@ void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistSt
       }
       cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
     }
-  }
+  
 }
 
 void CartesianController::callbackLearningMode(const std_msgs::BoolPtr& msg)

@@ -18,6 +18,7 @@
 #include "orthopus_interface/tool_controller.h"
 #include "orthopus_interface/pose_manager.h"
 #include "orthopus_interface/position_compensator.h"
+#include "orthopus_interface/trajectory_manager.h"
 
 namespace cartesian_controller
 {
@@ -75,6 +76,7 @@ private:
   InverseKinematic ik_;
   PoseManager pose_manager_;
   PositionCompensator position_compensator_;
+  TrajectoryManager trajectory_manager_;
   
   int sampling_freq_;
   
@@ -86,6 +88,7 @@ private:
 
   sensor_msgs::JointState current_joint_state;
   double cartesian_velocity_desired[6];
+  double cartesian_velocity_traj[6];
   double cartesian_velocity_compensated[6];
   double cartesian_velocity_desired_prev[6];
 
@@ -98,6 +101,7 @@ private:
       GotoHome,
       GotoRest,
       GotoDrink,
+      GotoStandGlass,
       FlipPinch,
       CartesianMode,
       Idle
@@ -120,6 +124,9 @@ private:
           break;
         case GotoDrink:
           msg = "GotoDrink";
+          break;
+        case GotoStandGlass:
+          msg = "GotoStandGlass";
           break;
         case FlipPinch:
           msg = "FlipPinch";
@@ -172,6 +179,7 @@ private:
       GotoHome,
       GotoRest,
       GotoDrink,
+      GotoStandGlass,
       FlipPinch
     };
 
@@ -195,6 +203,9 @@ private:
           break;
         case GotoDrink:
           msg = "GotoDrink";
+          break;
+        case GotoStandGlass:
+          msg = "GotoStandGlass";
           break;
         case FlipPinch:
           msg = "FlipPinch";
@@ -234,10 +245,13 @@ private:
   void gotoHomeState();
   void gotoRestState();
   void gotoDrinkState();
+  void gotoStandGlassState();
   void flipPinchState();
   
   void gotoPosition(const std::vector<double> position);
   double computeDuration(const std::vector<double> position);
+  bool isPositionCompleted(const std::vector<double> position);
+  
 };
 }
 #endif

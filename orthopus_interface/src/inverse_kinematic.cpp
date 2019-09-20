@@ -211,6 +211,8 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   tf::poseEigenToMsg(end_effector_state, current_pose);
   geometry_msgs::Pose saved_quat_pose;
   tf::poseEigenToMsg(end_effector_state, saved_quat_pose);
+  ROS_WARN("current_pose");
+  ROS_WARN_STREAM(current_pose);
   
   /* Convert quaternion pose in RPY */
   tf::Quaternion q(current_pose.orientation.x, 
@@ -221,21 +223,21 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   
-  if(std::abs(roll) >= M_PI/2)
-  {
-    pitch = -pitch;
-    yaw = -yaw;
-  }
-  if(std::abs(pitch) >= M_PI/2)
-  {
-    roll = -roll;
-    yaw = -yaw;
-  }
-  if(std::abs(yaw) >= M_PI/2)
-  {
-    roll = -roll;
-    pitch = -pitch;
-  }
+//   if(std::abs(roll) >= M_PI/2)
+//   {
+//     pitch = -pitch;
+//     yaw = -yaw;
+//   }
+//   if(std::abs(pitch) >= M_PI/2)
+//   {
+//     roll = -roll;
+//     yaw = -yaw;
+//   }
+//   if(std::abs(yaw) >= M_PI/2)
+//   {
+//     roll = -roll;
+//     pitch = -pitch;
+//   }
   
   /* Store RPY pose in x_cmd_prev vector */
   x_cmd_prev(0, 0) = current_pose.position.x;
@@ -246,27 +248,27 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   x_cmd_prev(5, 0) = yaw;
   
   
-  /* Look for euler jump in RPY and update constraints if needed */
-  for(int i=3; i<6; i++)
-  {
-    if(std::abs(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0)) >= M_PI/2)
-    {
-      ROS_ERROR_STREAM("==============> Euler jump detected on axis " << i << " !!!! delta=" << x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) <<"");
-      RequestUpdateAxisConstraints(i);
-      if(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) >= M_PI/2)
-      {
-        x_des[i] = x_des[i] + M_PI*2;
-      }
-      else if(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) <= M_PI/2)
-      {
-        x_des[i] = x_des[i] - M_PI*2;
-      }
-    }
-  }
+//   /* Look for euler jump in RPY and update constraints if needed */
+//   for(int i=3; i<6; i++)
+//   {
+//     if(std::abs(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0)) >= M_PI/2)
+//     {
+//       ROS_ERROR_STREAM("==============> Euler jump detected on axis " << i << " !!!! delta=" << x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) <<"");
+//       RequestUpdateAxisConstraints(i);
+//       if(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) >= M_PI/2)
+//       {
+//         x_des[i] = x_des[i] + M_PI*2;
+//       }
+//       else if(x_cmd_prev(i, 0) - x_cmd_prev_saved(i, 0) <= M_PI/2)
+//       {
+//         x_des[i] = x_des[i] - M_PI*2;
+//       }
+//     }
+//   }
   //x_des = x_des_init;// + dx_des_vect * sampling_period_;
   
-  x_cmd_prev_saved = x_cmd_prev;
-  UpdateAxisConstraints();
+//   x_cmd_prev_saved = x_cmd_prev;
+   UpdateAxisConstraints();
 
   /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
@@ -346,7 +348,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   if (qp_init_required)
   {
     // Initialize QP solver
-    IK = new qpOASES::QProblem(6, 6);
+    IK = new qpOASES::QProblem(6, 9);
     qpOASES::Options options;
     options.setToReliable( );
     // options.printLevel = qpOASES::PL_NONE;
@@ -505,34 +507,34 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
     }
   }
   
-  /* Publish debug topics */
-  geometry_msgs::Pose current_pose_debug;
-  current_pose_debug.position.x = x_cmd_prev(0, 0); 
-  current_pose_debug.position.y = x_cmd_prev(1, 0); 
-  current_pose_debug.position.z = x_cmd_prev(2, 0); 
-  current_pose_debug.orientation.x = x_cmd_prev(3, 0); 
-  current_pose_debug.orientation.y = x_cmd_prev(4, 0); 
-  current_pose_debug.orientation.z = x_cmd_prev(5, 0); 
-  debug_pose_current_.publish(current_pose_debug);
-  
-  geometry_msgs::Pose desired_pose;
-  desired_pose.position.x = saved_quat_pose.position.x; 
-  desired_pose.position.y = saved_quat_pose.position.y; 
-  desired_pose.position.z = saved_quat_pose.position.z; 
-  desired_pose.orientation.x = saved_quat_pose.orientation.x; 
-  desired_pose.orientation.y = saved_quat_pose.orientation.y; 
-  desired_pose.orientation.z = saved_quat_pose.orientation.z; 
-  desired_pose.orientation.w = saved_quat_pose.orientation.w; 
-  debug_pose_desired_.publish(desired_pose);  
-  
-  geometry_msgs::Pose meas_pose;
-  meas_pose.position.x = x_des(0, 0); 
-  meas_pose.position.y = x_des(1, 0); 
-  meas_pose.position.z = x_des(2, 0); 
-  meas_pose.orientation.x = x_des(3, 0); 
-  meas_pose.orientation.y = x_des(4, 0); 
-  meas_pose.orientation.z = x_des(5, 0); 
-  debug_pose_meas_.publish(meas_pose);  
+//   /* Publish debug topics */
+//   geometry_msgs::Pose current_pose_debug;
+//   current_pose_debug.position.x = x_cmd_prev(0, 0); 
+//   current_pose_debug.position.y = x_cmd_prev(1, 0); 
+//   current_pose_debug.position.z = x_cmd_prev(2, 0); 
+//   current_pose_debug.orientation.x = x_cmd_prev(3, 0); 
+//   current_pose_debug.orientation.y = x_cmd_prev(4, 0); 
+//   current_pose_debug.orientation.z = x_cmd_prev(5, 0); 
+//   debug_pose_current_.publish(current_pose_debug);
+//   
+//   geometry_msgs::Pose desired_pose;
+//   desired_pose.position.x = saved_quat_pose.position.x; 
+//   desired_pose.position.y = saved_quat_pose.position.y; 
+//   desired_pose.position.z = saved_quat_pose.position.z; 
+//   desired_pose.orientation.x = saved_quat_pose.orientation.x; 
+//   desired_pose.orientation.y = saved_quat_pose.orientation.y; 
+//   desired_pose.orientation.z = saved_quat_pose.orientation.z; 
+//   desired_pose.orientation.w = saved_quat_pose.orientation.w; 
+//   debug_pose_desired_.publish(desired_pose);  
+//   
+//   geometry_msgs::Pose meas_pose;
+//   meas_pose.position.x = x_des(0, 0); 
+//   meas_pose.position.y = x_des(1, 0); 
+//   meas_pose.position.z = x_des(2, 0); 
+//   meas_pose.orientation.x = x_des(3, 0); 
+//   meas_pose.orientation.y = x_des(4, 0); 
+//   meas_pose.orientation.z = x_des(5, 0); 
+//   debug_pose_meas_.publish(meas_pose);  
   
   sensor_msgs::JointState desired_joints;
   desired_joints.header = current_joint_state.header;

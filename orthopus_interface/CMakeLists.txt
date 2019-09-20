@@ -79,6 +79,7 @@ add_executable(cartesian_controller
   src/tool_controller.cpp
   src/pose_manager.cpp
   src/robot_manager.cpp
+  src/trajectory_manager.cpp
   src/position_compensator.cpp
   src/cartesian_controller.cpp
 )

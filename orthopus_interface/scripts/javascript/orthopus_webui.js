@@ -160,7 +160,8 @@ var ACTION_CARTESIAN        = 1;
 var ACTION_GOTO_HOME        = 2;
 var ACTION_GOTO_REST        = 3;
 var ACTION_GOTO_DRINK       = 4;
-var ACTION_FLIP_PINCH       = 5;
+var ACTION_GOTO_STAND_DRINK = 5;
+var ACTION_FLIP_PINCH       = 6;
 
 function SetJoystickEnable(state) {
   console.log('SetJoystickEnable');
@@ -339,11 +340,11 @@ function GotoDrink() {
   });
 }
 
-function FlipPinch() {
-  console.log('FlipPinch');
+function LayDownGlass() {
+  console.log('LayDownGlass');
   
   var request = new ROSLIB.ServiceRequest({
-    value : ACTION_FLIP_PINCH
+    value : ACTION_GOTO_STAND_DRINK
   });
   
   var goto_srv = new ROSLIB.Service({
@@ -521,9 +522,9 @@ $(function() {
         .click(function() {
           GotoDrink();
         });
-    $('#flip_pinch')
+    $('#goto_stand')
         .click(function() {
-          FlipPinch();
+          LayDownGlass();
         });
     $('#gripper_open')
         .click(function() {
