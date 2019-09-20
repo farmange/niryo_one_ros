@@ -72,13 +72,13 @@ void PositionCompensator::reset()
     desired_xyz_rpy_[i] = 0.0;
     constraint_axis_[i] = true;
     constraint_axis_prev_[i] = false;
-    proportional_gain_[i] = 13.0;
-    integral_gain_[i] = 40.;
+    proportional_gain_[i] = 10.0;
+    integral_gain_[i] = 0.5;
     integral_sum_[i] = 0.0;
     euler_factor_[i] = 1.0;
 
     traj_p_gain_[i] = 8.0;
-    traj_i_gain_[i] = 1.1;
+    traj_i_gain_[i] = 0.5;
     traj_i_sum_[i] = 0.0;
     
     velocity_command_[i] = 0.0;

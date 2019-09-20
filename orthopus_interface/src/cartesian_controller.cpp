@@ -334,15 +334,14 @@ void CartesianController::runFsm()
 
 void CartesianController::cartesianState()
 {
-
-    ROS_INFO("=== Perform position compensation...");   
-    position_compensator_.setJointState(current_joint_state);
-    position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
-    position_compensator_.run(cartesian_velocity_compensated);
-    ROS_INFO("    Done.");
+//     ROS_INFO("=== Perform position compensation...");   
+//     position_compensator_.setJointState(current_joint_state);
+//     position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
+//     position_compensator_.run(cartesian_velocity_compensated);
+//     ROS_INFO("    Done.");
     
     ROS_INFO("=== Start IK computation...");   
-    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
+    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
     ROS_INFO("    Done.");
     
     ROS_INFO("=== Send Niryo One commands...");
