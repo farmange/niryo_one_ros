@@ -44,7 +44,6 @@ RobotManager::RobotManager()
     joystick_enabled_pub_.publish(joystick_enable_msg);
 
     loop_rate.sleep();
-    loop_rate.sleep();
   }
 }
 

@@ -201,8 +201,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
 
   /* Convert cartesian state to geometry_msgs::Pose */
   tf::poseEigenToMsg(end_effector_state, current_pose);
-  geometry_msgs::Pose saved_quat_pose;
-  tf::poseEigenToMsg(end_effector_state, saved_quat_pose);
   ROS_WARN("current_pose");
   ROS_WARN_STREAM(current_pose);
   
@@ -239,7 +237,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   x_cmd_prev(4, 0) = pitch;
   x_cmd_prev(5, 0) = yaw;
   
-  
 //   /* Look for euler jump in RPY and update constraints if needed */
 //   for(int i=3; i<6; i++)
 //   {
@@ -260,7 +257,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   //x_des = x_des_init;// + dx_des_vect * sampling_period_;
   
 //   x_cmd_prev_saved = x_cmd_prev;
-   UpdateAxisConstraints();
+  UpdateAxisConstraints();
 
   /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
@@ -285,7 +282,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
                 (jacobian.transpose() * sampling_period_ * gamma_weight * x_des);
 
   /* Set joint velocities bound */
-  double maxVel = 0.9;
+  double maxVel = 1.0;
   double lb[] = { -maxVel, -maxVel, -maxVel, -maxVel, -maxVel, -maxVel };
   double ub[] = { +maxVel, +maxVel, +maxVel, +maxVel, +maxVel, +maxVel };
   
@@ -334,8 +331,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
                    
   // Solve first QP.
   qpOASES::real_t dq_computed[6];
-  qpOASES::real_t yOpt[6+1];
-  qpOASES::int_t nWSR = 20;
+  qpOASES::int_t nWSR = 10;
   int qp_return = 0;
   if (qp_init_required)
   {
