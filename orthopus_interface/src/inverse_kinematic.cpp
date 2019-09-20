@@ -348,71 +348,26 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   if (qp_init_required)
   {
     // Initialize QP solver
-    IK = new qpOASES::QProblem(6, 9);
+    IK = new qpOASES::SQProblem(6, 9);
     qpOASES::Options options;
     options.setToReliable( );
     // options.printLevel = qpOASES::PL_NONE;
-//     options.enableFlippingBounds = qpOASES::BT_TRUE;
-//     options.enableNZCTests = qpOASES::BT_TRUE;
-//     options.enableEqualities = qpOASES::BT_TRUE;
-//     options.boundTolerance = 0.000001;
-//     options.epsNum = 0.0000001;
-//     options.epsDen = 0.0000001;
-//     options.enableCholeskyRefactorisation = 1;
-//     options.enableRegularisation = qpOASES::BT_TRUE;
-    
-    options.printLevel = qpOASES::PL_DEBUG_ITER;
     IK->setOptions(options);
     
     qp_return = IK->init(hessian.data(), g.data(), A.data(), lb, ub, lbA, ubA, nWSR, 0);
-    //qp_init_required = false;
+    qp_init_required = false;
   }
   else
   {
-    //qp_return = IK->hotstart(hessian.data(), g.data(), A.data(), lb, ub, lbA, ubA, nWSR, 0);
-  }
-  ROS_INFO("_______________START QP DEBUG______________");
-  ROS_INFO("IK->getNC() : %d", IK->getNC());
-  ROS_INFO("IK->getNEC() : %d", IK->getNEC());
-  ROS_INFO("IK->getNAC() : %d", IK->getNAC());
-  ROS_INFO("IK->getNIAC() : %d", IK->getNIAC());
-  ROS_INFO("IK->getNZ() : %d", IK->getNZ());
-  ROS_INFO("IK->getObjVal() : %e", IK->getObjVal());
-  int result = IK->getDualSolution(yOpt);
-  ROS_INFO("resolt of IK->getDualSolution(yOpt) : %d", result);
-  ROS_INFO("yOpt : { %5f, %5f, %5f, %5f, %5f, %5f, %5f }", yOpt[0], yOpt[1], yOpt[2], yOpt[3], yOpt[4], yOpt[5], yOpt[6]);
-  IK->printProperties();
-  IK->printOptions();
-
-  qpOASES::SolutionAnalysis analyser;
-  qpOASES::real_t maxKktViolation = analyser.getKktViolation( IK );
-  ROS_INFO("maxKktViolation: %e\n", maxKktViolation);
-
-  qpOASES::Bounds bounds;
-  qpOASES::SubjectToStatus status;
-//   ST_LOWER = -1,			/**< Bound/constraint is at its lower bound. */
-//   ST_INACTIVE,			/**< Bound/constraint is inactive. */
-//   ST_UPPER,				/**< Bound/constraint is at its upper bound. */
-//   ST_INFEASIBLE_LOWER,	/**< (to be documented) */
-//   ST_INFEASIBLE_UPPER,	/**< (to be documented) */
-//   ST_UNDEFINED			/**< Status of bound/constraint undefined. */
-  IK->getBounds(bounds);
-  for(int i=0; i<6;i++)
-  {
-    status = bounds.getStatus(i);
-    ROS_INFO("Status of bound %d : %d", i, status);
-    
-  }
-  // Get and print solution of first QP
-  IK->getPrimalSolution(dq_computed);
-  
-  ROS_INFO("___________________________________________");
+    qp_return = IK->hotstart(hessian.data(), g.data(), A.data(), lb, ub, lbA, ubA, nWSR, 0);
+  }  
   
   if (qp_return == qpOASES::SUCCESSFUL_RETURN)
   {
-    ROS_INFO_STREAM("qpOASES : succesfully return");
+    ROS_DEBUG_STREAM("qpOASES : succesfully return");
 
-    
+    // Get and print solution of first QP
+    IK->getPrimalSolution(dq_computed);
     double theta_tmp[6];
     theta_tmp[0] = q_cmd_prev.position[0] + dq_computed[0] * sampling_period_;
     theta_tmp[1] = q_cmd_prev.position[1] + dq_computed[1] * sampling_period_;
@@ -474,12 +429,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   PrintVector("x_min_limit", x_min_limit);
   PrintVector("x_cmd_prev", x_cmd_prev);
   PrintVector("x_max_limit", x_max_limit);
-
-
-//   ROS_DEBUG_STREAM("joint_position_command: \n[" << joint_position_command[0] << ", " << joint_position_command[1]
-//   << ", " << joint_position_command[2] << ", "
-//   << joint_position_command[3] << ", " << joint_position_command[4]
-//   << ", " << joint_position_command[5] << "]\n");
   ROS_DEBUG_STREAM("================");
   Vector6d dx_computed = Vector6d::Zero();
   dx_computed = jacobian*Vector6d(dq_computed);
@@ -492,20 +441,7 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   ROS_DEBUG_STREAM("================");
   PrintVector("x_computed (new)", x_computed);
   ROS_DEBUG_STREAM("================");
-  
-  PrintVector("j_dq_t", j_dq_t);
-  
-  for(int i=0;i<6;i++)
-  {
-    if((j_dq_t(i,0) < lbA[i]) || (j_dq_t(i,0) > ubA[i]))
-    {
-      ROS_WARN("lba < j.dq_des.T < uba (%d) : %10f \t< %10f \t< %10f", i,  lbA[i], j_dq_t(i,0), ubA[i] );
-    }
-    else
-    {
-      ROS_DEBUG("lba < j.dq_des.T < uba (%d) : %10f \t< %10f \t< %10f", i,  lbA[i], j_dq_t(i,0), ubA[i] );
-    }
-  }
+
   
 //   /* Publish debug topics */
 //   geometry_msgs::Pose current_pose_debug;

@@ -248,7 +248,16 @@ void CartesianController::updateFsm()
         position_compensator_.reset();
         fsm_state = FsmState::CartesianMode;
       }
-      
+      else if (action_requested == FsmAction::GotoHome)
+      {
+        fsm_state = FsmState::GotoHome;
+        gotoHomeState();
+      }
+      else if (action_requested == FsmAction::GotoRest)
+      {
+        fsm_state = FsmState::GotoRest;
+        gotoRestState();
+      }
     }
     else if (fsm_state == FsmState::GotoRest)
     {
@@ -487,7 +496,7 @@ bool CartesianController::isPositionCompleted(const std::vector<double> position
   bool is_completed = true;
   for(int i = 0; i<6; i++)
   {
-    if (std::abs(current_joint_state.position[i] - position[i]) > 0.001)
+    if (std::abs(current_joint_state.position[i] - position[i]) > 0.015)
     {
       ROS_ERROR("The current target position %5f of axis %d is not equal to target goal %5f",current_joint_state.position[i], i, position[i]);
       is_completed = false;

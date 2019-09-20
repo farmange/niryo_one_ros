@@ -78,7 +78,7 @@ private:
   // Weight for cartesian position minimization
   Matrix6d gamma_weight;
   // QP solver
-  qpOASES::QProblem* IK;
+  qpOASES::SQProblem* IK;
 
   robot_model::RobotModelPtr kinematic_model;
   robot_state::RobotStatePtr kinematic_state;
