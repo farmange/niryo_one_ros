@@ -108,6 +108,12 @@ function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y) {
           var dy = (Math.pow(nipple.distance * Math.sin(nipple.angle.radian), 3) / Math.pow(pix_max, 3)) * (inv_y ?(-1.0):(1.0))
           console.debug("dx : " + dx)
           console.debug("dy : " + dy)
+          if(Math.abs(dx) < 0.001){
+            dx = 0.0;
+          }
+          if(Math.abs(dy) < 0.001){
+            dy = 0.0;
+          }
           axes[x_axis_remap] = dx;  
           axes[y_axis_remap] = dy;  
       });
@@ -342,45 +348,6 @@ function LayDownGlass() {
     + ', '
     + result.message);
   });
-}
-
-function Goto(positionName) {
-//   console.log('Got to ' + positionName);
-//   
-//   SetJoystickEnable(false);
-//   
-//   joints_positions = position_map.get(positionName);
-//     
-//   var robotActionClient = new ROSLIB.ActionClient({
-//     ros : ros,
-//     serverName : '/niryo_one/commander/robot_action',
-//     actionName : 'niryo_one_msgs/RobotMoveAction'
-//   });
-// 
-//   var goal = new ROSLIB.Goal({
-//     actionClient : robotActionClient,
-//     goalMessage : {
-//       cmd : {
-//         cmd_type : CMD_JOINTS,
-//         joints : joints_positions
-//       }
-//     }
-//   });
-// 
-//   goal.on('feedback', function(feedback) {
-//     console.log('Feedback: ' + feedback.state);
-//   });
-// 
-//   goal.on('result', function(result) {
-//     console.log('Final Result: ' + result.message);
-//     GotoPoseEnd();
-//   });
-//   
-//   goal.send();
-}
-
-function GotoPoseEnd() {
-
 }
 
 window.onload = function () {
