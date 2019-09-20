@@ -482,7 +482,6 @@ void CartesianController::sendJointsCommand()
 
     trajectory_msgs::JointTrajectoryPoint point;
     point.time_from_start = ros::Duration(1.0 / sampling_freq_);
-    ROS_ERROR("sampling_freq_ = %5f", sampling_freq_);
     for (int i = 0; i < 6; i++)
     {
       point.positions.push_back(joint_position_cmd[i]);
