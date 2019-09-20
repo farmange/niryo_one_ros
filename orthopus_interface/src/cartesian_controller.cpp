@@ -49,6 +49,9 @@ void CartesianController::init(int sampling_freq,
   debug_joint_max_limit_ = debug_joint_max_limit;
   sampling_freq_ = sampling_freq;
   
+  
+  ros::param::get("~pose_goal_joints_tolerance", pose_goal_joints_tolerance_);
+  
   /* This is use to update joint state before running anything */
   ros::spinOnce();
   ik_.Init(sampling_freq_,
@@ -339,14 +342,14 @@ void CartesianController::runFsm()
 
 void CartesianController::cartesianState()
 {
-//     ROS_INFO("=== Perform position compensation...");   
-//     position_compensator_.setJointState(current_joint_state);
-//     position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
-//     position_compensator_.run(cartesian_velocity_compensated);
-//     ROS_INFO("    Done.");
+    ROS_INFO("=== Perform position compensation...");   
+    position_compensator_.setJointState(current_joint_state);
+    position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
+    position_compensator_.run(cartesian_velocity_compensated);
+    ROS_INFO("    Done.");
     
     ROS_INFO("=== Start IK computation...");   
-    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_desired);
+    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
     ROS_INFO("    Done.");
     
     ROS_INFO("=== Send Niryo One commands...");
@@ -449,7 +452,7 @@ bool CartesianController::isPositionCompleted(const std::vector<double> position
   bool is_completed = true;
   for(int i = 0; i<6; i++)
   {
-    if (std::abs(current_joint_state.position[i] - position[i]) > 0.025)
+    if (std::abs(current_joint_state.position[i] - position[i]) > pose_goal_joints_tolerance_)
     {
       ROS_ERROR("The current target position %5f of axis %d is not equal to target goal %5f",current_joint_state.position[i], i, position[i]);
       is_completed = false;

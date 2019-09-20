@@ -26,6 +26,7 @@ PositionCompensator::PositionCompensator()
   sampling_period_ = 0;
   pi_max_ = 0.0;
   pi_min_ = 0.0;
+    
   for (int i = 0; i < 6; i++)
   {
     current_xyz_rpy_[i] = 0.0;
@@ -33,14 +34,19 @@ PositionCompensator::PositionCompensator()
     desired_xyz_rpy_[i] = 0.0;
     constraint_axis_[i] = true;
     constraint_axis_prev_[i] = false;
-    proportional_gain_[i] = 0.0;
-    integral_gain_[i] = 0.0;
+
+
     
     velocity_command_[i] = 0.0;
     traj_desired_pose_[i] = 0.0;
   }
   traj_position_tolerance_ = 0.01;   // 10 mm
   traj_orientation_tolerance_ = 0.01;  // 0.01 rad = 0.573 deg
+  
+  trajectory_ctrl_p_gain_ = 0.0;
+  trajectory_ctrl_i_gain_ = 0.0;
+  constraint_ctrl_p_gain_ = 0.0;
+  constraint_ctrl_i_gain_ = 0.0;
 }
 
 void PositionCompensator::init(int sampling_freq, ros::Publisher& debug_pose_current,
@@ -65,6 +71,11 @@ void PositionCompensator::init(int sampling_freq, ros::Publisher& debug_pose_cur
 
 void PositionCompensator::reset()
 {
+  ros::param::get("~trajectory_ctrl_p_gain", trajectory_ctrl_p_gain_);
+  ros::param::get("~trajectory_ctrl_i_gain", trajectory_ctrl_i_gain_);
+  ros::param::get("~constraint_ctrl_p_gain", constraint_ctrl_p_gain_);
+  ros::param::get("~constraint_ctrl_i_gain", constraint_ctrl_i_gain_);
+  
   for (int i = 0; i < 6; i++)
   {
     current_xyz_rpy_[i] = 0.0;
@@ -72,14 +83,11 @@ void PositionCompensator::reset()
     desired_xyz_rpy_[i] = 0.0;
     constraint_axis_[i] = true;
     constraint_axis_prev_[i] = false;
-    proportional_gain_[i] = 10.0;
-    integral_gain_[i] = 0.5;
-    integral_sum_[i] = 0.0;
-    euler_factor_[i] = 1.0;
+        
+    constraint_ctrl_i_sum_[i] = 0.0;
+    trajectory_ctrl_i_sum_[i] = 0.0;
 
-    traj_p_gain_[i] = 8.0;
-    traj_i_gain_[i] = 0.5;
-    traj_i_sum_[i] = 0.0;
+    euler_factor_[i] = 1.0;
     
     velocity_command_[i] = 0.0;
     traj_desired_pose_[i] = 0.0;
@@ -185,10 +193,10 @@ void PositionCompensator::activeConstraints(double (&dx_response)[6], const doub
       bool int_ok = true;
       double error = (desired_xyz_rpy_[i] - current_xyz_rpy_[i]) * euler_factor_[i];
       /* Proportional term */
-      double proportional_out = proportional_gain_[i] * error;
+      double proportional_out = constraint_ctrl_p_gain_ * error;
       /* Integral term */
-      double integral_sum_temp_ = integral_sum_[i] + (error * sampling_period_);
-      double integral_out = integral_gain_[i] * integral_sum_temp_;
+      double constraint_ctrl_i_sum_temp_ = constraint_ctrl_i_sum_[i] + (error * sampling_period_);
+      double integral_out = constraint_ctrl_i_gain_ * constraint_ctrl_i_sum_temp_;
       /* PI */
       double pi_out = proportional_out + integral_out;
 
@@ -217,7 +225,7 @@ void PositionCompensator::activeConstraints(double (&dx_response)[6], const doub
       /* Update the integrator if allowed. */
       if (int_ok)
       {
-        integral_sum_[i] = integral_sum_temp_;
+        constraint_ctrl_i_sum_[i] = constraint_ctrl_i_sum_temp_;
       }
 
       dx_response[i] = pi_out;
@@ -226,7 +234,7 @@ void PositionCompensator::activeConstraints(double (&dx_response)[6], const doub
     {
       /* Keep the value set by the user */
       dx_response[i] = dx_request[i];
-      integral_sum_[i] = 0.0;
+      constraint_ctrl_i_sum_[i] = 0.0;
     }
   }
 
@@ -266,10 +274,10 @@ void PositionCompensator::executeTrajectory(double (&dx_response)[6], const doub
     bool int_ok = true;
     double error = (traj_desired_pose_[i] - current_xyz_rpy_[i]) * euler_factor_[i];
     /* Proportional term */
-    double proportional_out = traj_p_gain_[i] * error;
+    double proportional_out = trajectory_ctrl_p_gain_ * error;
     /* Integral term */
-    double integral_sum_temp_ = traj_i_sum_[i] + (error * sampling_period_);
-    double integral_out = traj_i_gain_[i] * integral_sum_temp_;
+    double constraint_ctrl_i_sum_temp_ = trajectory_ctrl_i_sum_[i] + (error * sampling_period_);
+    double integral_out = trajectory_ctrl_i_gain_ * constraint_ctrl_i_sum_temp_;
     /* PI */
     double pi_out = proportional_out + integral_out;
 
@@ -298,13 +306,13 @@ void PositionCompensator::executeTrajectory(double (&dx_response)[6], const doub
     /* Update the integrator if allowed. */
     if (int_ok)
     {
-      traj_i_sum_[i] = integral_sum_temp_;
+      trajectory_ctrl_i_sum_[i] = constraint_ctrl_i_sum_temp_;
     }
     else
     {
       ROS_ERROR("ANTi WINDUP !!!!!" );
     }
-    ROS_ERROR("sum = %5f, pi_out = %5f proportional_out = %5f, integral_out = %5f ", traj_i_sum_[i], pi_out, proportional_out, integral_out);
+    ROS_ERROR("sum = %5f, pi_out = %5f proportional_out = %5f, integral_out = %5f ", trajectory_ctrl_i_sum_[i], pi_out, proportional_out, integral_out);
     
     dx_response[i] = pi_out;
   }

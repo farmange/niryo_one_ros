@@ -91,6 +91,7 @@ private:
   double cartesian_velocity_compensated[6];
   double cartesian_velocity_desired_prev[6];
 
+  double pose_goal_joints_tolerance_;
   class FsmState
   {
   public:

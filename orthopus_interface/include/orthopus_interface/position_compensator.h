@@ -61,14 +61,21 @@ private:
   double prev_xyz_rpy_[6];
   double current_xyz_rpy_[6];
   double desired_xyz_rpy_[6];
-  double proportional_gain_[6];
-  double integral_gain_[6];
-  double integral_sum_[6];
+  
+
+  
+  /* Constraint PI controller */
+  double constraint_ctrl_p_gain_;
+  double constraint_ctrl_i_gain_;
+  double constraint_ctrl_i_sum_[6];
+  
   double euler_factor_[6];
   
-  double traj_p_gain_[6];
-  double traj_i_gain_[6];
-  double traj_i_sum_[6];
+  /* Trajectory PI controller */
+  double trajectory_ctrl_p_gain_;
+  double trajectory_ctrl_i_gain_;    
+  double trajectory_ctrl_i_sum_[6];
+  
   double traj_desired_pose_[6]; 
   double traj_position_tolerance_;
   double traj_orientation_tolerance_;
