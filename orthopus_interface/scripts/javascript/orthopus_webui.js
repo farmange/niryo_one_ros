@@ -185,6 +185,26 @@ function SetJoystickEnable(state) {
   });
 }
 
+function SetGripperId() {
+  console.log('SetGripperId');
+  
+  var request = new ROSLIB.ServiceRequest({
+    value : GRIPPER_2
+  });
+  
+  var set_gripper_id_srv = new ROSLIB.Service({
+    ros : ros,
+    name : '/niryo_one/change_tool/',
+    serviceType : 'niryo_one_msgs/SetInt'
+  });
+  set_gripper_id_srv.callService(request, function(result) {
+    console.log('Result for service call on '
+    + set_gripper_id_srv.name
+    + ': '
+    + result.state
+    );
+  });
+}
 
 function GripperOpen() {
   console.log('GripperOpen');
@@ -208,7 +228,6 @@ function GripperOpen() {
       + result.state
     );
   });
-//   GripperAction(GRIPPER_2, OPEN_GRIPPER)
 }
 
 function GripperClose() {
@@ -234,45 +253,8 @@ function GripperClose() {
       + result.state
     );
   });
-
-//   GripperAction(GRIPPER_2, CLOSE_GRIPPER)
 }
 
-function GripperAction(id, action) {
-//   console.log('Gripper : ' + ((action==1)?"Open":((action==2)?"Close":"Unknown action")));
-//   
-//   SetJoystickEnable(false);
-//       
-//   var robotActionClient = new ROSLIB.ActionClient({
-//     ros : ros,
-//     serverName : '/niryo_one/commander/robot_action',
-//     actionName : 'niryo_one_msgs/RobotMoveAction'
-//   });
-// 
-//   var goal = new ROSLIB.Goal({
-//     actionClient : robotActionClient,
-//     goalMessage : {
-//       cmd : {
-//         cmd_type : CMD_TOOL,
-//         tool_cmd : {
-//           tool_id : id,
-//           cmd_type : action,
-//           gripper_open_speed : GRIPPER_SPEED,
-//         }
-//       }
-//     }
-//   });
-// 
-//   goal.on('feedback', function(feedback) {
-//     console.log('Feedback: ' + feedback.state);
-//   });
-// 
-//   goal.on('result', function(result) {
-//     console.log('Final Result: ' + result.message);
-//   });
-//   
-//   goal.send();
-}
 
 function GotoHome() {
   console.log('GotoHome');
@@ -496,6 +478,8 @@ cmd_vel_pub = new ROSLIB.Topic({
   // Setup main loop timer
   // ----------------------
   mainTimer = setInterval(function(){mainLoop();}, 100);
+  
+  SetGripperId();
 }
 
 

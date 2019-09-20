@@ -15,7 +15,6 @@
 #include <niryo_one_msgs/SetInt.h>
 
 #include "orthopus_interface/inverse_kinematic.h"
-#include "orthopus_interface/tool_controller.h"
 #include "orthopus_interface/pose_manager.h"
 #include "orthopus_interface/position_compensator.h"
 #include "orthopus_interface/trajectory_manager.h"

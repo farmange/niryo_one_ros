@@ -9,7 +9,6 @@
 // #include "sensor_msgs/JointState.h"
 #include "orthopus_interface/pose_manager.h"
 #include "orthopus_interface/cartesian_controller.h"
-#include "orthopus_interface/tool_controller.h"
 
 namespace cartesian_controller
 {
@@ -49,7 +48,6 @@ private:
 
   PoseManager pose_manager_;
   CartesianController cartesian_controller_;
-  ToolController tool_controller_;
   
   int sampling_freq_;
 };

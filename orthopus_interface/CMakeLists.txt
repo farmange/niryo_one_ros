@@ -76,7 +76,6 @@ add_dependencies(web_app_wrapper ${catkin_EXPORTED_TARGETS})
 ############ cartesian controller
 add_executable(cartesian_controller
   src/inverse_kinematic.cpp
-  src/tool_controller.cpp
   src/pose_manager.cpp
   src/robot_manager.cpp
   src/trajectory_manager.cpp

@@ -19,7 +19,6 @@ RobotManager::RobotManager()
   sampling_freq_ = RATE; // TODO put this param in the config file
   ros::Rate loop_rate = ros::Rate(sampling_freq_);
 
-  tool_controller_.setToolId(TOOL_ID_GRIPPER_2);
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
