@@ -44,6 +44,8 @@ InverseKinematic::InverseKinematic()
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/min", joints_limits_min[5]);
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j6/max", joints_limits_max[5]);
 
+  ros::param::get("~joint_max_vel", joint_max_vel_);
+  
   // TODO check init all members
   // TODO for loop
 

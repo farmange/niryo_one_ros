@@ -82,6 +82,8 @@ private:
   
   double pi_min_, pi_max_;
   
+  double cartesian_max_vel_;
+  
   void updateContraints(const double (&dx_des)[6]);
   void rolloverHandling();
   void updateDesiredPosition();

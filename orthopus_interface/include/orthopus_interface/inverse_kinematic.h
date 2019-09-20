@@ -86,7 +86,7 @@ private:
   
   bool qp_init_required = true;
   double theta[6];
-
+  double joint_max_vel_;
 
   Vector6d x_min_limit;
   Vector6d x_max_limit;

@@ -59,8 +59,11 @@ trajectory_ctrl_p_gain  : 0.8
 trajectory_ctrl_i_gain  : 0.1
 
 # Constraint controller gain (PI)
-constraint_ctrl_p_gain  : 10.0
-constraint_ctrl_i_gain  : 0.1
+constraint_ctrl_p_gain  : 5.0
+constraint_ctrl_i_gain  : 0.05
+
+joint_max_vel  : 0.5
+cartesian_max_vel  : 1.0
 
 # Pose goal joints tolerance
 pose_goal_joints_tolerance  : 0.025 # rad

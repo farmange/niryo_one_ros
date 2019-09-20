@@ -56,8 +56,10 @@ void PositionCompensator::init(int sampling_freq, ros::Publisher& debug_pose_cur
   debug_pose_desired_ = debug_pose_desired;
   debug_pose_meas_ = debug_pose_meas;
   sampling_freq_ = sampling_freq;
-  pi_max_ = max_vel;
-  pi_min_ = -max_vel;
+  
+  ros::param::get("~cartesian_max_vel", cartesian_max_vel_);
+  pi_max_ = cartesian_max_vel_;
+  pi_min_ = -cartesian_max_vel_;
 
   if (sampling_freq == 0)
   {
