@@ -110,7 +110,7 @@ void InverseKinematic::Init(int sampling_freq,
   if(sampling_freq == 0)
   {
     ROS_ERROR("Invalid sampling frequency. Cannot be zero !");
-    sampling_period_ = -1.0;
+    sampling_period_ = 0;
     return;
   }
   sampling_period_ = 1.0 / sampling_freq_;
@@ -189,14 +189,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
   for (std::size_t i = 0; i < 6; ++i)
   {
     q_cmd_prev.position[i] = joint_position_command[i];
-    if(current_joint_state.position[i] != joint_position_command[i])
-    {
-      ROS_WARN(" %8f         \t| %8f            \t| %8f", current_joint_state.position[i], joint_position_command[i], q_cmd_prev.position[i]);
-    }
-    else
-    {
-      ROS_WARN(" %8f         \t| %8f            \t| %8f", current_joint_state.position[i], joint_position_command[i], q_cmd_prev.position[i]);
-    }      
   }
   
   /* Set kinemtic state of the robot to the previous joint positions computed */
@@ -413,34 +405,34 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
     dq_computed[4] = 0.0;
     dq_computed[5] = 0.0;
   }  
-  PrintVector("joint_state", Vector6d(current_joint_state.position.data()));
-  PrintVector("joints_lim_min", Vector6d(joints_limits_min));
-  PrintVector("q_cmd_prev", Vector6d(q_cmd_prev.position.data()));
-  PrintVector("q_cmd_new", Vector6d(joint_position_command));
-  PrintVector("joints_lim_max", Vector6d(joints_limits_max));
-  PrintVector("dq_computed", Vector6d(dq_computed));
-  ROS_DEBUG_STREAM("================");
-//   ROS_DEBUG_STREAM("Jacobian: \n" << jacobian);
-  PrintVector("dx_des_vect", dx_des_vect);
-//   ROS_DEBUG_STREAM("hessian: \n" << hessian );
-//   ROS_DEBUG_STREAM("g = \n" << g);
-   ROS_DEBUG_STREAM("A: \n" << A );
-  ROS_DEBUG_STREAM("================");
-  PrintVector("x_min_limit", x_min_limit);
-  PrintVector("x_cmd_prev", x_cmd_prev);
-  PrintVector("x_max_limit", x_max_limit);
-  ROS_DEBUG_STREAM("================");
-  Vector6d dx_computed = Vector6d::Zero();
-  dx_computed = jacobian*Vector6d(dq_computed);
-  PrintVector("dx_computed", dx_computed);
-  Vector6d j_dq_t = dx_computed*sampling_period_;
-  ROS_DEBUG_STREAM("================");
-  PrintVector("x_computed (old)", x_computed);
-  PrintVector("x_cmd_prev", x_cmd_prev);
-  x_computed = x_cmd_prev + j_dq_t;
-  ROS_DEBUG_STREAM("================");
-  PrintVector("x_computed (new)", x_computed);
-  ROS_DEBUG_STREAM("================");
+//   PrintVector("joint_state", Vector6d(current_joint_state.position.data()));
+//   PrintVector("joints_lim_min", Vector6d(joints_limits_min));
+//   PrintVector("q_cmd_prev", Vector6d(q_cmd_prev.position.data()));
+//   PrintVector("q_cmd_new", Vector6d(joint_position_command));
+//   PrintVector("joints_lim_max", Vector6d(joints_limits_max));
+//   PrintVector("dq_computed", Vector6d(dq_computed));
+//   ROS_DEBUG_STREAM("================");
+// //   ROS_DEBUG_STREAM("Jacobian: \n" << jacobian);
+//   PrintVector("dx_des_vect", dx_des_vect);
+// //   ROS_DEBUG_STREAM("hessian: \n" << hessian );
+// //   ROS_DEBUG_STREAM("g = \n" << g);
+//    ROS_DEBUG_STREAM("A: \n" << A );
+//   ROS_DEBUG_STREAM("================");
+//   PrintVector("x_min_limit", x_min_limit);
+//   PrintVector("x_cmd_prev", x_cmd_prev);
+//   PrintVector("x_max_limit", x_max_limit);
+//   ROS_DEBUG_STREAM("================");
+//   Vector6d dx_computed = Vector6d::Zero();
+//   dx_computed = jacobian*Vector6d(dq_computed);
+//   PrintVector("dx_computed", dx_computed);
+//   Vector6d j_dq_t = dx_computed*sampling_period_;
+//   ROS_DEBUG_STREAM("================");
+//   PrintVector("x_computed (old)", x_computed);
+//   PrintVector("x_cmd_prev", x_cmd_prev);
+//   x_computed = x_cmd_prev + j_dq_t;
+//   ROS_DEBUG_STREAM("================");
+//   PrintVector("x_computed (new)", x_computed);
+//   ROS_DEBUG_STREAM("================");
 
   
 //   /* Publish debug topics */
@@ -472,42 +464,41 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
 //   meas_pose.orientation.z = x_des(5, 0); 
 //   debug_pose_meas_.publish(meas_pose);  
   
-  sensor_msgs::JointState desired_joints;
-  desired_joints.header = current_joint_state.header;
-  desired_joints.position.resize(6);
-  desired_joints.position[0] = joint_position_command[0];
-  desired_joints.position[1] = joint_position_command[1];
-  desired_joints.position[2] = joint_position_command[2];
-  desired_joints.position[3] = joint_position_command[3];
-  desired_joints.position[4] = joint_position_command[4];
-  desired_joints.position[5] = joint_position_command[5];
-  debug_joint_desired_.publish(desired_joints);
-  
-  sensor_msgs::JointState min_joints;
-  min_joints.header = current_joint_state.header;
-  min_joints.position.resize(6);
-  min_joints.position[0] = joints_limits_min[0];
-  min_joints.position[1] = joints_limits_min[1];
-  min_joints.position[2] = joints_limits_min[2];
-  min_joints.position[3] = joints_limits_min[3];
-  min_joints.position[4] = joints_limits_min[4];
-  min_joints.position[5] = joints_limits_min[5];
-  debug_joint_min_limit_.publish(min_joints);
-
-  sensor_msgs::JointState max_joints;
-  max_joints.header = current_joint_state.header;
-  max_joints.position.resize(6);
-  max_joints.position[0] = joints_limits_max[0];
-  max_joints.position[1] = joints_limits_max[1];
-  max_joints.position[2] = joints_limits_max[2];
-  max_joints.position[3] = joints_limits_max[3];
-  max_joints.position[4] = joints_limits_max[4];
-  max_joints.position[5] = joints_limits_max[5];
-  debug_joint_max_limit_.publish(max_joints);
+//   sensor_msgs::JointState desired_joints;
+//   desired_joints.header = current_joint_state.header;
+//   desired_joints.position.resize(6);
+//   desired_joints.position[0] = joint_position_command[0];
+//   desired_joints.position[1] = joint_position_command[1];
+//   desired_joints.position[2] = joint_position_command[2];
+//   desired_joints.position[3] = joint_position_command[3];
+//   desired_joints.position[4] = joint_position_command[4];
+//   desired_joints.position[5] = joint_position_command[5];
+//   debug_joint_desired_.publish(desired_joints);
+//   
+//   sensor_msgs::JointState min_joints;
+//   min_joints.header = current_joint_state.header;
+//   min_joints.position.resize(6);
+//   min_joints.position[0] = joints_limits_min[0];
+//   min_joints.position[1] = joints_limits_min[1];
+//   min_joints.position[2] = joints_limits_min[2];
+//   min_joints.position[3] = joints_limits_min[3];
+//   min_joints.position[4] = joints_limits_min[4];
+//   min_joints.position[5] = joints_limits_min[5];
+//   debug_joint_min_limit_.publish(min_joints);
+// 
+//   sensor_msgs::JointState max_joints;
+//   max_joints.header = current_joint_state.header;
+//   max_joints.position.resize(6);
+//   max_joints.position[0] = joints_limits_max[0];
+//   max_joints.position[1] = joints_limits_max[1];
+//   max_joints.position[2] = joints_limits_max[2];
+//   max_joints.position[3] = joints_limits_max[3];
+//   max_joints.position[4] = joints_limits_max[4];
+//   max_joints.position[5] = joints_limits_max[5];
+//   debug_joint_max_limit_.publish(max_joints);
   
   if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
   {
-    
     exit(0);
   }
 }
