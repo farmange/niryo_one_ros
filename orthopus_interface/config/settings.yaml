@@ -49,18 +49,16 @@ goal_position_tolerance     : 0.001
 goal_orientation_tolerance  : 0.01
 
 # Trajectory controller gain (PI)
-trajectory_ctrl_p_gain  : 6.0
+trajectory_ctrl_p_gain  : 3.0
 trajectory_ctrl_i_gain  : 0.1
 
 # Constraint controller gain (PI)
 constraint_ctrl_p_gain  : 3.0
 constraint_ctrl_i_gain  : 0.1
 
-joint_max_vel  : 0.5
+joint_max_vel  : 0.4
 cartesian_max_vel  : 0.8
 
 # Pose goal joints tolerance
 pose_goal_joints_tolerance  : 0.025 # rad
-
-goal_orientation_tolerance  : 0.01
 

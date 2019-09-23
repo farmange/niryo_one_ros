@@ -262,7 +262,17 @@ void CartesianController::updateFsm()
     }
     else if (fsm_state == FsmState::FlipPinch)
     {
-      if (isPositionCompleted(pose_manager_.getJoints("Flip")))
+      if (action_requested == FsmAction::GotoHome)
+      {
+        fsm_state = FsmState::GotoHome;
+        gotoHomeState();
+      }
+      else if (action_requested == FsmAction::GotoRest)
+      {
+        fsm_state = FsmState::GotoRest;
+        gotoRestState();
+      }
+      else if (isPositionCompleted(pose_manager_.getJoints("Flip")))
       {
         /* Switch to cartesian mode when position is completed */
         ik_.Reset(current_joint_state);
