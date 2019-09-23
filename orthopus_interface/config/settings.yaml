@@ -56,7 +56,7 @@ trajectory_ctrl_i_gain  : 0.1
 constraint_ctrl_p_gain  : 3.0
 constraint_ctrl_i_gain  : 0.1
 
-joint_max_vel  : 0.8
+joint_max_vel  : 0.5
 cartesian_max_vel  : 0.8
 
 # Pose goal joints tolerance

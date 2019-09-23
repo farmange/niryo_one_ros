@@ -278,8 +278,8 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
                (jacobian.transpose() * sampling_period_ * gamma_weight * x_des);
 
   /* Set joint velocities bound */
-  double lb[] = { -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_ };
-  double ub[] = { +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_ };
+  double lb[] = { -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -0.9 };
+  double ub[] = { +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +0.9 };
 
   // Taylor developpement
   // q = q0 + dq*T
