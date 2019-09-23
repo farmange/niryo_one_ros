@@ -12,7 +12,6 @@
 
 namespace cartesian_controller
 {
-
 class RobotManager
 {
 public:
@@ -31,8 +30,8 @@ private:
   ros::Publisher command_pub_;
   ros::Publisher joystick_enabled_pub_;
   ros::Publisher debug_pose_current_;
-  ros::Publisher debug_pose_desired_;  
-  ros::Publisher debug_pose_meas_;  
+  ros::Publisher debug_pose_desired_;
+  ros::Publisher debug_pose_meas_;
   ros::Publisher debug_joint_desired_;
   ros::Publisher debug_joint_min_limit_;
   ros::Publisher debug_joint_max_limit_;
@@ -48,7 +47,7 @@ private:
 
   PoseManager pose_manager_;
   CartesianController cartesian_controller_;
-  
+
   int sampling_freq_;
 };
 }

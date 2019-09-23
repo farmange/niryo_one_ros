@@ -111,7 +111,7 @@ bool MoveGroupNode::callbackMove(niryo_one_msgs::RobotMove::Request& req, niryo_
     robot_state::RobotState start_state(*move_group_.getCurrentState());
     geometry_msgs::Pose current_pose = move_group_.getCurrentPose().pose;
     geometry_msgs::Pose target_pose = current_pose;
-    if(target_pose.orientation.w >= 0.8)
+    if (target_pose.orientation.w >= 0.8)
     {
       target_pose.orientation.x = 0.0;
       target_pose.orientation.y = 0.0;
@@ -126,7 +126,7 @@ bool MoveGroupNode::callbackMove(niryo_one_msgs::RobotMove::Request& req, niryo_
       target_pose.orientation.w = 1.0;
     }
     ROS_ERROR_STREAM("=================current_pose================");
-    ROS_ERROR_STREAM(current_pose);    
+    ROS_ERROR_STREAM(current_pose);
     ROS_ERROR_STREAM("=================target_pose================");
     ROS_ERROR_STREAM(target_pose);
 
@@ -164,21 +164,21 @@ bool MoveGroupNode::callbackMove(niryo_one_msgs::RobotMove::Request& req, niryo_
     ocm.absolute_z_axis_tolerance = 5.0;
     ocm.weight = 1.0;
 
-//     moveit_msgs::Constraints test_constraints;
-//     test_constraints.orientation_constraints.push_back(ocm);
-//     test_constraints.position_constraints.push_back(pcm);
-//     move_group_.setPathConstraints(test_constraints);
+    //     moveit_msgs::Constraints test_constraints;
+    //     test_constraints.orientation_constraints.push_back(ocm);
+    //     test_constraints.position_constraints.push_back(pcm);
+    //     move_group_.setPathConstraints(test_constraints);
     move_group_.setGoalPositionTolerance(0.001);
     move_group_.setPlanningTime(30.0);
-    
-//     start_state.setFromIK(joint_model_group_, current_pose);
-//     move_group_.setStartState(start_state);
+
+    //     start_state.setFromIK(joint_model_group_, current_pose);
+    //     move_group_.setStartState(start_state);
     move_group_.setPoseTarget(target_pose);
-    
+
     moveit::planning_interface::MoveGroupInterface::Plan my_plan;
     moveit::planning_interface::MoveItErrorCode result = move_group_.plan(my_plan);
     ROS_DEBUG_STREAM("End finding planning solution with code : " << result);
-    
+
     if (result == moveit::planning_interface::MoveItErrorCode::SUCCESS)
     {
       state_mutex_.lock();

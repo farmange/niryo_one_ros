@@ -16,22 +16,15 @@ RobotManager::RobotManager()
   initializePublishers();
   initializeServices();
   initializeActions();
-  sampling_freq_ = RATE; // TODO put this param in the config file
+  sampling_freq_ = RATE;  // TODO put this param in the config file
   ros::Rate loop_rate = ros::Rate(sampling_freq_);
 
   // Wait for initial messages
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
   ROS_INFO("Received first joint msg.");
-  cartesian_controller_.init(sampling_freq_,
-                             pose_manager_, 
-                             command_pub_, 
-                             debug_pose_current_,
-                             debug_pose_desired_,
-                             debug_pose_meas_,
-                             debug_joint_desired_,
-                             debug_joint_min_limit_,
-                             debug_joint_max_limit_);
+  cartesian_controller_.init(sampling_freq_, pose_manager_, command_pub_, debug_pose_current_, debug_pose_desired_,
+                             debug_pose_meas_, debug_joint_desired_, debug_joint_min_limit_, debug_joint_max_limit_);
 
   while (ros::ok())
   {
@@ -68,15 +61,14 @@ void RobotManager::initializePublishers()
   command_pub_ =
       n_.advertise<trajectory_msgs::JointTrajectory>("/niryo_one_follow_joint_trajectory_controller/command", 1);
   joystick_enabled_pub_ = n_.advertise<std_msgs::Bool>("/niryo_one/joystick_interface/is_enabled", 1);
-  
+
   debug_pose_current_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_current", 1);
   debug_pose_desired_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_desired", 1);
   debug_pose_meas_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_meas", 1);
-  
+
   debug_joint_desired_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_desired", 1);
   debug_joint_min_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_min_limit", 1);
-  debug_joint_max_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_max_limit", 1);  
-  
+  debug_joint_max_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_max_limit", 1);
 }
 void RobotManager::initializeServices()
 {

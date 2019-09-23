@@ -25,14 +25,9 @@ class CartesianController
 {
 public:
   CartesianController();
-  void init(int sampling_freq,
-            PoseManager& pose_manager, 
-            ros::Publisher& command_pub, 
-            ros::Publisher& debug_pose_current,
-            ros::Publisher& debug_pose_desired,
-            ros::Publisher& debug_pose_meas,
-            ros::Publisher& debug_joint_desired,
-            ros::Publisher& debug_joint_min_limit,
+  void init(int sampling_freq, PoseManager& pose_manager, ros::Publisher& command_pub,
+            ros::Publisher& debug_pose_current, ros::Publisher& debug_pose_desired, ros::Publisher& debug_pose_meas,
+            ros::Publisher& debug_joint_desired, ros::Publisher& debug_joint_min_limit,
             ros::Publisher& debug_joint_max_limit);
   void run();
   bool cartesianIsEnable();
@@ -54,20 +49,18 @@ private:
   void enable_joy();
   void disable_joy();
 
-  Vector6d scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const;
-
   bool enable_joy_;
 
   ros::NodeHandle n_;
   ros::Publisher command_pub_;
   ros::Publisher joystick_enabled_pub_;
   ros::Publisher debug_pose_current_;
-  ros::Publisher debug_pose_desired_;  
-  ros::Publisher debug_pose_meas_;  
+  ros::Publisher debug_pose_desired_;
+  ros::Publisher debug_pose_meas_;
   ros::Publisher debug_joint_desired_;
   ros::Publisher debug_joint_min_limit_;
   ros::Publisher debug_joint_max_limit_;
-  
+
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_des_sub_;
   ros::Subscriber learning_mode_sub_;
@@ -76,9 +69,9 @@ private:
   PoseManager pose_manager_;
   PositionCompensator position_compensator_;
   TrajectoryManager trajectory_manager_;
-  
+
   int sampling_freq_;
-  
+
   int move_group_state_;
   bool planning_pending_;
   double joint_position_cmd[6];
@@ -247,11 +240,10 @@ private:
   void gotoDrinkState();
   void gotoStandGlassState();
   void flipPinchState();
-  
+
   void gotoPosition(const std::vector<double> position);
   double computeDuration(const std::vector<double> position);
   bool isPositionCompleted(const std::vector<double> position);
-  
 };
 }
 #endif

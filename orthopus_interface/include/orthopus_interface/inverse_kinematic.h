@@ -36,13 +36,9 @@ class InverseKinematic
 {
 public:
   InverseKinematic();
-  void Init(int sampling_freq,
-            ros::Publisher& debug_pose_current_,
-            ros::Publisher& debug_pose_desired_,
-            ros::Publisher& debug_pose_meas_,
-            ros::Publisher& debug_joint_desired_,
-            ros::Publisher& debug_joint_min_limit_,
-            ros::Publisher& debug_joint_max_limit_);
+  void Init(int sampling_freq, ros::Publisher& debug_pose_current_, ros::Publisher& debug_pose_desired_,
+            ros::Publisher& debug_pose_meas_, ros::Publisher& debug_joint_desired_,
+            ros::Publisher& debug_joint_min_limit_, ros::Publisher& debug_joint_max_limit_);
   void Reset(sensor_msgs::JointState& current_joint_state);
 
   void ResolveInverseKinematic(double (&joint_position_command)[6], sensor_msgs::JointState& current_joint_state,
@@ -52,20 +48,19 @@ public:
   void RequestUpdateAxisConstraints(int axis);
   void RequestUpdateAxisConstraints(int axis, double tolerance);
 
-
 protected:
 private:
   ros::NodeHandle n_;
   ros::Publisher debug_pose_current_;
-  ros::Publisher debug_pose_desired_;  
-  ros::Publisher debug_pose_meas_;  
+  ros::Publisher debug_pose_desired_;
+  ros::Publisher debug_pose_meas_;
   ros::Publisher debug_joint_desired_;
   ros::Publisher debug_joint_min_limit_;
   ros::Publisher debug_joint_max_limit_;
 
   int sampling_freq_;
   double sampling_period_;
-  
+
   double alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6, alpha_7;
   double beta_1, beta_2, beta_3, beta_4, beta_5, beta_6;
   double gamma_1, gamma_2, gamma_3, gamma_4, gamma_5, gamma_6, gamma_7;
@@ -83,7 +78,7 @@ private:
   robot_model::RobotModelPtr kinematic_model;
   robot_state::RobotStatePtr kinematic_state;
   robot_state::JointModelGroup* joint_model_group;
-  
+
   bool qp_init_required = true;
   double theta[6];
   double joint_max_vel_;
@@ -95,10 +90,10 @@ private:
   Vector6d x_cmd_prev_without_jump;
   Vector6d x_meas;
   Vector6d x_cmd_prev_saved;
-  Vector6d x_computed; 
-  Vector6d x_des; 
-  Vector6d x_des_init; 
-  
+  Vector6d x_computed;
+  Vector6d x_des;
+  Vector6d x_des_init;
+
   int cartesian_mode_;
 
   geometry_msgs::Pose current_pose;
@@ -106,9 +101,8 @@ private:
   tf2::Quaternion q_saved;
   tf2::Quaternion q_des;
   tf2::Quaternion q_rot, q_new;
-bool request_update_constraint[6];
-double request_update_constraint_tolerance[6];
-    
+  bool request_update_constraint[6];
+  double request_update_constraint_tolerance[6];
 
   double xlimit_max;
   double ylimit_max;
@@ -116,10 +110,8 @@ double request_update_constraint_tolerance[6];
   double xlimit_min;
   double ylimit_min;
   double zlimit_min;
-  
-  
+
   void PrintVector(const std::string name, const Vector6d vector) const;
-  
 };
 }
 #endif

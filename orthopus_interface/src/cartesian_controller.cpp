@@ -28,45 +28,31 @@ CartesianController::CartesianController()
   }
 }
 
-void CartesianController::init(int sampling_freq,
-                               PoseManager& pose_manager,
-                               ros::Publisher& command_pub, 
-                               ros::Publisher& debug_pose_current,
-                               ros::Publisher& debug_pose_desired,
-                               ros::Publisher& debug_pose_meas,
-                               ros::Publisher& debug_joint_desired,
-                               ros::Publisher& debug_joint_min_limit,
-                               ros::Publisher& debug_joint_max_limit)
+void CartesianController::init(int sampling_freq, PoseManager& pose_manager, ros::Publisher& command_pub,
+                               ros::Publisher& debug_pose_current, ros::Publisher& debug_pose_desired,
+                               ros::Publisher& debug_pose_meas, ros::Publisher& debug_joint_desired,
+                               ros::Publisher& debug_joint_min_limit, ros::Publisher& debug_joint_max_limit)
 {
   ROS_DEBUG_STREAM("CartesianController init");
   pose_manager_ = pose_manager;
   command_pub_ = command_pub;
   debug_pose_current_ = debug_pose_current;
-  debug_pose_desired_ = debug_pose_desired;  
-  debug_pose_meas_ = debug_pose_meas;  
+  debug_pose_desired_ = debug_pose_desired;
+  debug_pose_meas_ = debug_pose_meas;
   debug_joint_desired_ = debug_joint_desired;
   debug_joint_min_limit_ = debug_joint_min_limit;
   debug_joint_max_limit_ = debug_joint_max_limit;
   sampling_freq_ = sampling_freq;
-  
-  
+
   ros::param::get("~pose_goal_joints_tolerance", pose_goal_joints_tolerance_);
-  
+
   /* This is use to update joint state before running anything */
   ros::spinOnce();
-  ik_.Init(sampling_freq_,
-           debug_pose_current_,
-           debug_pose_desired_,
-           debug_pose_meas_,
-           debug_joint_desired_,
-           debug_joint_min_limit_,
-           debug_joint_max_limit_);
+  ik_.Init(sampling_freq_, debug_pose_current_, debug_pose_desired_, debug_pose_meas_, debug_joint_desired_,
+           debug_joint_min_limit_, debug_joint_max_limit_);
   ik_.Reset(current_joint_state);
-  
-  position_compensator_.init(sampling_freq_,
-                             debug_pose_current_,
-                             debug_pose_desired_,
-                             debug_pose_meas_);
+
+  position_compensator_.init(sampling_freq_, debug_pose_current_, debug_pose_desired_, debug_pose_meas_);
 }
 
 void CartesianController::run()
@@ -168,7 +154,7 @@ void CartesianController::updateFsm()
         drink_pose.orientation.y = 0;
         drink_pose.orientation.z = 0;
         position_compensator_.setTrajectoryPose(drink_pose);
-        
+
         fsm_state = FsmState::GotoDrink;
       }
       else if (action_requested == FsmAction::GotoStandGlass)
@@ -187,7 +173,7 @@ void CartesianController::updateFsm()
         stand_pose.orientation.y = 0;
         stand_pose.orientation.z = -3.14;
         position_compensator_.setTrajectoryPose(stand_pose);
-        
+
         fsm_state = FsmState::GotoStandGlass;
       }
       else if (action_requested == FsmAction::GotoHome)
@@ -200,7 +186,6 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::GotoRest;
         gotoRestState();
       }
-        
     }
     else if (fsm_state == FsmState::GotoDrink)
     {
@@ -214,7 +199,7 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::GotoRest;
         gotoRestState();
       }
-      else if(position_compensator_.isTrajectoryCompleted())
+      else if (position_compensator_.isTrajectoryCompleted())
       {
         fsm_state = FsmState::FlipPinch;
         flipPinchState();
@@ -232,7 +217,7 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::GotoRest;
         gotoRestState();
       }
-      else if(position_compensator_.isTrajectoryCompleted())
+      else if (position_compensator_.isTrajectoryCompleted())
       {
         fsm_state = FsmState::FlipPinch;
         flipPinchState();
@@ -240,7 +225,7 @@ void CartesianController::updateFsm()
     }
     else if (fsm_state == FsmState::GotoHome)
     {
-      if(isPositionCompleted(pose_manager_.getJoints("Home")))
+      if (isPositionCompleted(pose_manager_.getJoints("Home")))
       {
         /* Switch to cartesian mode when position is completed */
         ik_.Reset(current_joint_state);
@@ -269,7 +254,7 @@ void CartesianController::updateFsm()
         fsm_state = FsmState::GotoHome;
         gotoHomeState();
       }
-      else if(isPositionCompleted(pose_manager_.getJoints("Rest")))
+      else if (isPositionCompleted(pose_manager_.getJoints("Rest")))
       {
         /* Switch to idle when position is completed */
         fsm_state = FsmState::Idle;
@@ -277,7 +262,7 @@ void CartesianController::updateFsm()
     }
     else if (fsm_state == FsmState::FlipPinch)
     {
-      if(isPositionCompleted(pose_manager_.getJoints("Flip")))
+      if (isPositionCompleted(pose_manager_.getJoints("Flip")))
       {
         /* Switch to cartesian mode when position is completed */
         ik_.Reset(current_joint_state);
@@ -342,19 +327,25 @@ void CartesianController::runFsm()
 
 void CartesianController::cartesianState()
 {
-    ROS_INFO("=== Perform position compensation...");   
-    position_compensator_.setJointState(current_joint_state);
-    position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
-    position_compensator_.run(cartesian_velocity_compensated);
-    ROS_INFO("    Done.");
-    
-    ROS_INFO("=== Start IK computation...");   
-    ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
-    ROS_INFO("    Done.");
-    
-    ROS_INFO("=== Send Niryo One commands...");
-    sendJointsCommand();
-    ROS_INFO("    Done.");
+  ROS_INFO("=== Perform position compensation...");
+  sensor_msgs::JointState fake_js = current_joint_state;
+  for (int i = 0; i < 6; i++)
+  {
+    fake_js.position[i] = joint_position_cmd[i];
+    fake_js.velocity[i] = 0.0;
+  }
+  position_compensator_.setJointState(fake_js);
+  position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
+  position_compensator_.run(cartesian_velocity_compensated);
+  ROS_INFO("    Done.");
+
+  ROS_INFO("=== Start IK computation...");
+  ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
+  ROS_INFO("    Done.");
+
+  ROS_INFO("=== Send Niryo One commands...");
+  sendJointsCommand();
+  ROS_INFO("    Done.");
 }
 
 void CartesianController::gotoHomeState()
@@ -368,50 +359,62 @@ void CartesianController::gotoRestState()
 }
 
 void CartesianController::gotoDrinkState()
-{   
-  ROS_INFO("=== Perform position compensation...");   
-  position_compensator_.setJointState(current_joint_state);
+{
+  ROS_INFO("=== Perform position compensation...");
+  sensor_msgs::JointState fake_js = current_joint_state;
+  for (int i = 0; i < 6; i++)
+  {
+    fake_js.position[i] = joint_position_cmd[i];
+    fake_js.velocity[i] = 0.0;
+  }
+  position_compensator_.setJointState(fake_js);
   position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
-  position_compensator_.run(cartesian_velocity_compensated);  
+  position_compensator_.run(cartesian_velocity_compensated);
   ROS_INFO("    Done.");
-  
-  ROS_INFO("=== Start IK computation...");   
+
+  ROS_INFO("=== Start IK computation...");
   ik_.RequestUpdateAxisConstraints(0, 0.1);
   ik_.RequestUpdateAxisConstraints(1, 0.1);
   ik_.RequestUpdateAxisConstraints(2, 0.1);
   ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
   ROS_INFO("    Done.");
-  
+
   ROS_INFO("=== Send Niryo One commands...");
   sendJointsCommand();
   ROS_INFO("    Done.");
 }
 
 void CartesianController::gotoStandGlassState()
-{   
-  ROS_INFO("=== Perform position compensation...");   
-  position_compensator_.setJointState(current_joint_state);
+{
+  ROS_INFO("=== Perform position compensation...");
+  sensor_msgs::JointState fake_js = current_joint_state;
+  for (int i = 0; i < 6; i++)
+  {
+    fake_js.position[i] = joint_position_cmd[i];
+    fake_js.velocity[i] = 0.0;
+  }
+  position_compensator_.setJointState(fake_js);
   position_compensator_.setVelocitiesCommand(cartesian_velocity_desired);
-  position_compensator_.run(cartesian_velocity_compensated);  
+  position_compensator_.run(cartesian_velocity_compensated);
   ROS_INFO("    Done.");
-  
-  ROS_INFO("=== Start IK computation...");   
+
+  ROS_INFO("=== Start IK computation...");
   ik_.RequestUpdateAxisConstraints(0, 0.1);
   ik_.RequestUpdateAxisConstraints(1, 0.1);
   ik_.RequestUpdateAxisConstraints(2, 0.1);
   ik_.ResolveInverseKinematic(joint_position_cmd, current_joint_state, cartesian_velocity_compensated);
   ROS_INFO("    Done.");
-  
+
   ROS_INFO("=== Send Niryo One commands...");
   sendJointsCommand();
   ROS_INFO("    Done.");
 }
 
 void CartesianController::flipPinchState()
-{  
+{
   std::vector<double> flip_position;
   flip_position = current_joint_state.position;
-  if(flip_position[4] < 0)
+  if (flip_position[4] < 0)
   {
     flip_position[4] = flip_position[4] + M_PI;
   }
@@ -420,7 +423,7 @@ void CartesianController::flipPinchState()
     flip_position[4] = flip_position[4] - M_PI;
   }
   pose_manager_.setJoints("Flip", flip_position);
-  gotoPosition(flip_position);  
+  gotoPosition(flip_position);
 }
 
 void CartesianController::gotoPosition(const std::vector<double> position)
@@ -450,11 +453,12 @@ void CartesianController::gotoPosition(const std::vector<double> position)
 bool CartesianController::isPositionCompleted(const std::vector<double> position)
 {
   bool is_completed = true;
-  for(int i = 0; i<6; i++)
+  for (int i = 0; i < 6; i++)
   {
     if (std::abs(current_joint_state.position[i] - position[i]) > pose_goal_joints_tolerance_)
     {
-      ROS_ERROR("The current target position %5f of axis %d is not equal to target goal %5f",current_joint_state.position[i], i, position[i]);
+      ROS_ERROR("The current target position %5f of axis %d is not equal to target goal %5f",
+                current_joint_state.position[i], i, position[i]);
       is_completed = false;
     }
   }
@@ -478,48 +482,29 @@ double CartesianController::computeDuration(const std::vector<double> position)
 
 void CartesianController::sendJointsCommand()
 {
+  trajectory_msgs::JointTrajectory new_jt_traj;
+  new_jt_traj.header.stamp = ros::Time::now();
+  new_jt_traj.joint_names = current_joint_state.name;
 
-    trajectory_msgs::JointTrajectory new_jt_traj;
-    new_jt_traj.header.stamp = ros::Time::now();
-    new_jt_traj.joint_names = current_joint_state.name;
+  trajectory_msgs::JointTrajectoryPoint point;
+  point.time_from_start = ros::Duration(1.0 / sampling_freq_);
+  for (int i = 0; i < 6; i++)
+  {
+    point.positions.push_back(joint_position_cmd[i]);
+  }
 
-    trajectory_msgs::JointTrajectoryPoint point;
-    point.time_from_start = ros::Duration(1.0 / sampling_freq_);
-    for (int i = 0; i < 6; i++)
-    {
-      point.positions.push_back(joint_position_cmd[i]);
-    }
-
-    // Important : do not send velocity as cubic interpolation is done !
-    // It should be better to handle that by proper velocity command (force velocity ramp on xbox controller)
-    // point.velocities = current_joint_state.velocity;
-    new_jt_traj.points.push_back(point);
-    command_pub_.publish(new_jt_traj);
+  // Important : do not send velocity as cubic interpolation is done !
+  // It should be better to handle that by proper velocity command (force velocity ramp on xbox controller)
+  // point.velocities = current_joint_state.velocity;
+  new_jt_traj.points.push_back(point);
+  command_pub_.publish(new_jt_traj);
 };
 
-// Scale the incoming desired velocity
-Vector6d CartesianController::scaleCartesianCommand(const geometry_msgs::TwistStamped& command) const
-{
-  Vector6d result;
-
-  result(0) = command.twist.linear.x;
-  result(1) = command.twist.linear.y;
-  result(2) = command.twist.linear.z;
-  result(3) = command.twist.angular.x;
-  result(4) = command.twist.angular.y;
-  result(5) = command.twist.angular.z;
-
-  return result;
-}
-
-// Convert incoming joy commands to TwistStamped commands for jogging.
-// The TwistStamped component goes to jogging, while buttons 0 & 1 control
-// joints directly.
 void CartesianController::callbackJointState(const sensor_msgs::JointStateConstPtr& msg)
 {
   ROS_DEBUG_STREAM("callbackJointState");
   current_joint_state = *msg;
-//   ROS_DEBUG_STREAM(current_joint_state);
+  //   ROS_DEBUG_STREAM(current_joint_state);
 }
 
 void CartesianController::callbackMoveGroupState(const std_msgs::Int32Ptr& msg)
@@ -538,39 +523,38 @@ void CartesianController::callbackVelocitiesDesired(const geometry_msgs::TwistSt
     cartesian_velocity_desired[i] = 0.0;
   }
 
-    cartesian_velocity_desired[0] = msg->twist.linear.x;
-    cartesian_velocity_desired[1] = msg->twist.linear.y;
-    cartesian_velocity_desired[2] = msg->twist.linear.z;
+  cartesian_velocity_desired[0] = msg->twist.linear.x;
+  cartesian_velocity_desired[1] = msg->twist.linear.y;
+  cartesian_velocity_desired[2] = msg->twist.linear.z;
 
-    cartesian_velocity_desired[3] = msg->twist.angular.x;
-    cartesian_velocity_desired[4] = msg->twist.angular.y;
-    cartesian_velocity_desired[5] = msg->twist.angular.z;
-    
-    for(int i =0; i<3;i++)
+  cartesian_velocity_desired[3] = msg->twist.angular.x;
+  cartesian_velocity_desired[4] = msg->twist.angular.y;
+  cartesian_velocity_desired[5] = msg->twist.angular.z;
+
+  for (int i = 0; i < 3; i++)
+  {
+    if (cartesian_velocity_desired[i] != 0)
     {
-      if(cartesian_velocity_desired[i] != 0)
-      {
-        ik_.RequestUpdateAxisConstraints(i, 1.0);
-      }
-      else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
-      {
-        ik_.RequestUpdateAxisConstraints(i, 0.001);
-      }
-      cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+      ik_.RequestUpdateAxisConstraints(i, 1.0);
     }
-    for(int i =3; i<6;i++)
+    else if (cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
     {
-      if(cartesian_velocity_desired[i] != 0)
-      {
-        ik_.RequestUpdateAxisConstraints(i, 1.0);
-      }
-      else if(cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
-      {
-        ik_.RequestUpdateAxisConstraints(i, 0.001);
-      }
-      cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+      ik_.RequestUpdateAxisConstraints(i, 0.001);
     }
-  
+    cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+  }
+  for (int i = 3; i < 6; i++)
+  {
+    if (cartesian_velocity_desired[i] != 0)
+    {
+      ik_.RequestUpdateAxisConstraints(i, 1.0);
+    }
+    else if (cartesian_velocity_desired[i] == 0 && cartesian_velocity_desired_prev[i] != 0)
+    {
+      ik_.RequestUpdateAxisConstraints(i, 0.001);
+    }
+    cartesian_velocity_desired_prev[i] = cartesian_velocity_desired[i];
+  }
 }
 
 void CartesianController::callbackLearningMode(const std_msgs::BoolPtr& msg)

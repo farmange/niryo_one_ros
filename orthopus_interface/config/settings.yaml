@@ -26,12 +26,12 @@ beta_6:           0.1
 #
 #  Minimize cartesian position coefs : x
 #        
-gamma_1:          000.
-gamma_2:          000.
-gamma_3:          000.
-gamma_4:          000.
-gamma_5:          000.
-gamma_6:          000.
+gamma_1:          0.
+gamma_2:          0.
+gamma_3:          0.
+gamma_4:          0.
+gamma_5:          0.
+gamma_6:          0.
 gamma_7:          0.0
 
 
@@ -39,14 +39,8 @@ gamma_7:          0.0
 #  Saved positions 
 #        
 home_position:    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-#flip_position:    [-1.57079, 0.0, 0.0, -1.57079, -1.57079, +1.57079]
-
-#[-1.550597421102098, 0.01317939244023918, -0.013665516150034135, -1.5710348109705057, -1.5914543845520335, 1.5703435109154023]
-
-
 rest_position:    [0.0, 0.64, -1.397, 0.0, 0.0, 0.0]
-##drink_position:   [-1.9523217026638426, -0.3769911184307752, 0.14511166066581424, 1.5512486391725602, 1.1918504396018876, -1.1945033400649192]
-#drink_position:   [-1.57079, 0.0, 0.0, 0.0, 0.0, 0.0]
+
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"
 allow_replanning            : true
@@ -55,7 +49,7 @@ goal_position_tolerance     : 0.001
 goal_orientation_tolerance  : 0.01
 
 # Trajectory controller gain (PI)
-trajectory_ctrl_p_gain  : 0.8
+trajectory_ctrl_p_gain  : 10.
 trajectory_ctrl_i_gain  : 0.1
 
 # Constraint controller gain (PI)
@@ -63,11 +57,10 @@ constraint_ctrl_p_gain  : 5.0
 constraint_ctrl_i_gain  : 0.05
 
 joint_max_vel  : 0.5
-cartesian_max_vel  : 1.0
+cartesian_max_vel  : 0.8
 
 # Pose goal joints tolerance
 pose_goal_joints_tolerance  : 0.025 # rad
 
 goal_orientation_tolerance  : 0.01
 
-planning_plugin             : "ompl_interface/OMPLPlanner"

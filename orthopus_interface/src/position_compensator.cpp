@@ -26,7 +26,7 @@ PositionCompensator::PositionCompensator()
   sampling_period_ = 0;
   pi_max_ = 0.0;
   pi_min_ = 0.0;
-    
+
   for (int i = 0; i < 6; i++)
   {
     current_xyz_rpy_[i] = 0.0;
@@ -35,14 +35,12 @@ PositionCompensator::PositionCompensator()
     constraint_axis_[i] = true;
     constraint_axis_prev_[i] = false;
 
-
-    
     velocity_command_[i] = 0.0;
     traj_desired_pose_[i] = 0.0;
   }
-  traj_position_tolerance_ = 0.01;   // 10 mm
+  traj_position_tolerance_ = 0.01;     // 10 mm
   traj_orientation_tolerance_ = 0.01;  // 0.01 rad = 0.573 deg
-  
+
   trajectory_ctrl_p_gain_ = 0.0;
   trajectory_ctrl_i_gain_ = 0.0;
   constraint_ctrl_p_gain_ = 0.0;
@@ -56,7 +54,7 @@ void PositionCompensator::init(int sampling_freq, ros::Publisher& debug_pose_cur
   debug_pose_desired_ = debug_pose_desired;
   debug_pose_meas_ = debug_pose_meas;
   sampling_freq_ = sampling_freq;
-  
+
   ros::param::get("~cartesian_max_vel", cartesian_max_vel_);
   pi_max_ = cartesian_max_vel_;
   pi_min_ = -cartesian_max_vel_;
@@ -77,7 +75,7 @@ void PositionCompensator::reset()
   ros::param::get("~trajectory_ctrl_i_gain", trajectory_ctrl_i_gain_);
   ros::param::get("~constraint_ctrl_p_gain", constraint_ctrl_p_gain_);
   ros::param::get("~constraint_ctrl_i_gain", constraint_ctrl_i_gain_);
-  
+
   for (int i = 0; i < 6; i++)
   {
     current_xyz_rpy_[i] = 0.0;
@@ -85,18 +83,16 @@ void PositionCompensator::reset()
     desired_xyz_rpy_[i] = 0.0;
     constraint_axis_[i] = true;
     constraint_axis_prev_[i] = false;
-        
+
     constraint_ctrl_i_sum_[i] = 0.0;
     trajectory_ctrl_i_sum_[i] = 0.0;
 
     euler_factor_[i] = 1.0;
-    
+
     velocity_command_[i] = 0.0;
     traj_desired_pose_[i] = 0.0;
-    
   }
   traj_requested_ = false;
-  
 }
 
 void PositionCompensator::setJointState(sensor_msgs::JointState& current_joint_state)
@@ -152,7 +148,7 @@ void PositionCompensator::setJointState(sensor_msgs::JointState& current_joint_s
   {
     prev_xyz_rpy_[i] = current_xyz_rpy_[i];
   }
-  
+
   /* Store RPY pose in x_cmd_prev vector */
   current_xyz_rpy_[0] = current_pose.position.x;
   current_xyz_rpy_[1] = current_pose.position.y;
@@ -173,8 +169,8 @@ void PositionCompensator::setVelocitiesCommand(const double (&cartesian_velocity
 void PositionCompensator::setTrajectoryPose(const geometry_msgs::Pose& traj_des_pose)
 {
   traj_requested_ = true;
-  
-  /* Here I suppose that user is passing RPY command in pose */  
+
+  /* Here I suppose that user is passing RPY command in pose */
   traj_desired_pose_[0] = traj_des_pose.position.x;
   traj_desired_pose_[1] = traj_des_pose.position.y;
   traj_desired_pose_[2] = traj_des_pose.position.z;
@@ -183,11 +179,12 @@ void PositionCompensator::setTrajectoryPose(const geometry_msgs::Pose& traj_des_
   traj_desired_pose_[5] = traj_des_pose.orientation.z;
 }
 
-void PositionCompensator::activeConstraints(double (&dx_response)[6], const double (&dx_request)[6], const double (&x_request)[6], bool force_xyz_constraints)
+void PositionCompensator::activeConstraints(double (&dx_response)[6], const double (&dx_request)[6],
+                                            const double (&x_request)[6], bool force_xyz_constraints)
 {
   updateContraints(dx_request);
   updateDesiredPosition();
-  
+
   for (int i = 0; i < 6; i++)
   {
     if (constraint_axis_[i] == true)
@@ -259,18 +256,18 @@ void PositionCompensator::activeConstraints(double (&dx_response)[6], const doub
   desired_pose.orientation.z = traj_desired_pose_[5];
   debug_pose_desired_.publish(desired_pose);
 
-   geometry_msgs::Pose meas_pose;
-   meas_pose.position.x = constraint_axis_[0];
-   meas_pose.position.y = constraint_axis_[1];
-   meas_pose.position.z = constraint_axis_[2];
-   meas_pose.orientation.x = constraint_axis_[3];
-   meas_pose.orientation.y = constraint_axis_[4];
-   meas_pose.orientation.z = constraint_axis_[5];
-   debug_pose_meas_.publish(meas_pose);
-} 
+  geometry_msgs::Pose meas_pose;
+  meas_pose.position.x = constraint_axis_[0];
+  meas_pose.position.y = constraint_axis_[1];
+  meas_pose.position.z = constraint_axis_[2];
+  meas_pose.orientation.x = constraint_axis_[3];
+  meas_pose.orientation.y = constraint_axis_[4];
+  meas_pose.orientation.z = constraint_axis_[5];
+  debug_pose_meas_.publish(meas_pose);
+}
 
 void PositionCompensator::executeTrajectory(double (&dx_response)[6], const double (&x_request)[6])
-{  
+{
   for (int i = 0; i < 6; i++)
   {
     bool int_ok = true;
@@ -312,32 +309,33 @@ void PositionCompensator::executeTrajectory(double (&dx_response)[6], const doub
     }
     else
     {
-      ROS_ERROR("ANTi WINDUP !!!!!" );
+      ROS_ERROR("ANTi WINDUP !!!!!");
     }
-    ROS_ERROR("sum = %5f, pi_out = %5f proportional_out = %5f, integral_out = %5f ", trajectory_ctrl_i_sum_[i], pi_out, proportional_out, integral_out);
-    
+    ROS_ERROR("sum = %5f, pi_out = %5f proportional_out = %5f, integral_out = %5f ", trajectory_ctrl_i_sum_[i], pi_out,
+              proportional_out, integral_out);
+
     dx_response[i] = pi_out;
   }
-  
-//   /* Publish debug topics */
-//   geometry_msgs::Pose current_pose_debug;
-//   current_pose_debug.position.x = current_xyz_rpy_[0];
-//   current_pose_debug.position.y = current_xyz_rpy_[1];
-//   current_pose_debug.position.z = current_xyz_rpy_[2];
-//   current_pose_debug.orientation.x = current_xyz_rpy_[3];
-//   current_pose_debug.orientation.y = current_xyz_rpy_[4];
-//   current_pose_debug.orientation.z = current_xyz_rpy_[5];
-//   debug_pose_current_.publish(current_pose_debug);
-//   
-//   geometry_msgs::Pose desired_pose;
-//   desired_pose.position.x = traj_desired_pose_[0];
-//   desired_pose.position.y = traj_desired_pose_[1];
-//   desired_pose.position.z = traj_desired_pose_[2];
-//   desired_pose.orientation.x = traj_desired_pose_[3];
-//   desired_pose.orientation.y = traj_desired_pose_[4];
-//   desired_pose.orientation.z = traj_desired_pose_[5];
-//   debug_pose_desired_.publish(desired_pose);
-//   
+
+  //   /* Publish debug topics */
+  //   geometry_msgs::Pose current_pose_debug;
+  //   current_pose_debug.position.x = current_xyz_rpy_[0];
+  //   current_pose_debug.position.y = current_xyz_rpy_[1];
+  //   current_pose_debug.position.z = current_xyz_rpy_[2];
+  //   current_pose_debug.orientation.x = current_xyz_rpy_[3];
+  //   current_pose_debug.orientation.y = current_xyz_rpy_[4];
+  //   current_pose_debug.orientation.z = current_xyz_rpy_[5];
+  //   debug_pose_current_.publish(current_pose_debug);
+  //
+  //   geometry_msgs::Pose desired_pose;
+  //   desired_pose.position.x = traj_desired_pose_[0];
+  //   desired_pose.position.y = traj_desired_pose_[1];
+  //   desired_pose.position.z = traj_desired_pose_[2];
+  //   desired_pose.orientation.x = traj_desired_pose_[3];
+  //   desired_pose.orientation.y = traj_desired_pose_[4];
+  //   desired_pose.orientation.z = traj_desired_pose_[5];
+  //   debug_pose_desired_.publish(desired_pose);
+  //
   geometry_msgs::Pose meas_pose;
   meas_pose.position.x = dx_response[0];
   meas_pose.position.y = dx_response[1];
@@ -351,14 +349,14 @@ void PositionCompensator::executeTrajectory(double (&dx_response)[6], const doub
 void PositionCompensator::run(double (&dx_response)[6])
 {
   rolloverHandling();
-  if(isTrajectoryRequested())
+  if (isTrajectoryRequested())
   {
     ROS_ERROR("A trajectory is requested...");
     executeTrajectory(dx_trajectory_, traj_desired_pose_);
     activeConstraints(dx_response, dx_trajectory_, desired_xyz_rpy_, true);
   }
   else
-  {  
+  {
     activeConstraints(dx_response, velocity_command_, desired_xyz_rpy_, false);
   }
 }
@@ -390,7 +388,6 @@ bool PositionCompensator::trajectoryIsAchieved()
       is_achieve = false;
       ROS_ERROR("delta of %5f on %d axis", traj_desired_pose_[i] - current_xyz_rpy_[i], i);
     }
-    
   }
   for (int i = 3; i < 6; i++)
   {
@@ -406,7 +403,7 @@ bool PositionCompensator::trajectoryIsAchieved()
 void PositionCompensator::updateContraints(const double (&dx_des)[6])
 {
   for (int i = 0; i < 6; i++)
-  {    
+  {
     if (dx_des[i] == 0.0)
     {
       constraint_axis_[i] = true;
@@ -415,16 +412,16 @@ void PositionCompensator::updateContraints(const double (&dx_des)[6])
     {
       constraint_axis_[i] = false;
     }
-  }  
+  }
 }
 
 void PositionCompensator::rolloverHandling()
 {
   /* As we only work in the same side (negative yaw), we ensure no flipping happened */
-  if(current_xyz_rpy_[YAW_AXIS] > M_PI / 2)
+  if (current_xyz_rpy_[YAW_AXIS] > M_PI / 2)
   {
     current_xyz_rpy_[YAW_AXIS] -= 2 * M_PI;
-  }    
+  }
 }
 void PositionCompensator::updateDesiredPosition()
 {
@@ -439,5 +436,4 @@ void PositionCompensator::updateDesiredPosition()
     constraint_axis_prev_[i] = constraint_axis_[i];
   }
 }
-
 }

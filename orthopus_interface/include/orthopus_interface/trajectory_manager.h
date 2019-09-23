@@ -7,7 +7,6 @@
 
 #include <ros/ros.h>
 
-
 namespace cartesian_controller
 {
 class TrajectoryManager
@@ -17,7 +16,6 @@ public:
 
 protected:
   ros::NodeHandle n_;
-
 };
 }
 

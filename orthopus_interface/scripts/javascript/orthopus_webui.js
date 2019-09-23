@@ -41,11 +41,16 @@ var hardware_status = {
   hardware_errors:[]
 };
 
-var position_map = new Map();
-position_map.set("Home", [0,0,0,0,0,0]);
-position_map.set("Rest", [0,0.64,-1.397,0,0,0]);
+var ACTION_NONE             = 0; 
+var ACTION_CARTESIAN        = 1;
+var ACTION_GOTO_HOME        = 2;
+var ACTION_GOTO_REST        = 3;
+var ACTION_GOTO_DRINK       = 4;
+var ACTION_GOTO_STAND_DRINK = 5;
+var ACTION_FLIP_PINCH       = 6;
 
 function UpdatePage() {
+  /* Update status indicator */
   $('#enable_spinner_color').removeClass();
   if(hardware_status.calibration_needed == 1)
   {
@@ -64,6 +69,18 @@ function UpdatePage() {
     $('#enable_spinner_color').addClass('text-success');
   }
   
+  /* Update cartesian mode indicator */
+  $('#cartesian_spinner_color').removeClass();
+  if(joystick_enabled == true)
+  {
+    $('#cartesian_spinner_color').addClass('text-success');
+  }
+  else
+  {
+    $('#cartesian_spinner_color').addClass('text-secondary'); 
+  }
+
+  /* Update enable/disable indicator */
   if(learning_mode == true)
   {
     $('#enable_switch')[0].checked = false;
@@ -71,15 +88,6 @@ function UpdatePage() {
   else
   {
     $('#enable_switch')[0].checked = true;    
-  }
-    
-  if(joystick_enabled == true)
-  {
-    $('#cartesian_switch')[0].checked = true;
-  }
-  else
-  {
-    $('#cartesian_switch')[0].checked = false;    
   }
 }
 
@@ -125,8 +133,7 @@ function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y) {
       return this;
 }
 
-function mainLoop()
-{
+function mainLoop() {
   publishCartesianVelocity();
 }
 
@@ -161,13 +168,6 @@ function SetLearningMode(state) {
       + result.message);
   });
 }
-var ACTION_NONE             = 0; 
-var ACTION_CARTESIAN        = 1;
-var ACTION_GOTO_HOME        = 2;
-var ACTION_GOTO_REST        = 3;
-var ACTION_GOTO_DRINK       = 4;
-var ACTION_GOTO_STAND_DRINK = 5;
-var ACTION_FLIP_PINCH       = 6;
 
 function SetJoystickEnable(state) {
   console.log('SetJoystickEnable');
@@ -261,7 +261,6 @@ function GripperClose() {
   });
 }
 
-
 function GotoHome() {
   console.log('GotoHome');
   
@@ -351,93 +350,90 @@ function LayDownGlass() {
 }
 
 window.onload = function () {
-  
-var robot_IP = document.domain;
-if(robot_IP=="")
-{
-  robot_IP="localhost"; 
-}
-var ros_master_uri="ws://"+robot_IP+":9090";
+  var robot_IP = document.domain;
+  if(robot_IP=="")
+  {
+    robot_IP="localhost"; 
+  }
+  var ros_master_uri="ws://"+robot_IP+":9090";
 
-// Connecting to ROS
-// -----------------
-ros = new ROSLIB.Ros({
-  url : ros_master_uri
-});
+  // Connecting to ROS
+  // -----------------
+  ros = new ROSLIB.Ros({
+    url : ros_master_uri
+  });
 
-ros.on('connection', function() {
-  console.log('Connected to websocket server.');
-});
+  ros.on('connection', function() {
+    console.log('Connected to websocket server.');
+  });
 
-ros.on('error', function(error) {
-  console.log('Error connecting to websocket server: ', error);
-});
+  ros.on('error', function(error) {
+    console.log('Error connecting to websocket server: ', error);
+  });
 
-ros.on('close', function() {
-  console.log('Connection to websocket server closed.');
-}); 
+  ros.on('close', function() {
+    console.log('Connection to websocket server closed.');
+  }); 
 
-// Setup topic subscribers
-// ----------------------
-learning_mode_sub = new ROSLIB.Topic({
-  ros : ros,
-  name : '/niryo_one/learning_mode',
-  messageType : 'std_msgs/Bool'
-});
-learning_mode_sub.subscribe(function(message) {
-  console.debug('Received message on ' + learning_mode_sub.name + ': ' + message.data);
-  learning_mode = message.data;
-  UpdatePage();
-});
+  // Setup topic subscribers
+  // ----------------------
+  learning_mode_sub = new ROSLIB.Topic({
+    ros : ros,
+    name : '/niryo_one/learning_mode',
+    messageType : 'std_msgs/Bool'
+  });
+  learning_mode_sub.subscribe(function(message) {
+    console.debug('Received message on ' + learning_mode_sub.name + ': ' + message.data);
+    learning_mode = message.data;
+    UpdatePage();
+  });
 
-hardware_status_sub = new ROSLIB.Topic({
-  ros : ros,
-  name : '/niryo_one/hardware_status',
-  messageType : 'niryo_one_msgs/HardwareStatus'
-});
-hardware_status_sub.subscribe(function(message) {
-  console.debug('Received message on ' + hardware_status_sub.name + ': ');
-  console.debug(message);
-  hardware_status.rpi_temperature = message.rpi_temperature;
-  hardware_status.hardware_version = message.hardware_version;
-  hardware_status.connection_up = message.connection_up;
-  hardware_status.error_message = message.error_message;
-  hardware_status.calibration_needed = message.calibration_needed;
-  hardware_status.calibration_in_progress = message.calibration_in_progress;
-  hardware_status.motor_names = message.motor_names;
-  hardware_status.motor_types = message.motor_types;
-  hardware_status.temperatures = message.temperatures;
-  hardware_status.voltages = message.voltages;
-  hardware_status.hardware_errors = message.hardware_errors;
-  
-  UpdatePage();
-});
+  hardware_status_sub = new ROSLIB.Topic({
+    ros : ros,
+    name : '/niryo_one/hardware_status',
+    messageType : 'niryo_one_msgs/HardwareStatus'
+  });
+  hardware_status_sub.subscribe(function(message) {
+    console.debug('Received message on ' + hardware_status_sub.name + ': ');
+    console.debug(message);
+    hardware_status.rpi_temperature = message.rpi_temperature;
+    hardware_status.hardware_version = message.hardware_version;
+    hardware_status.connection_up = message.connection_up;
+    hardware_status.error_message = message.error_message;
+    hardware_status.calibration_needed = message.calibration_needed;
+    hardware_status.calibration_in_progress = message.calibration_in_progress;
+    hardware_status.motor_names = message.motor_names;
+    hardware_status.motor_types = message.motor_types;
+    hardware_status.temperatures = message.temperatures;
+    hardware_status.voltages = message.voltages;
+    hardware_status.hardware_errors = message.hardware_errors;
+    
+    UpdatePage();
+  });
 
-joystick_enable_sub = new ROSLIB.Topic({
-  ros : ros,
-  name : '/niryo_one/joystick_interface/is_enabled',
-  messageType : 'std_msgs/Bool'
-});
-joystick_enable_sub.subscribe(function(message) {
-  console.debug('Received message on ' + joystick_enable_sub.name + ': ' + message.data);
-  joystick_enabled = message.data;
-  UpdatePage();
-});
+  joystick_enable_sub = new ROSLIB.Topic({
+    ros : ros,
+    name : '/niryo_one/joystick_interface/is_enabled',
+    messageType : 'std_msgs/Bool'
+  });
+  joystick_enable_sub.subscribe(function(message) {
+    console.debug('Received message on ' + joystick_enable_sub.name + ': ' + message.data);
+    joystick_enabled = message.data;
+    UpdatePage();
+  });
 
-// Setup topic publishers 
-// ----------------------
-cmd_vel_pub = new ROSLIB.Topic({
-      ros : ros,
-      name : '/sim_joy',
-      messageType : 'sensor_msgs/Joy'
-    });
+  // Setup topic publishers 
+  // ----------------------
+  cmd_vel_pub = new ROSLIB.Topic({
+        ros : ros,
+        name : '/sim_joy',
+        messageType : 'sensor_msgs/Joy'
+      });
 
   // Construct joystick objects 
   // ----------------------
   var yz_joy = Joystick($('#YZ_joystick')[0], '#0066ff', Y_AXIS, true, Z_AXIS, false);
   var yx_joy = Joystick($('#YX_joystick')[0], '#0066ff', Y_AXIS, true, X_AXIS, false);
-  var rot_yz_joy = Joystick($('#rotYZ_joystick')[0], '#0066ff', ROTY_AXIS, false, ROTZ_AXIS, false);
-  var rot_yx_joy = Joystick($('#rotYX_joystick')[0], '#0066ff', ROTY_AXIS, false, ROTX_AXIS, false);
 
   // Populate video source 
   $('#video')[0].src = "http://" + robot_IP + ":8080/stream?topic=/image_raw";
@@ -449,17 +445,11 @@ cmd_vel_pub = new ROSLIB.Topic({
   SetGripperId();
 }
 
-
 $(function() {
     $('#enable_switch')
         .change(function() {
             var state =  $('#enable_switch')[0].checked;                    
             SetLearningMode(!state);
-        });
-    $('#cartesian_switch')
-        .change(function() {
-            var state =  $('#cartesian_switch')[0].checked;                    
-            SetJoystickEnable(state);
         });
     $('#goto_home')
         .click(function() {
