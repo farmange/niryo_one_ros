@@ -112,8 +112,8 @@ function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y) {
           var pix_max = (PIX_LENGTH/2.0) ;
           // var pix_max = (PIX_LENGTH/2.0) * Math.cos(Math.PI/4); //
           // Apply a square scale in order to increase small velocity control
-          var dx = (Math.pow(nipple.distance * Math.cos(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_x ?(-1.0):(1.0))
-          var dy = (Math.pow(nipple.distance * Math.sin(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_y ?(-1.0):(1.0))
+          var dx = (Math.pow(nipple.distance * Math.cos(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_x ?(-1.0):(1.0)) * Math.sign(Math.cos(nipple.angle.radian)) 
+          var dy = (Math.pow(nipple.distance * Math.sin(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_y ?(-1.0):(1.0)) * Math.sign(Math.sin(nipple.angle.radian))
           console.debug("dx : " + dx)
           console.debug("dy : " + dy)
           if(Math.abs(dx) < 0.001){
