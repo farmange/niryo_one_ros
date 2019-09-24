@@ -116,10 +116,10 @@ function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y) {
           var dy = (Math.pow(nipple.distance * Math.sin(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_y ?(-1.0):(1.0)) * Math.sign(Math.sin(nipple.angle.radian))
           console.debug("dx : " + dx)
           console.debug("dy : " + dy)
-          if(Math.abs(dx) < 0.01){
+          if(Math.abs(dx) < 0.005){
             dx = 0.0;
           }
-          if(Math.abs(dy) < 0.01){
+          if(Math.abs(dy) < 0.005){
             dy = 0.0;
           }
           axes[x_axis_remap] = dx;  
