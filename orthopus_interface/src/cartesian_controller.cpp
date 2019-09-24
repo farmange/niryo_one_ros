@@ -9,7 +9,7 @@
 #include "orthopus_interface/cartesian_controller.h"
 
 #define INIT_TIME 2
-#define MAX_VELOCITY 0.9
+#define MAX_VELOCITY 0.8
 
 namespace cartesian_controller
 {
