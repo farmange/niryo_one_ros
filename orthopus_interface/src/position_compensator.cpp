@@ -38,8 +38,8 @@ PositionCompensator::PositionCompensator()
     velocity_command_[i] = 0.0;
     traj_desired_pose_[i] = 0.0;
   }
-  traj_position_tolerance_ = 0.01;     // 10 mm
-  traj_orientation_tolerance_ = 0.01;  // 0.01 rad = 0.573 deg
+  traj_position_tolerance_ = 0.005;     // 10 mm
+  traj_orientation_tolerance_ = 0.001;  // 0.01 rad = 0.573 deg
 
   trajectory_ctrl_p_gain_ = 0.0;
   trajectory_ctrl_i_gain_ = 0.0;
@@ -309,7 +309,7 @@ void PositionCompensator::executeTrajectory(double (&dx_response)[6], const doub
     }
     else
     {
-      ROS_ERROR("ANTi WINDUP !!!!!");
+      ROS_DEBUG("ANTi WINDUP !!!!!");
     }
     ROS_ERROR("sum = %5f, pi_out = %5f proportional_out = %5f, integral_out = %5f ", trajectory_ctrl_i_sum_[i], pi_out,
               proportional_out, integral_out);

@@ -26,6 +26,20 @@ CartesianController::CartesianController()
     joint_position_cmd[i] = 0.0;
     cartesian_velocity_desired[i] = 0.0;
   }
+  
+  ros::param::get("~drink_pose/position/x", drink_pose_.position.x);
+  ros::param::get("~drink_pose/position/y", drink_pose_.position.y);
+  ros::param::get("~drink_pose/position/z", drink_pose_.position.z);
+  ros::param::get("~drink_pose/orientation/x", drink_pose_.orientation.x);
+  ros::param::get("~drink_pose/orientation/y", drink_pose_.orientation.y);
+  ros::param::get("~drink_pose/orientation/z", drink_pose_.orientation.z);
+  
+  ros::param::get("~stand_pose/position/x", stand_pose_.position.x);
+  ros::param::get("~stand_pose/position/y", stand_pose_.position.y);
+  ros::param::get("~stand_pose/position/z", stand_pose_.position.z);
+  ros::param::get("~stand_pose/orientation/x", stand_pose_.orientation.x);
+  ros::param::get("~stand_pose/orientation/y", stand_pose_.orientation.y);
+  ros::param::get("~stand_pose/orientation/z", stand_pose_.orientation.z);
 }
 
 void CartesianController::init(int sampling_freq, PoseManager& pose_manager, ros::Publisher& command_pub,
@@ -146,14 +160,7 @@ void CartesianController::updateFsm()
           joint_position_cmd[i] = current_joint_state.position[i];
         }
         position_compensator_.reset();
-        geometry_msgs::Pose drink_pose;
-        drink_pose.position.x = 0.0237014013867;
-        drink_pose.position.y = -0.226999999994;
-        drink_pose.position.z = 0.423000149945;
-        drink_pose.orientation.x = 0;
-        drink_pose.orientation.y = 0;
-        drink_pose.orientation.z = 0;
-        position_compensator_.setTrajectoryPose(drink_pose);
+        position_compensator_.setTrajectoryPose(drink_pose_);
 
         fsm_state = FsmState::GotoDrink;
       }
@@ -165,14 +172,7 @@ void CartesianController::updateFsm()
           joint_position_cmd[i] = current_joint_state.position[i];
         }
         position_compensator_.reset();
-        geometry_msgs::Pose stand_pose;
-        stand_pose.position.x = -0.0183778;
-        stand_pose.position.y = -0.233611;
-        stand_pose.position.z = 0.419733;
-        stand_pose.orientation.x = 0;
-        stand_pose.orientation.y = 0;
-        stand_pose.orientation.z = -3.14;
-        position_compensator_.setTrajectoryPose(stand_pose);
+        position_compensator_.setTrajectoryPose(stand_pose_);
 
         fsm_state = FsmState::GotoStandGlass;
       }

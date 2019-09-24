@@ -36,11 +36,34 @@ gamma_7:          0.0
 
 
 #
-#  Saved positions 
+#  Saved joint positions 
 #        
 home_position:    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 rest_position:    [0.0, 0.64, -1.397, 0.0, 0.0, 0.0]
 
+#
+#  Saved cartesian positions 
+#  
+drink_pose:
+  position:
+    x: 0.0237
+    y: -0.171
+    z: 0.423
+  orientation:
+    x : 0.0
+    y : 0.0
+    z : 0.0
+
+stand_pose:
+  position:
+    x: -0.0183778
+    y: -0.187611
+    z: 0.419733
+  orientation:
+    x : 0.0
+    y : 0.0
+    z : -3.14
+  
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"
 allow_replanning            : true
@@ -49,7 +72,7 @@ goal_position_tolerance     : 0.001
 goal_orientation_tolerance  : 0.01
 
 # Trajectory controller gain (PI)
-trajectory_ctrl_p_gain  : 3.0
+trajectory_ctrl_p_gain  : 8.0
 trajectory_ctrl_i_gain  : 0.1
 
 # Constraint controller gain (PI)

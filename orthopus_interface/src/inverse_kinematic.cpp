@@ -183,7 +183,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
                                                double (&cartesian_velocity_desired)[6])
 {
   sensor_msgs::JointState q_cmd_prev = current_joint_state;
-  ROS_WARN("current_joint_state \t| joint_position_command \t| q_cmd_prev");
   for (int i = 0; i < 6; ++i)
   {
     q_cmd_prev.position[i] = joint_position_command[i];
@@ -200,8 +199,6 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
 
   /* Convert cartesian state to geometry_msgs::Pose */
   tf::poseEigenToMsg(end_effector_state, current_pose);
-  ROS_WARN("current_pose");
-  ROS_WARN_STREAM(current_pose);
 
   /* Convert quaternion pose in RPY */
   tf::Quaternion q(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
@@ -278,8 +275,8 @@ void InverseKinematic::ResolveInverseKinematic(double (&joint_position_command)[
                (jacobian.transpose() * sampling_period_ * gamma_weight * x_des);
 
   /* Set joint velocities bound */
-  double lb[] = { -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -0.8 };
-  double ub[] = { +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +0.8 };
+  double lb[] = { -joint_max_vel_, -joint_max_vel_, -joint_max_vel_, -joint_max_vel_*1.5, -joint_max_vel_, -joint_max_vel_*1.5 };
+  double ub[] = { +joint_max_vel_, +joint_max_vel_, +joint_max_vel_, +joint_max_vel_*1.5, +joint_max_vel_, +joint_max_vel_*1.5 };
 
   // Taylor developpement
   // q = q0 + dq*T

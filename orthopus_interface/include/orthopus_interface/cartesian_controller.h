@@ -84,6 +84,9 @@ private:
   double cartesian_velocity_compensated[6];
   double cartesian_velocity_desired_prev[6];
 
+  geometry_msgs::Pose drink_pose_;
+  geometry_msgs::Pose stand_pose_;
+  
   double pose_goal_joints_tolerance_;
   class FsmState
   {
