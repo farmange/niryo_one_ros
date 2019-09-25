@@ -249,15 +249,20 @@ void CartesianController::updateFsm()
     }
     else if (fsm_state == FsmState::GotoRest)
     {
-      if (action_requested == FsmAction::GotoHome)
+      if (isPositionCompleted(pose_manager_.getJoints("Rest")))
+      {
+        /* Switch to idle when position is completed */
+        fsm_state = FsmState::Idle;
+      }
+      else if (action_requested == FsmAction::GotoHome)
       {
         fsm_state = FsmState::GotoHome;
         gotoHomeState();
       }
-      else if (isPositionCompleted(pose_manager_.getJoints("Rest")))
+      else if (action_requested == FsmAction::GotoRest)
       {
-        /* Switch to idle when position is completed */
-        fsm_state = FsmState::Idle;
+        fsm_state = FsmState::GotoRest;
+        gotoRestState();
       }
     }
     else if (fsm_state == FsmState::FlipPinch)
