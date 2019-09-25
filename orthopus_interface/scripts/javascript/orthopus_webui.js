@@ -24,6 +24,8 @@ var ROTY_AXIS = 6;
 var ROTZ_AXIS = 3;
 
 var mainTimer;
+var yz_joy;
+var yx_joy;
 
 var learning_mode = false;
 var joystick_enabled = false;
@@ -91,31 +93,38 @@ function UpdatePage() {
   }
 }
 
-function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y) {
+function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y, max_joy_size) {
       // joystck configuration, if you want to adjust joystick, refer to:
       // https://yoannmoinet.github.io/nipplejs/
+      min_joy_size = 100; 
+      width = container.outerWidth();
+      best_fit_width = Math.min(max_joy_size, width);
+      console.log(best_fit_width);
+      best_fit_width = Math.max(min_joy_size, best_fit_width)
+      console.log(best_fit_width);
+      container.height(best_fit_width);
+      console.log(best_fit_width);
+      joy_size = best_fit_width - 20;
+      
       this.options = {
-          zone: container,
+          zone: container[0],
           position: { left: '50%', top: '50%' },
           mode: 'static',
-          size: PIX_LENGTH,
+          size: joy_size,
           color: color,
           restJoystick: true
       };
       this.manager = nipplejs.create(options);
       
-      // Setup html container size
-      container.style.height = PIX_LENGTH + 10 + "px";
-      
       // event listener for joystick move
       this.manager.on('move', function (evt, nipple) {
-          var pix_max = (PIX_LENGTH/2.0) ;
+          var pix_max = (joy_size/2.0) ;
           // var pix_max = (PIX_LENGTH/2.0) * Math.cos(Math.PI/4); //
           // Apply a square scale in order to increase small velocity control
           var dx = (Math.pow(nipple.distance * Math.cos(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_x ?(-1.0):(1.0)) * Math.sign(Math.cos(nipple.angle.radian)) 
           var dy = (Math.pow(nipple.distance * Math.sin(nipple.angle.radian), 2) / (1.0*Math.pow(pix_max, 2))) * (inv_y ?(-1.0):(1.0)) * Math.sign(Math.sin(nipple.angle.radian))
-          console.debug("dx : " + dx)
-          console.debug("dy : " + dy)
+          console.debug("dx : " + dx);
+          console.debug("dy : " + dy);
           if(Math.abs(dx) < 0.005){
             dx = 0.0;
           }
@@ -130,7 +139,7 @@ function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y) {
           axes[x_axis_remap] = 0.0;  
           axes[y_axis_remap] = 0.0;  
       });
-      return this;
+      return this.manager;
 }
 
 function mainLoop() {
@@ -200,7 +209,7 @@ function SetGripperId() {
   
   var set_gripper_id_srv = new ROSLIB.Service({
     ros : ros,
-    name : '/niryo_one/change_tool/',
+    name : '/niryo_one/change_tool',    
     serviceType : 'niryo_one_msgs/SetInt'
   });
   set_gripper_id_srv.callService(request, function(result) {
@@ -431,9 +440,11 @@ window.onload = function () {
       });
 
   // Construct joystick objects 
-  // ----------------------
-  var yz_joy = Joystick($('#YZ_joystick')[0], '#0066ff', Y_AXIS, true, Z_AXIS, false);
-  var yx_joy = Joystick($('#YX_joystick')[0], '#0066ff', Y_AXIS, true, X_AXIS, false);
+  // ----------------------  
+  console.log(    );
+  var max_joy_size = $(window).height()-420;
+  yz_joy = Joystick($('#YZ_joystick'), '#0066ff', Y_AXIS, true, Z_AXIS, false, max_joy_size);
+  yx_joy = Joystick($('#YX_joystick'), '#0066ff', Y_AXIS, true, X_AXIS, false, max_joy_size);
 
   // Populate video source 
   $('#video')[0].src = "http://" + robot_IP + ":8080/stream?topic=/image_raw";
@@ -445,6 +456,16 @@ window.onload = function () {
   SetGripperId();
 }
 
+window.onresize = function () {
+  var max_joy_size = $(window).height()-420;
+  console.log("yz_joy")
+  console.log(yz_joy)
+  yz_joy.destroy();
+  yx_joy.destroy();
+  yz_joy = Joystick($('#YZ_joystick'), '#0066ff', Y_AXIS, true, Z_AXIS, false, max_joy_size);
+  yx_joy = Joystick($('#YX_joystick'), '#0066ff', Y_AXIS, true, X_AXIS, false, max_joy_size);
+}
+  
 $(function() {
     $('#enable_switch')
         .change(function() {
