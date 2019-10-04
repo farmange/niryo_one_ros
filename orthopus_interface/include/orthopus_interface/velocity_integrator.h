@@ -1,5 +1,5 @@
 /*
- *  device_wrapper.h
+ *  velocity_integrator.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,44 +16,33 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_DEVICE_WRAPPER_H
-#define CARTESIAN_CONTROLLER_DEVICE_WRAPPER_H
+#ifndef CARTESIAN_CONTROLLER_INTEGRATOR_H
+#define CARTESIAN_CONTROLLER_INTEGRATOR_H
 
 #include <ros/ros.h>
 
-// #include "geometry_msgs/TwistStamped.h"
-// #include "sensor_msgs/Joy.h"
-// #include "std_msgs/Bool.h"
+#include <sensor_msgs/JointState.h>
+
+#include <orthopus_interface/types/joint_position.h>
+#include <orthopus_interface/types/joint_velocity.h>
+
 namespace cartesian_controller
 {
-class DeviceWrapper
+class VelocityIntegrator
 {
 public:
-  DeviceWrapper();
-
-  /** Summarises possible plan to navigate. */
-  typedef enum {
-    XY, /**< Navigate in the XY plan */
-    YZ, /**< Navigate in the YZ plan */
-    XZ  /**< Navigate in the XZ plan */
-  } CartesianMode_t;
-  //    CartesianMode CartesianMode_t;
+  VelocityIntegrator(const int joint_number, const bool use_quaternion);
+  void init(const double sampling_period);
+  void integrate(const JointVelocity& dq_input, JointPosition& q_output);
+  void setQCurrent(const JointPosition& q_current);
 
 protected:
-  void requestLearningMode(int state);
-
+private:
   ros::NodeHandle n_;
-  // Subscribed topic from where device inputs are read
-  ros::Subscriber device_sub_;
-  // Publish
-  ros::Publisher cartesian_cmd_pub_;
-  ros::Publisher gripper_cmd_pub_;
-  ros::Publisher cartesian_mode_pub_;
-
-  ros::ServiceClient learning_mode_client_;
-
-  CartesianMode_t cartesian_mode_;
+  bool use_quaternion_;
+  int joint_number_;
+  JointPosition q_current_;
+  double sampling_period_;
 };
 }
-
 #endif

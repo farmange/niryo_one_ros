@@ -1,5 +1,5 @@
 /*
- *  pose_manager.h
+ *  fsm_engine.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,34 +16,38 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_POSE_MANAGER_H
-#define CARTESIAN_CONTROLLER_POSE_MANAGER_H
+#ifndef CARTESIAN_CONTROLLER_FSM_ENGINE_H
+#define CARTESIAN_CONTROLLER_FSM_ENGINE_H
 
-#include <ros/ros.h>
+#include "ros/ros.h"
 
-#include <niryo_one_msgs/ManagePosition.h>
-#include "geometry_msgs/Pose.h"
-
-#include <orthopus_interface/types/joint_position.h>
+#include <orthopus_interface/utils/fsm_state.h>
+#include <orthopus_interface/utils/fsm_transition.h>
 
 namespace cartesian_controller
 {
-class PoseManager
+class FsmEngine
 {
 public:
-  PoseManager(const int joint_number, const bool use_quaternion);
-  const JointPosition getJoints(const std::string position_name);
-  void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
+  FsmEngine(){};
+  void processFsm(){
 
-  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
+  };
+
+  void addState(FsmState state)
+  {
+    state_.push_back(state);
+  };
+
+  void addTransition(FsmTransition transition)
+  {
+    transition_.push_back(transition);
+  };
 
 protected:
 private:
-  ros::NodeHandle n_;
-  bool use_quaternion_;
-  int joint_number_;
-
-  std::map<std::string, JointPosition> q_saved_pose_;
+  std::vector<FsmState> state_;
+  std::vector<FsmTransition> transition_;
 };
 }
 #endif

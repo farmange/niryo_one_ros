@@ -1,5 +1,5 @@
 /*
- *  pose_manager.h
+ *  joint_velocity.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,34 +16,36 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_POSE_MANAGER_H
-#define CARTESIAN_CONTROLLER_POSE_MANAGER_H
+#ifndef CARTESIAN_CONTROLLER_JOINT_VELOCITY_H
+#define CARTESIAN_CONTROLLER_JOINT_VELOCITY_H
 
-#include <ros/ros.h>
-
-#include <niryo_one_msgs/ManagePosition.h>
-#include "geometry_msgs/Pose.h"
-
-#include <orthopus_interface/types/joint_position.h>
+#include "ros/ros.h"
 
 namespace cartesian_controller
 {
-class PoseManager
+class JointVelocity : public std::vector<double>
 {
-public:
-  PoseManager(const int joint_number, const bool use_quaternion);
-  const JointPosition getJoints(const std::string position_name);
-  void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
-
-  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
-
-protected:
 private:
-  ros::NodeHandle n_;
-  bool use_quaternion_;
   int joint_number_;
 
-  std::map<std::string, JointPosition> q_saved_pose_;
+public:
+  JointVelocity(int joint_number) : joint_number_(joint_number)
+  {
+    resize(joint_number, 0.0);
+  }
+
+  /* Overload ostream << operator */
+  friend std::ostream& operator<<(std::ostream& os, const JointVelocity& sp)
+  {
+    using namespace std;
+    copy(sp.begin(), sp.end(), ostream_iterator<double>(os, ", "));
+    return os;
+  }
+
+  int getJointNumber()
+  {
+    return joint_number_;
+  }
 };
 }
 #endif

@@ -1,5 +1,5 @@
 /*
- *  pose_manager.h
+ *  space_velocity.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,34 +16,21 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_POSE_MANAGER_H
-#define CARTESIAN_CONTROLLER_POSE_MANAGER_H
+#ifndef CARTESIAN_CONTROLLER_SPACE_VELOCITY_H
+#define CARTESIAN_CONTROLLER_SPACE_VELOCITY_H
 
-#include <ros/ros.h>
+#include "ros/ros.h"
 
-#include <niryo_one_msgs/ManagePosition.h>
-#include "geometry_msgs/Pose.h"
-
-#include <orthopus_interface/types/joint_position.h>
+#include "orthopus_interface/types/space_base.h"
 
 namespace cartesian_controller
 {
-class PoseManager
+class SpaceVelocity : public SpaceBase
 {
 public:
-  PoseManager(const int joint_number, const bool use_quaternion);
-  const JointPosition getJoints(const std::string position_name);
-  void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
-
-  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
-
-protected:
+  SpaceVelocity(bool use_quaternion) : SpaceBase(use_quaternion){};
 private:
-  ros::NodeHandle n_;
-  bool use_quaternion_;
-  int joint_number_;
-
-  std::map<std::string, JointPosition> q_saved_pose_;
+  void abstract_function_() {};
 };
 }
 #endif

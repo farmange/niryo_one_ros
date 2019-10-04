@@ -9,7 +9,6 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   moveit_ros_planning_interface
   qpoases_ros
-  actionlib
   spacenav_node
   joy
   tf2_geometry_msgs
@@ -35,20 +34,6 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-############ joystick_cartesian_interface
-add_executable(joystick_cartesian_interface
-  src/joystick_cartesian_interface.cpp
-)
-target_link_libraries(joystick_cartesian_interface ${catkin_LIBRARIES})
-add_dependencies(joystick_cartesian_interface ${catkin_EXPORTED_TARGETS})
-
-############ xbox_to_twist
-add_executable(xbox_to_twist
-  src/xbox_to_twist.cpp
-)
-target_link_libraries(xbox_to_twist ${catkin_LIBRARIES})
-add_dependencies(xbox_to_twist ${catkin_EXPORTED_TARGETS})
-
 ############ xbox wrapper 
 add_executable(xbox_wrapper
   src/device_wrapper.cpp
@@ -65,7 +50,7 @@ add_executable(spacenav_wrapper
 target_link_libraries(spacenav_wrapper ${catkin_LIBRARIES})
 add_dependencies(spacenav_wrapper ${catkin_EXPORTED_TARGETS})
 
-############ spacenav wrapper
+############ web app wrapper
 add_executable(web_app_wrapper
   src/device_wrapper.cpp
   src/web_app_wrapper.cpp
@@ -76,18 +61,14 @@ add_dependencies(web_app_wrapper ${catkin_EXPORTED_TARGETS})
 ############ cartesian controller
 add_executable(cartesian_controller
   src/inverse_kinematic.cpp
+  src/forward_kinematic.cpp
+  src/velocity_integrator.cpp
+  src/constraints_compensator.cpp
+  src/trajectory_controller.cpp
   src/pose_manager.cpp
   src/robot_manager.cpp
-  src/trajectory_manager.cpp
-  src/position_compensator.cpp
   src/cartesian_controller.cpp
 )
 target_link_libraries(cartesian_controller ${catkin_LIBRARIES})
 add_dependencies(cartesian_controller ${catkin_EXPORTED_TARGETS})
 
-############ move group node
-add_executable(move_group_node
-  src/move_group_node.cpp
-)
-target_link_libraries(move_group_node ${catkin_LIBRARIES})
-add_dependencies(move_group_node ${catkin_EXPORTED_TARGETS})

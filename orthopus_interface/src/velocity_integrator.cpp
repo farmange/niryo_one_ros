@@ -1,5 +1,5 @@
 /*
- *  pose_manager.h
+ *  velocity_integrator.cpp
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,34 +16,34 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_POSE_MANAGER_H
-#define CARTESIAN_CONTROLLER_POSE_MANAGER_H
-
 #include <ros/ros.h>
 
-#include <niryo_one_msgs/ManagePosition.h>
-#include "geometry_msgs/Pose.h"
-
-#include <orthopus_interface/types/joint_position.h>
+#include <orthopus_interface/velocity_integrator.h>
 
 namespace cartesian_controller
 {
-class PoseManager
+VelocityIntegrator::VelocityIntegrator(const int joint_number, const bool use_quaternion)
+  : joint_number_(joint_number), use_quaternion_(use_quaternion), q_current_(joint_number)
 {
-public:
-  PoseManager(const int joint_number, const bool use_quaternion);
-  const JointPosition getJoints(const std::string position_name);
-  void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
-
-  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
-
-protected:
-private:
-  ros::NodeHandle n_;
-  bool use_quaternion_;
-  int joint_number_;
-
-  std::map<std::string, JointPosition> q_saved_pose_;
-};
+  ROS_DEBUG_STREAM("VelocityIntegrator constructor");
+  sampling_period_ = 0.0;
 }
-#endif
+
+void VelocityIntegrator::init(const double sampling_period)
+{
+  sampling_period_ = sampling_period;
+}
+
+void VelocityIntegrator::integrate(const JointVelocity& dq_input, JointPosition& q_output)
+{
+  for (int i = 0; i < joint_number_; i++)
+  {
+    q_output[i] = q_current_[i] + dq_input[i] * sampling_period_;
+  }
+}
+
+void VelocityIntegrator::setQCurrent(const JointPosition& q_current)
+{
+  q_current_ = q_current;
+}
+}

@@ -5,35 +5,17 @@
 #
 #  Minimize cartesian velocity coefs : dx
 #        
-alpha_1:          10.
-alpha_2:          10.
-alpha_3:          10.
-alpha_4:          10.
-alpha_5:          10.
-alpha_6:          10.
-alpha_7:          0.
+alpha_weight:     [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
 
 #
 #  Minimize joints velocities coefs : dq
 #        
-beta_1:           0.1
-beta_2:           0.1
-beta_3:           0.1
-beta_4:           0.1
-beta_5:           0.1
-beta_6:           0.1
+beta_weight:      [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
 #
 #  Minimize cartesian position coefs : x
 #        
-gamma_1:          0.
-gamma_2:          0.
-gamma_3:          0.
-gamma_4:          0.
-gamma_5:          0.
-gamma_6:          0.
-gamma_7:          0.0
-
+gamma_weight:     [0., 0., 0., 0., 0., 0.]
 
 #
 #  Saved joint positions 
@@ -41,29 +23,33 @@ gamma_7:          0.0
 home_position:    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 rest_position:    [0.0, 0.64, -1.397, 0.0, 0.0, 0.0]
 
+
+#home_position:    [-1.5708, 0.0, 0.0, -1.5708, 1.5708, 1.5708]
+#home_position:    [-1.5708, 0.45, -0.45, -1.5708, -1.5708, 1.5708]
+
 #
 #  Saved cartesian positions 
 #  
 drink_pose:
   position:
     x: 0.0237
-    y: -0.171
-    z: 0.423
+    y: -0.126
+    z: 0.402
   orientation:
     x : 0.0
     y : 0.0
     z : 0.0
-
+    
 stand_pose:
   position:
-    x: -0.0183778
-    y: -0.187611
-    z: 0.419733
+    x: -0.0237
+    y: -0.137
+    z: 0.402
   orientation:
     x : 0.0
     y : 0.0
     z : -3.14
-  
+
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"
 allow_replanning            : true
@@ -72,16 +58,19 @@ goal_position_tolerance     : 0.001
 goal_orientation_tolerance  : 0.01
 
 # Trajectory controller gain (PI)
-trajectory_ctrl_p_gain  : 8.0
-trajectory_ctrl_i_gain  : 0.1
+trajectory_ctrl_p_gain      : 8.0
+trajectory_ctrl_i_gain      : 0.1
 
 # Constraint controller gain (PI)
-constraint_ctrl_p_gain  : 5.0
-constraint_ctrl_i_gain  : 0.1
+constraint_ctrl_p_gain      : 10.0
+constraint_ctrl_i_gain      : 0.1
 
-joint_max_vel  : 0.4
-cartesian_max_vel  : 0.8
+joint_max_vel               : 0.4
+cartesian_max_vel           : 0.8
 
 # Pose goal joints tolerance
 pose_goal_joints_tolerance  : 0.03 # rad
+
+sampling_frequency          : 10
+
 

@@ -2,7 +2,7 @@
 <package format="2">
   <name>orthopus_interface</name>
   <version>0.0.1</version>
-  <description>Handles commands from joystick in order to perform cartesian control</description>
+  <description>Robot control in cartesian space using various inputs (xbox joy, spacenav, web app)</description>
   <author>Florian Armange</author>
   <maintainer email="florian.armange@orthopus.com">Florian Armange</maintainer>
   <license>GPLv3</license>
@@ -12,7 +12,6 @@
   <depend>niryo_one_msgs</depend>
   <depend>qpoases_ros</depend>
   <depend>moveit_ros_planning_interface</depend>
-  <depend>actionlib</depend>
   <depend>spacenav_node</depend>
   <depend>joy</depend>
   <depend>tf2_geometry_msgs</depend>
