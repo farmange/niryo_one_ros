@@ -68,6 +68,7 @@ constraint_ctrl_i_gain      : 0.1
 joint_max_vel               : 0.4
 cartesian_max_vel           : 0.8
 
+debug                       : true
 # Pose goal joints tolerance
 pose_goal_joints_tolerance  : 0.03 # rad
 

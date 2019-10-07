@@ -19,13 +19,36 @@
 #include "ros/ros.h"
 
 #include "orthopus_interface/robot_manager.h"
-#include <niryo_one_msgs/CloseGripper.h>
-
-#define TOOL_ID_GRIPPER_2 12
-#define MAX_VELOCITY 0.8
+#include "niryo_one_msgs/CloseGripper.h"
 
 namespace cartesian_controller
 {
+void RobotManager::update()
+{
+  ROS_DEBUG_STREAM("RobotManager::update");
+  ROS_DEBUG_STREAM(state_);
+  
+  state_->update(*this);
+}
+
+void RobotManager::handleInput(Event event)
+{
+  ROS_DEBUG_STREAM("RobotManager::handleInput");
+  
+  State* state = state_->handleInput(*this, event);
+  if (state != NULL)
+  {
+    // Call the enter action on the new state.
+    state_->exit(*this);
+
+    delete state_;
+    state_ = state;
+    
+    // Call the enter action on the new state.
+    state_->enter(*this);
+  }
+}
+
 RobotManager::RobotManager(const int joint_number, const bool use_quaternion)
   : cartesian_controller_(joint_number, use_quaternion)
   , pose_manager_(joint_number, use_quaternion)
@@ -37,11 +60,15 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion)
   , dx_desired_(use_quaternion)
   , dx_desired_prev_(use_quaternion)
 {
+  ROS_DEBUG_STREAM("***** FSM TEST *****");
+  state_ = new StateDisable();
+  event_ = Event::None;
+ 
   ROS_DEBUG_STREAM("RobotManager constructor");
-  initializeSubscribers();
-  initializePublishers();
-  initializeServices();
-  retrieveParameters();
+  retrieveParameters_();
+  initializeSubscribers_();
+  initializePublishers_();
+  initializeServices_();
   ros::Rate loop_rate = ros::Rate(sampling_freq_);
   fsm_state_ = RobotManagerFsmState::Disable;
 
@@ -66,11 +93,17 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion)
   {
     ros::spinOnce();
 
-    updateFsm();
-    runFsm();
+    updateFsm_();
+    runFsm_();
+
+//     handleInput(event_);    
+//     update();
+    
+    /* This topic publication prevents niryo "RobotCommander" to execute action */
     std_msgs::Bool joystick_enable_msg;
-    joystick_enable_msg.data = cartesianIsEnable();
+    joystick_enable_msg.data = true;
     joystick_enabled_pub_.publish(joystick_enable_msg);
+
     loop_rate.sleep();
   }
 }
@@ -80,9 +113,9 @@ void RobotManager::init()
   cartesian_controller_.init(sampling_period_, pose_manager_);
 }
 
-void RobotManager::callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg)
+void RobotManager::callbackInputDeviceVelocity_(const geometry_msgs::TwistStampedPtr& msg)
 {
-  //   ROS_DEBUG_STREAM("callbackVelocitiesDesired");
+  //   ROS_DEBUG_STREAM("callbackInputDeviceVelocity");
   for (int i = 0; i < dx_desired_.size(); i++)
   {
     dx_desired_[i] = 0.0;
@@ -122,13 +155,13 @@ void RobotManager::callbackVelocitiesDesired(const geometry_msgs::TwistStampedPt
   }
 }
 
-void RobotManager::callbackLearningMode(const std_msgs::BoolPtr& msg)
+void RobotManager::callbackLearningMode_(const std_msgs::BoolPtr& msg)
 {
   //   ROS_DEBUG_STREAM("callbackLearningMode");
   learning_mode_ = msg->data;
 }
 
-void RobotManager::callbackJointState(const sensor_msgs::JointStateConstPtr& msg)
+void RobotManager::callbackJointState_(const sensor_msgs::JointStateConstPtr& msg)
 {
   //   ROS_DEBUG_STREAM("callbackJointState");
   for (int i = 0; i < joint_number_; i++)
@@ -138,15 +171,56 @@ void RobotManager::callbackJointState(const sensor_msgs::JointStateConstPtr& msg
   }
 }
 
-void RobotManager::initializeSubscribers()
+bool RobotManager::callbackAction_(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res)
 {
-  ROS_DEBUG_STREAM("RobotManager initializeSubscribers");
-  joints_sub_ = n_.subscribe("joint_states", 1, &RobotManager::callbackJointState, this);
-  dx_des_sub_ = n_.subscribe("dx_des", 1, &RobotManager::callbackVelocitiesDesired, this);
-  learning_mode_sub_ = n_.subscribe("/niryo_one/learning_mode", 1, &RobotManager::callbackLearningMode, this);
+  if (req.value == RobotManagerFsmAction::Cartesian)
+  {
+//     event_ = Event::ExecuteSpaceControl;
+    action_requested_ = RobotManagerFsmAction::Cartesian;
+  }
+  else if (req.value == RobotManagerFsmAction::GotoHome)
+  {
+//     event_ = Event::ExecuteJointTraj;
+    action_requested_ = RobotManagerFsmAction::GotoHome;
+  }
+  else if (req.value == RobotManagerFsmAction::GotoRest)
+  {
+//     event_ = Event::ExecuteJointTraj;
+    action_requested_ = RobotManagerFsmAction::GotoRest;
+  }
+  else if (req.value == RobotManagerFsmAction::GotoDrink)
+  {
+//     event_ = Event::ExecuteSpaceTraj;
+    action_requested_ = RobotManagerFsmAction::GotoDrink;
+  }
+  else if (req.value == RobotManagerFsmAction::GotoStandGlass)
+  {
+//     event_ = Event::ExecuteSpaceTraj;
+    action_requested_ = RobotManagerFsmAction::GotoStandGlass;
+  }
+  else if (req.value == RobotManagerFsmAction::FlipPinch)
+  {
+//     event_ = Event::ExecuteJointTraj;
+    action_requested_ = RobotManagerFsmAction::FlipPinch;
+  }
+  else
+  {
+    /* Keep previous requested action */
+    ROS_ERROR("Action requested unknown : %d", req.value);
+  }
+  return true;
 }
 
-void RobotManager::initializePublishers()
+void RobotManager::initializeSubscribers_()
+{
+  ROS_DEBUG_STREAM("RobotManager initializeSubscribers");
+  joints_sub_ = n_.subscribe("joint_states", 1, &RobotManager::callbackJointState_, this);
+  dx_input_device_sub_ =
+      n_.subscribe("/orthopus_interface/input_device_velocity", 1, &RobotManager::callbackInputDeviceVelocity_, this);
+  learning_mode_sub_ = n_.subscribe("/niryo_one/learning_mode", 1, &RobotManager::callbackLearningMode_, this);
+}
+
+void RobotManager::initializePublishers_()
 {
   ROS_DEBUG_STREAM("RobotManager initializePublishers");
 
@@ -154,24 +228,28 @@ void RobotManager::initializePublishers()
       n_.advertise<trajectory_msgs::JointTrajectory>("/niryo_one_follow_joint_trajectory_controller/command", 1);
   joystick_enabled_pub_ = n_.advertise<std_msgs::Bool>("/niryo_one/joystick_interface/is_enabled", 1);
 
-  debug_pose_current_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_current", 1);
-  debug_pose_desired_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_desired", 1);
-  debug_pose_meas_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_meas", 1);
+  if (debug_)
+  {
+    debug_pose_current_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_current", 1);
+    debug_pose_desired_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_desired", 1);
+    debug_pose_meas_ = n_.advertise<geometry_msgs::Pose>("/debug_pose_meas", 1);
 
-  debug_joint_desired_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_desired", 1);
-  debug_joint_min_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_min_limit", 1);
-  debug_joint_max_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_max_limit", 1);
+    debug_joint_desired_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_desired", 1);
+    debug_joint_min_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_min_limit", 1);
+    debug_joint_max_limit_ = n_.advertise<sensor_msgs::JointState>("/debug_joint_max_limit", 1);
+  }
 }
 
-void RobotManager::initializeServices()
+void RobotManager::initializeServices_()
 {
   ROS_DEBUG_STREAM("RobotManager initializeServices");
-  action_service_ = n_.advertiseService("/niryo_one/orthopus_interface/action", &RobotManager::callbackAction, this);
+  // TODO : refactor :better name for this service (not action)
+  action_service_ = n_.advertiseService("/niryo_one/orthopus_interface/action", &RobotManager::callbackAction_, this);
   manage_pose_service_ = n_.advertiseService("/niryo_one/orthopus_interface/manage_pose",
                                              &PoseManager::callbackManagePose, &pose_manager_);
 }
 
-void RobotManager::retrieveParameters()
+void RobotManager::retrieveParameters_()
 {
   ros::param::get("~drink_pose/position/x", drink_pose_.position.x);
   ros::param::get("~drink_pose/position/y", drink_pose_.position.y);
@@ -188,50 +266,17 @@ void RobotManager::retrieveParameters()
   ros::param::get("~stand_pose/orientation/z", stand_pose_.orientation.z);
 
   ros::param::get("~pose_goal_joints_tolerance", pose_goal_joints_tolerance_);
-
   ros::param::get("~sampling_frequency", sampling_freq_);
+  ros::param::get("~cartesian_max_vel", cartesian_max_vel_);
+  ros::param::get("~debug", debug_);
 }
 
-bool RobotManager::callbackAction(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res)
-{
-  if (req.value == RobotManagerFsmAction::Cartesian)
-  {
-    action_requested_ = RobotManagerFsmAction::Cartesian;
-  }
-  else if (req.value == RobotManagerFsmAction::GotoHome)
-  {
-    action_requested_ = RobotManagerFsmAction::GotoHome;
-  }
-  else if (req.value == RobotManagerFsmAction::GotoRest)
-  {
-    action_requested_ = RobotManagerFsmAction::GotoRest;
-  }
-  else if (req.value == RobotManagerFsmAction::GotoDrink)
-  {
-    action_requested_ = RobotManagerFsmAction::GotoDrink;
-  }
-  else if (req.value == RobotManagerFsmAction::GotoStandGlass)
-  {
-    action_requested_ = RobotManagerFsmAction::GotoStandGlass;
-  }
-  else if (req.value == RobotManagerFsmAction::FlipPinch)
-  {
-    action_requested_ = RobotManagerFsmAction::FlipPinch;
-  }
-  else
-  {
-    /* Keep previous requested action */
-    ROS_ERROR("Action requested unknown : %d", req.value);
-  }
-  return true;
-}
-
-void RobotManager::printFsm()
+void RobotManager::printFsm_()
 {
   ROS_DEBUG_STREAM("FSM state : " << fsm_state_.ToString() << " - Action requested : " << action_requested_.ToString());
 }
 
-void RobotManager::updateFsm()
+void RobotManager::updateFsm_()
 {
   RobotManagerFsmState fsm_local_prev_state = fsm_state_;
 
@@ -323,7 +368,7 @@ void RobotManager::updateFsm()
     }
     else if (fsm_state_ == RobotManagerFsmState::GotoHome)
     {
-      if (isPositionCompleted(pose_manager_.getJoints("Home")))
+      if (isPositionCompleted_(pose_manager_.getJoints("Home")))
       {
         fsm_state_ = RobotManagerFsmState::CartesianMode;
         cartesian_Entry();
@@ -341,7 +386,7 @@ void RobotManager::updateFsm()
     }
     else if (fsm_state_ == RobotManagerFsmState::GotoRest)
     {
-      if (isPositionCompleted(pose_manager_.getJoints("Rest")))
+      if (isPositionCompleted_(pose_manager_.getJoints("Rest")))
       {
         fsm_state_ = RobotManagerFsmState::Idle;
       }
@@ -368,7 +413,7 @@ void RobotManager::updateFsm()
         fsm_state_ = RobotManagerFsmState::GotoRest;
         gotoRest_Entry();
       }
-      else if (isPositionCompleted(pose_manager_.getJoints("Flip")))
+      else if (isPositionCompleted_(pose_manager_.getJoints("Flip")))
       {
         fsm_state_ = RobotManagerFsmState::CartesianMode;
         cartesian_Entry();
@@ -389,9 +434,9 @@ void RobotManager::updateFsm()
   action_requested_ = RobotManagerFsmAction::None;
 }
 
-void RobotManager::runFsm()
+void RobotManager::runFsm_()
 {
-  printFsm();
+  printFsm_();
   // TODO could be generic function
   if (fsm_state_ == RobotManagerFsmState::CartesianMode)
   {
@@ -425,11 +470,6 @@ void RobotManager::runFsm()
   }
 }
 
-bool RobotManager::cartesianIsEnable()
-{
-  return (fsm_state_ == RobotManagerFsmState::CartesianMode);
-}
-
 /*******************************************/
 void RobotManager::cartesian_State()
 {
@@ -442,7 +482,7 @@ void RobotManager::cartesian_State()
   cartesian_controller_.run(q_current_, q_command_);
 
   ROS_INFO("=== Send Niryo One commands...");
-  sendJointsCommand();
+  sendJointsCommand_();
   ROS_INFO("    Done.");
 }
 void RobotManager::cartesian_Entry()
@@ -460,7 +500,7 @@ void RobotManager::gotoHome_State()
 }
 void RobotManager::gotoHome_Entry()
 {
-  gotoPosition(pose_manager_.getJoints("Home"));
+  gotoPosition_(pose_manager_.getJoints("Home"));
 }
 void RobotManager::gotoHome_Exit()
 {
@@ -471,7 +511,7 @@ void RobotManager::gotoRest_State()
 }
 void RobotManager::gotoRest_Entry()
 {
-  gotoPosition(pose_manager_.getJoints("Rest"));
+  gotoPosition_(pose_manager_.getJoints("Rest"));
 }
 void RobotManager::gotoRest_Exit()
 {
@@ -492,7 +532,7 @@ void RobotManager::gotoDrink_State()
   cartesian_controller_.run(q_current_, q_command_);
 
   ROS_INFO("=== Send Niryo One commands...");
-  sendJointsCommand();
+  sendJointsCommand_();
   ROS_INFO("    Done.");
 }
 
@@ -521,7 +561,7 @@ void RobotManager::gotoStandGlass_State()
   cartesian_controller_.run(q_current_, q_command_);
 
   ROS_INFO("=== Send Niryo One commands...");
-  sendJointsCommand();
+  sendJointsCommand_();
   ROS_INFO("    Done.");
 }
 
@@ -539,6 +579,7 @@ void RobotManager::gotoStandGlass_Exit()
 void RobotManager::flipPinch_State()
 {
 }
+
 void RobotManager::flipPinch_Entry()
 {
   JointPosition flip_position(joint_number_);
@@ -552,14 +593,15 @@ void RobotManager::flipPinch_Entry()
     flip_position[4] = flip_position[4] - M_PI;
   }
   pose_manager_.setJoints("Flip", flip_position);
-  gotoPosition(flip_position);
+  gotoPosition_(flip_position);
 }
+
 void RobotManager::flipPinch_Exit()
 {
 }
 /*******************************************/
 
-void RobotManager::gotoPosition(const JointPosition q_pose)
+void RobotManager::gotoPosition_(const JointPosition q_pose)
 {
   trajectory_msgs::JointTrajectory new_jt_traj;
 
@@ -575,13 +617,13 @@ void RobotManager::gotoPosition(const JointPosition q_pose)
     point.velocities[i] = 0.0;
   }
 
-  point.time_from_start = ros::Duration(computeDuration(q_pose));
+  point.time_from_start = ros::Duration(computeDuration_(q_pose));
 
   new_jt_traj.points.push_back(point);
   command_pub_.publish(new_jt_traj);
 }
 
-bool RobotManager::isPositionCompleted(const JointPosition q_pose)
+bool RobotManager::isPositionCompleted_(const JointPosition q_pose)
 {
   bool is_completed = true;
   for (int i = 0; i < joint_number_; i++)
@@ -595,7 +637,7 @@ bool RobotManager::isPositionCompleted(const JointPosition q_pose)
   return is_completed;
 }
 
-double RobotManager::computeDuration(const JointPosition q_pose)
+double RobotManager::computeDuration_(const JointPosition q_pose)
 {
   double delta_tmp = 0.0, delta_max = 0.0, duration = 0.0;
   for (int i = 0; i < joint_number_; i++)
@@ -606,11 +648,11 @@ double RobotManager::computeDuration(const JointPosition q_pose)
       delta_max = delta_tmp;
     }
   }
-  duration = delta_max / MAX_VELOCITY;
+  duration = delta_max / cartesian_max_vel_;
   return duration;
 }
 
-void RobotManager::sendJointsCommand()
+void RobotManager::sendJointsCommand_()
 {
   trajectory_msgs::JointTrajectory new_jt_traj;
   new_jt_traj.header.stamp = ros::Time::now();
@@ -627,6 +669,11 @@ void RobotManager::sendJointsCommand()
   new_jt_traj.points.push_back(point);
   command_pub_.publish(new_jt_traj);
 };
+
+bool RobotManager::cartesianIsEnable_()
+{
+  return (fsm_state_ == RobotManagerFsmState::CartesianMode);
+}
 }
 
 using namespace cartesian_controller;

@@ -16,9 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <ros/ros.h>
+#include "ros/ros.h"
 
-#include <orthopus_interface/velocity_integrator.h>
+#include "orthopus_interface/velocity_integrator.h"
 
 namespace cartesian_controller
 {

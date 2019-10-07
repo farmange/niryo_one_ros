@@ -19,18 +19,18 @@
 #ifndef CARTESIAN_CONTROLLER_FORWARD_KINEMATIC_H
 #define CARTESIAN_CONTROLLER_FORWARD_KINEMATIC_H
 
-#include <ros/ros.h>
+#include "ros/ros.h"
 
 // MoveIt!
-#include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/robot_model/robot_model.h>
-#include <moveit/robot_state/robot_state.h>
+#include "moveit/robot_model_loader/robot_model_loader.h"
+#include "moveit/robot_model/robot_model.h"
+#include "moveit/robot_state/robot_state.h"
 
-#include <sensor_msgs/JointState.h>
-#include <geometry_msgs/Pose.h>
+#include "sensor_msgs/JointState.h"
+#include "geometry_msgs/Pose.h"
 
-#include <orthopus_interface/types/joint_position.h>
-#include <orthopus_interface/types/space_position.h>
+#include "orthopus_interface/types/joint_position.h"
+#include "orthopus_interface/types/space_position.h"
 
 namespace cartesian_controller
 {
@@ -47,14 +47,14 @@ protected:
 private:
   ros::NodeHandle n_;
 
+  bool use_quaternion_;
+  int joint_number_;
+  
   std::string end_effector_link_;
   JointPosition q_current_;
   SpacePosition x_current_;
   robot_model::RobotModelPtr kinematic_model_;
   robot_state::RobotStatePtr kinematic_state_;
-
-  bool use_quaternion_;
-  int joint_number_;
 };
 }
 #endif

@@ -23,11 +23,11 @@
 
 #include "orthopus_interface/utils/pi_controller.h"
 
-#include <sensor_msgs/JointState.h>
-#include <geometry_msgs/Pose.h>
+#include "sensor_msgs/JointState.h"
+#include "geometry_msgs/Pose.h"
 
-#include <orthopus_interface/types/space_position.h>
-#include <orthopus_interface/types/space_velocity.h>
+#include "orthopus_interface/types/space_position.h"
+#include "orthopus_interface/types/space_velocity.h"
 
 namespace cartesian_controller
 {
@@ -48,10 +48,11 @@ protected:
 private:
   ros::NodeHandle n_;
 
-  double sampling_period_;
-  bool use_quaternion_;
   int joint_number_;
   int orientation_dimension_;
+  bool use_quaternion_;
+  double sampling_period_;
+
   SpacePosition x_current_;
   SpacePosition x_const_;
   SpaceVelocity dx_input_;
@@ -68,9 +69,9 @@ private:
   typedef OrientationSide OrientationSideType;
   OrientationSideType orientation_side_;
 
-  void eulerFlipHandling();
-  void detectOrientationSide(const SpacePosition& x_input);
-  void updateOrientationConstraint();
+  void eulerFlipHandling_();
+  void detectOrientationSide_(const SpacePosition& x_input);
+  void updateOrientationConstraint_();
 };
 }
 #endif

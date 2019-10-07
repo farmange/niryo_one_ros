@@ -1,5 +1,5 @@
 /*
- *  pose_manager.h
+ *  state_space_control.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,35 +16,22 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_POSE_MANAGER_H
-#define CARTESIAN_CONTROLLER_POSE_MANAGER_H
+#ifndef CARTESIAN_CONTROLLER_STATE_SPACE_CONTROL_H
+#define CARTESIAN_CONTROLLER_STATE_SPACE_CONTROL_H
 
 #include "ros/ros.h"
 
-#include "niryo_one_msgs/ManagePosition.h"
-#include "geometry_msgs/Pose.h"
-
-#include "orthopus_interface/types/joint_position.h"
+#include "orthopus_interface/fsm/state.h"
 
 namespace cartesian_controller
 {
-class PoseManager
+class StateSpaceControl : public State
 {
 public:
-  PoseManager(const int joint_number, const bool use_quaternion);
-  const JointPosition getJoints(const std::string position_name);
-  void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
-
-  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
-
-protected:
-private:
-  ros::NodeHandle n_;
-
-  int joint_number_;
-  bool use_quaternion_;
-
-  std::map<std::string, JointPosition> q_saved_pose_;
+  StateSpaceControl() {};
+  State* handleInput(RobotManager& robot, Event event);
+  void update(RobotManager& robot);
+  void enter(RobotManager& robot);
 };
 }
 #endif

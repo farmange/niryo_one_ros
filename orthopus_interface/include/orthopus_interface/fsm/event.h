@@ -1,5 +1,5 @@
 /*
- *  pose_manager.h
+ *  event.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,35 +16,27 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_POSE_MANAGER_H
-#define CARTESIAN_CONTROLLER_POSE_MANAGER_H
+#ifndef CARTESIAN_CONTROLLER_EVENT_H
+#define CARTESIAN_CONTROLLER_EVENT_H
 
 #include "ros/ros.h"
 
-#include "niryo_one_msgs/ManagePosition.h"
-#include "geometry_msgs/Pose.h"
-
-#include "orthopus_interface/types/joint_position.h"
-
 namespace cartesian_controller
 {
-class PoseManager
+enum class Event
 {
-public:
-  PoseManager(const int joint_number, const bool use_quaternion);
-  const JointPosition getJoints(const std::string position_name);
-  void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
-
-  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
-
-protected:
-private:
-  ros::NodeHandle n_;
-
-  int joint_number_;
-  bool use_quaternion_;
-
-  std::map<std::string, JointPosition> q_saved_pose_;
+  None = 0,
+//   Cartesian,
+//   GotoHome,
+//   GotoRest,
+//   GotoDrink,
+//   GotoStandGlass,
+//   FlipPinch
+  Disable,
+  Idle,
+  ExecuteJointTraj,
+  ExecuteSpaceControl,
+  ExecuteSpaceTraj
 };
 }
 #endif

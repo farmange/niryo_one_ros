@@ -1,5 +1,5 @@
 /*
- *  robot_state.h
+ *  fsm_state.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -21,29 +21,40 @@
 
 #include "ros/ros.h"
 
-
 namespace cartesian_controller
 {
-  
-class FsmState
-{
-public:
-  RobotState(std::string name)
-  {
-    name_ = name;
-  };
-  virtual ~RobotState() {}
-  virtual void handleInput(RobotManager& robot, RobotEvent event) {}
-  virtual void update(RobotManager& robot) {}
-protected:
-private:
-  std::string name_;
-  virtual void entry_(){};
-  virtual void do_(){};
-  virtual void exit_(){};
-};
+// class FsmStateCartesian
+// {
+// public:
+//   FsmState() : FsmState("Cartesian")
+//   {
+//   };
+// 
+// protected:
+// private:
+//   ros::NodeHandle n_;
+//   
+//   void entry_()
+//   {
+//     /* Switch to cartesian mode when position is completed */
+//     cartesian_controller_.reset();
+//     q_command_ = q_meas_;
+//   };
+//   
+//   void do_(){
+//     ROS_INFO("=== Update joint position (Open loop)...");
+//     q_current_ = q_command_;
+//     ROS_INFO("    Done.");
+//     
+//     cartesian_controller_.setDxDesired(dx_desired_);
+//     cartesian_controller_.setInputSelector(CartesianController::INPUT_USER);
+//     cartesian_controller_.run(q_current_, q_command_);
+//     
+//     ROS_INFO("=== Send Niryo One commands...");
+//     sendJointsCommand_();
+//     ROS_INFO("    Done.");
+//     
+//   };
+// };
 }
-
-};
-
 #endif

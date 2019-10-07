@@ -68,11 +68,11 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
   ROS_INFO("Received first joint msg.");
 
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
-  kinematic_model = robot_model_loader.getModel();
-  ROS_DEBUG("Model frame: %s", kinematic_model->getModelFrame().c_str());
-  kinematic_state = std::make_shared<robot_state::RobotState>(kinematic_model);
-  kinematic_state->setToDefaultValues();
-  joint_model_group = kinematic_model->getJointModelGroup("arm");
+  kinematic_model_ = robot_model_loader.getModel();
+  ROS_DEBUG("Model frame: %s", kinematic_model_->getModelFrame().c_str());
+  kinematic_state_ = std::make_shared<robot_state::RobotState>(kinematic_model_);
+  kinematic_state_->setToDefaultValues();
+  joint_model_group_ = kinematic_model_->getJointModelGroup("arm");
 
   ROS_DEBUG("Setting up bound limit of the QP");
   JointVelocity limit = JointVelocity(joint_number_);
@@ -86,8 +86,8 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
 
   for (int i = 0; i < 6; i++)
   {
-    x_min_limit(i, 0) = 0.0;
-    x_max_limit(i, 0) = 0.0;
+    x_min_limit_(i, 0) = 0.0;
+    x_max_limit_(i, 0) = 0.0;
   }
 }
 
@@ -172,10 +172,9 @@ void InverseKinematic::reset()
   /* Initialize all cartesian constraints */
   for (int i = 0; i < 6; i++)
   {
-    request_update_constraint[i] = true;
-    request_update_constraint_tolerance[i] = 0.001;
+    request_update_constraint_[i] = true;
+    request_update_constraint_tolerance_[i] = 0.001;
   }
-  //   updateAxisConstraints();
 }
 
 void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired)
@@ -186,15 +185,15 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   }
 
   /* Set kinemtic state of the robot to the previous joint positions computed */
-  kinematic_state->setVariablePositions(q_current_);
-  kinematic_state->updateLinkTransforms();
+  kinematic_state_->setVariablePositions(q_current_);
+  kinematic_state_->updateLinkTransforms();
 
-  updateAxisConstraints();
+  updateAxisConstraints_();
 
   /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
-  if (!kinematic_state->getJacobian(joint_model_group, kinematic_state->getLinkModel(end_effector_link_),
+  if (!kinematic_state_->getJacobian(joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
                                     reference_point_position, jacobian))
   {
     ROS_ERROR("Jacobian computation issue !");
@@ -234,12 +233,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (q_limit_min_[3] - q_current_[3]),
                    (q_limit_min_[4] - q_current_[4]),
                    (q_limit_min_[5] - q_current_[5]),
-                   (x_min_limit(0, 0) - x_current_eigen_(0, 0)),
-                   (x_min_limit(1, 0) - x_current_eigen_(1, 0)),
-                   (x_min_limit(2, 0) - x_current_eigen_(2, 0)),
-                   (x_min_limit(3, 0) - x_current_eigen_(3, 0)),
-                   (x_min_limit(4, 0) - x_current_eigen_(4, 0)),
-                   (x_min_limit(5, 0) - x_current_eigen_(5, 0))
+                   (x_min_limit_(0, 0) - x_current_eigen_(0, 0)),
+                   (x_min_limit_(1, 0) - x_current_eigen_(1, 0)),
+                   (x_min_limit_(2, 0) - x_current_eigen_(2, 0)),
+                   (x_min_limit_(3, 0) - x_current_eigen_(3, 0)),
+                   (x_min_limit_(4, 0) - x_current_eigen_(4, 0)),
+                   (x_min_limit_(5, 0) - x_current_eigen_(5, 0))
   };
 
   double ubA[] = { /* Joints max hard limits constraints */
@@ -249,12 +248,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (q_limit_max_[3] - q_current_[3]),
                    (q_limit_max_[4] - q_current_[4]),
                    (q_limit_max_[5] - q_current_[5]),
-                   (x_max_limit(0, 0) - x_current_eigen_(0, 0)),
-                   (x_max_limit(1, 0) - x_current_eigen_(1, 0)),
-                   (x_max_limit(2, 0) - x_current_eigen_(2, 0)),
-                   (x_max_limit(3, 0) - x_current_eigen_(3, 0)),
-                   (x_max_limit(4, 0) - x_current_eigen_(4, 0)),
-                   (x_max_limit(5, 0) - x_current_eigen_(5, 0))
+                   (x_max_limit_(0, 0) - x_current_eigen_(0, 0)),
+                   (x_max_limit_(1, 0) - x_current_eigen_(1, 0)),
+                   (x_max_limit_(2, 0) - x_current_eigen_(2, 0)),
+                   (x_max_limit_(3, 0) - x_current_eigen_(3, 0)),
+                   (x_max_limit_(4, 0) - x_current_eigen_(4, 0)),
+                   (x_max_limit_(5, 0) - x_current_eigen_(5, 0))
   };
 
   // Solve first QP.
@@ -264,17 +263,17 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   if (qp_init_required_)
   {
     // Initialize QP solver
-    IK = new qpOASES::SQProblem(6, 9);
+    QP_ = new qpOASES::SQProblem(6, 9);
     qpOASES::Options options;
     options.setToReliable();
     options.printLevel = qpOASES::PL_NONE;
-    IK->setOptions(options);
-    qp_return = IK->init(hessian.data(), g.data(), A.data(), lower_bounds_, upper_bounds_, lbA, ubA, nWSR, 0);
+    QP_->setOptions(options);
+    qp_return = QP_->init(hessian.data(), g.data(), A.data(), lower_bounds_, upper_bounds_, lbA, ubA, nWSR, 0);
     qp_init_required_ = false;
   }
   else
   {
-    qp_return = IK->hotstart(hessian.data(), g.data(), A.data(), lower_bounds_, upper_bounds_, lbA, ubA, nWSR, 0);
+    qp_return = QP_->hotstart(hessian.data(), g.data(), A.data(), lower_bounds_, upper_bounds_, lbA, ubA, nWSR, 0);
   }
 
   if (qp_return == qpOASES::SUCCESSFUL_RETURN)
@@ -282,7 +281,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     ROS_DEBUG_STREAM("qpOASES : succesfully return");
 
     // Get and print solution of first QP
-    IK->getPrimalSolution(xOpt);
+    QP_->getPrimalSolution(xOpt);
     dq_computed[0] = xOpt[0];
     dq_computed[1] = xOpt[1];
     dq_computed[2] = xOpt[2];
@@ -301,30 +300,30 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     dq_computed[5] = 0.0;
   }
 
-  //   printVector("q_limit_min_", Vector6d(q_limit_min_));
-  //   printVector("q_current_", Vector6d(q_current_.data()));
-  //   printVector("q_limit_max_", Vector6d(q_limit_max_));
-  //   printVector("dq_computed", Vector6d(dq_computed.data()));
+  //   printVector_("q_limit_min_", Vector6d(q_limit_min_));
+  //   printVector_("q_current_", Vector6d(q_current_.data()));
+  //   printVector_("q_limit_max_", Vector6d(q_limit_max_));
+  //   printVector_("dq_computed", Vector6d(dq_computed.data()));
   //   ROS_DEBUG_STREAM("================");
   // //   ROS_DEBUG_STREAM("Jacobian: \n" << jacobian);
-  //   printVector("dx_desired_eigen", dx_desired_eigen);
+  //   printVector_("dx_desired_eigen", dx_desired_eigen);
   // //   ROS_DEBUG_STREAM("hessian: \n" << hessian );
   // //   ROS_DEBUG_STREAM("g = \n" << g);
   // //   ROS_DEBUG_STREAM("A: \n" << A );
   //   ROS_DEBUG_STREAM("================");
-  //   printVector("x_min_limit", x_min_limit);
-  //   printVector("x_current_eigen_", x_current_eigen_);
-  //   printVector("x_max_limit", x_max_limit);
+  //   printVector_("x_min_limit_", x_min_limit_);
+  //   printVector_("x_current_eigen_", x_current_eigen_);
+  //   printVector_("x_max_limit_", x_max_limit_);
   //   ROS_DEBUG_STREAM("================");
-  //   Vector6d dx_computed = Vector6d::Zero();
-  //   dx_computed = jacobian*Vector6d(dq_computed.data());
-  //   printVector("dx_computed", dx_computed);
-  //   Vector6d j_dq_t = dx_computed*sampling_period_;
+  //   Vector6d dx_computed_ = Vector6d::Zero();
+  //   dx_computed_ = jacobian*Vector6d(dq_computed.data());
+  //   printVector_("dx_computed_", dx_computed_);
+  //   Vector6d j_dq_t = dx_computed_*sampling_period_;
   //   ROS_DEBUG_STREAM("================");
-  //   printVector("x_computed (old)", x_computed);
-  //   x_computed = x_current_eigen_ + j_dq_t;
+  //   printVector_("x_computed_ (old)", x_computed_);
+  //   x_computed_ = x_current_eigen_ + j_dq_t;
   //   ROS_DEBUG_STREAM("================");
-  //   printVector("x_computed (new)", x_computed);
+  //   printVector_("x_computed_ (new)", x_computed_);
   //   ROS_DEBUG_STREAM("================");
 
   if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
@@ -333,7 +332,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   }
 }
 
-void InverseKinematic::printVector(const std::string name, const Vector6d vector) const
+void InverseKinematic::printVector_(const std::string name, const Vector6d vector) const
 {
   std::string reformatted_name = name;
   reformatted_name.resize(14, ' ');
@@ -341,19 +340,19 @@ void InverseKinematic::printVector(const std::string name, const Vector6d vector
             vector(2, 0), vector(3, 0), vector(4, 0), vector(5, 0));
 }
 
-void InverseKinematic::updateAxisConstraints()
+void InverseKinematic::updateAxisConstraints_()
 {
   for (int i = 0; i < 6; i++)
   {
-    if (request_update_constraint[i])
+    if (request_update_constraint_[i])
     {
       ROS_WARN_STREAM("Update axis " << i << " constraints with new tolerance of "
-                                     << request_update_constraint_tolerance[i] << " m.");
+                                     << request_update_constraint_tolerance_[i] << " m.");
 
-      x_min_limit(i, 0) = x_current_eigen_(i, 0) - request_update_constraint_tolerance[i];
-      x_max_limit(i, 0) = x_current_eigen_(i, 0) + request_update_constraint_tolerance[i];
+      x_min_limit_(i, 0) = x_current_eigen_(i, 0) - request_update_constraint_tolerance_[i];
+      x_max_limit_(i, 0) = x_current_eigen_(i, 0) + request_update_constraint_tolerance_[i];
 
-      request_update_constraint[i] = false;
+      request_update_constraint_[i] = false;
 
       /* Update the current desired cartesian position.
        * This allows the axis to drift and so to be control.
@@ -369,13 +368,13 @@ void InverseKinematic::updateAxisConstraints()
 void InverseKinematic::requestUpdateAxisConstraints(int axis)
 {
   ROS_WARN_STREAM("Update axis " << axis << " constraints with the last tolerance set ("
-                                 << request_update_constraint_tolerance[axis] << ")");
-  request_update_constraint[axis] = true;
+                                 << request_update_constraint_tolerance_[axis] << ")");
+  request_update_constraint_[axis] = true;
 }
 void InverseKinematic::requestUpdateAxisConstraints(int axis, double tolerance)
 {
   ROS_WARN_STREAM("Update axis " << axis << " constraints with new tolerance of " << tolerance << "");
-  request_update_constraint[axis] = true;
-  request_update_constraint_tolerance[axis] = tolerance;
+  request_update_constraint_[axis] = true;
+  request_update_constraint_tolerance_[axis] = tolerance;
 }
 }

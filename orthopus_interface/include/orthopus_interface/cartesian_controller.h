@@ -19,27 +19,25 @@
 #ifndef CARTESIAN_CONTROLLER_CARTESIAN_CONTROLLER_H
 #define CARTESIAN_CONTROLLER_CARTESIAN_CONTROLLER_H
 
-#include <ros/ros.h>
+#include "ros/ros.h"
 
-// Messages
 #include "geometry_msgs/TwistStamped.h"
 #include "std_msgs/Bool.h"
 #include "std_msgs/Int32.h"
-
-#include <niryo_one_msgs/SetInt.h>
+#include "niryo_one_msgs/SetInt.h"
 
 #include "orthopus_interface/inverse_kinematic.h"
 #include "orthopus_interface/pose_manager.h"
 #include "orthopus_interface/trajectory_controller.h"
 #include "orthopus_interface/constraints_compensator.h"
 
-#include <orthopus_interface/forward_kinematic.h>
-#include <orthopus_interface/velocity_integrator.h>
+#include "orthopus_interface/forward_kinematic.h"
+#include "orthopus_interface/velocity_integrator.h"
 
-#include <orthopus_interface/types/joint_position.h>
-#include <orthopus_interface/types/joint_velocity.h>
-#include <orthopus_interface/types/space_position.h>
-#include <orthopus_interface/types/space_velocity.h>
+#include "orthopus_interface/types/joint_position.h"
+#include "orthopus_interface/types/joint_velocity.h"
+#include "orthopus_interface/types/space_position.h"
+#include "orthopus_interface/types/space_velocity.h"
 
 namespace cartesian_controller
 {
@@ -52,50 +50,51 @@ public:
     INPUT_USER
   };
   typedef InputSelector InputSelectorType;
-    
+
   CartesianController(const int joint_number, const bool use_quaternion);
   void init(double sampling_period, PoseManager& pose_manager);
   void reset();
   void run(const JointPosition& q_current, JointPosition& q_command);
-  
+
   void setDxDesired(const SpaceVelocity& dx_desired);
   void setInputSelector(const InputSelectorType input_selector);
-  
+
   // Callbacks
   void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
   void callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg);
 
   TrajectoryController* getTrajectoryController();
-  InverseKinematic*     getInverseKinematic();
+  InverseKinematic* getInverseKinematic();
+
 protected:
 private:
   ros::NodeHandle n_;
-  
-  TrajectoryController    tc_;
-  InverseKinematic        ik_;
-  ForwardKinematic        fk_;
-  VelocityIntegrator      vi_;
-  PoseManager             pm_;
-  ConstraintsCompensator  cc_;
-  
-  double                  sampling_period_;
-  JointPosition           q_command_;
-  JointPosition           q_current_;
-  JointVelocity           dq_desired_;
 
-  SpacePosition           x_current_;
-  SpacePosition           x_orientation_constraint_;
-  
-  SpaceVelocity           dx_user_desired_;
-  SpaceVelocity           dx_desired_;
-  SpaceVelocity           dx_desired_prev_;
-  SpaceVelocity           dx_input_constrained_;
-  SpaceVelocity           dx_desired_selected_;
-  
-  
-  InputSelectorType       input_selector_;
-  bool    use_quaternion_;
-  int     joint_number_;  
+  int joint_number_;
+  bool use_quaternion_;
+  double sampling_period_;
+
+  TrajectoryController tc_;
+  InverseKinematic ik_;
+  ForwardKinematic fk_;
+  VelocityIntegrator vi_;
+  PoseManager pm_;
+  ConstraintsCompensator cc_;
+
+  JointPosition q_command_;
+  JointPosition q_current_;
+  JointVelocity dq_desired_;
+
+  SpacePosition x_current_;
+  SpacePosition x_orientation_constraint_;
+
+  SpaceVelocity dx_user_desired_;
+  SpaceVelocity dx_desired_;
+  SpaceVelocity dx_desired_prev_;
+  SpaceVelocity dx_input_constrained_;
+  SpaceVelocity dx_desired_selected_;
+
+  InputSelectorType input_selector_;
 };
 }
 #endif

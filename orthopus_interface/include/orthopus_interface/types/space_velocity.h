@@ -29,8 +29,9 @@ class SpaceVelocity : public SpaceBase
 {
 public:
   SpaceVelocity(bool use_quaternion) : SpaceBase(use_quaternion){};
+
 private:
-  void abstract_function_() {};
+  void abstract_function_(){};
 };
 }
 #endif

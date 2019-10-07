@@ -29,8 +29,9 @@ class SpacePosition : public SpaceBase
 {
 public:
   SpacePosition(bool use_quaternion) : SpaceBase(use_quaternion){};
+
 private:
-  void abstract_function_() {};
+  void abstract_function_(){};
 };
 }
 #endif

@@ -31,7 +31,7 @@ DeviceWrapper::DeviceWrapper()
   ROS_DEBUG("DeviceWrapper constructor");
   // to subscribe in daughter class
   //     device_sub_;
-  cartesian_cmd_pub_ = n_.advertise<geometry_msgs::TwistStamped>("dx_des" /*"cartesian_vel_des"*/, 1);
+  cartesian_cmd_pub_ = n_.advertise<geometry_msgs::TwistStamped>("/orthopus_interface/input_device_velocity", 1);
   gripper_cmd_pub_ = n_.advertise<std_msgs::Bool>("gripper_des", 1);
   cartesian_mode_pub_ = n_.advertise<std_msgs::Int8>("cartesian_mode", 1);
 

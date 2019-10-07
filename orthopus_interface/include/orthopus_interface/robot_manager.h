@@ -21,13 +21,24 @@
 
 #include "ros/ros.h"
 
-// #include "sensor_msgs/JointState.h"
+#include "sensor_msgs/JointState.h"
+
 #include "orthopus_interface/pose_manager.h"
 #include "orthopus_interface/cartesian_controller.h"
 #include "orthopus_interface/robot_manager_fsm.h"
 
 #include "orthopus_interface/types/joint_position.h"
 #include "orthopus_interface/types/space_velocity.h"
+
+
+#include "orthopus_interface/fsm/state.h"
+#include "orthopus_interface/fsm/event.h"
+#include "orthopus_interface/fsm/state_disable.h"
+#include "orthopus_interface/fsm/state_idle.h"
+#include "orthopus_interface/fsm/state_joint_trajectory.h"
+#include "orthopus_interface/fsm/state_space_control.h"
+#include "orthopus_interface/fsm/state_space_trajectory.h"
+
 
 namespace cartesian_controller
 {
@@ -39,21 +50,6 @@ public:
 
 protected:
 private:
-  void initializeSubscribers();
-  void initializePublishers();
-  void initializeServices();
-  void retrieveParameters();
-
-  // Callbacks
-  bool callbackAction(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
-  void callbackLearningMode(const std_msgs::BoolPtr& msg);
-  void callbackJointState(const sensor_msgs::JointStateConstPtr& msg);
-  void callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg);
-
-  void updateFsm();
-  void printFsm();
-  void runFsm();
-
   ros::NodeHandle n_;
 
   ros::Publisher command_pub_;
@@ -66,19 +62,23 @@ private:
   ros::Publisher debug_joint_max_limit_;
 
   ros::Subscriber joints_sub_;
-  ros::Subscriber dx_des_sub_;
+  ros::Subscriber dx_input_device_sub_;
   ros::Subscriber learning_mode_sub_;
 
   ros::ServiceServer action_service_;
-  ros::ServiceServer cartesian_enable_service_;
   ros::ServiceServer manage_pose_service_;
 
   PoseManager pose_manager_;
   CartesianController cartesian_controller_;
 
   int sampling_freq_;
-  double sampling_period_;
   int learning_mode_;
+  int joint_number_;
+  bool debug_;
+  bool use_quaternion_;
+  double sampling_period_;
+  double cartesian_max_vel_;
+  double pose_goal_joints_tolerance_;
 
   JointPosition q_command_;
   JointPosition q_current_;
@@ -94,11 +94,19 @@ private:
   geometry_msgs::Pose drink_pose_;
   geometry_msgs::Pose stand_pose_;
 
-  bool use_quaternion_;
-  int joint_number_;
 
-  double pose_goal_joints_tolerance_;
-
+  
+  void handleInput(Event event);
+  void update();
+  
+  friend class StateDisable; 
+  friend class StateIdle; 
+  friend class StateJointTrajectory; 
+  friend class StateSpaceControl; 
+  friend class StateSpaceTrajectory; 
+  State*  state_;
+  Event   event_;
+  
   void cartesian_State();
   void cartesian_Entry();
   void cartesian_Exit();
@@ -123,12 +131,27 @@ private:
   void flipPinch_Entry();
   void flipPinch_Exit();
 
-  void sendJointsCommand();
-  bool cartesianIsEnable();
+  void initializeSubscribers_();
+  void initializePublishers_();
+  void initializeServices_();
+  void retrieveParameters_();
 
-  void gotoPosition(const JointPosition position);
-  double computeDuration(const JointPosition position);
-  bool isPositionCompleted(const JointPosition position);
+  // Callbacks
+  bool callbackAction_(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
+  void callbackLearningMode_(const std_msgs::BoolPtr& msg);
+  void callbackJointState_(const sensor_msgs::JointStateConstPtr& msg);
+  void callbackInputDeviceVelocity_(const geometry_msgs::TwistStampedPtr& msg);
+
+  void updateFsm_();
+  void printFsm_();
+  void runFsm_();
+
+  void sendJointsCommand_();
+  bool cartesianIsEnable_();
+
+  void gotoPosition_(const JointPosition position);
+  double computeDuration_(const JointPosition position);
+  bool isPositionCompleted_(const JointPosition position);
 };
 }
 #endif

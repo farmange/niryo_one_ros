@@ -19,12 +19,12 @@
 #ifndef CARTESIAN_CONTROLLER_INTEGRATOR_H
 #define CARTESIAN_CONTROLLER_INTEGRATOR_H
 
-#include <ros/ros.h>
+#include "ros/ros.h"
 
-#include <sensor_msgs/JointState.h>
+#include "sensor_msgs/JointState.h"
 
-#include <orthopus_interface/types/joint_position.h>
-#include <orthopus_interface/types/joint_velocity.h>
+#include "orthopus_interface/types/joint_position.h"
+#include "orthopus_interface/types/joint_velocity.h"
 
 namespace cartesian_controller
 {
@@ -39,10 +39,10 @@ public:
 protected:
 private:
   ros::NodeHandle n_;
-  bool use_quaternion_;
   int joint_number_;
-  JointPosition q_current_;
+  bool use_quaternion_;
   double sampling_period_;
+  JointPosition q_current_;
 };
 }
 #endif

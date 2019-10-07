@@ -24,7 +24,7 @@
 namespace cartesian_controller
 {
 class SpaceBase : public std::vector<double>
-{ 
+{
 public:
   enum PositionIndex
   {
@@ -73,9 +73,9 @@ public:
   {
     return use_quaternion_;
   }
-  
+
 private:
-  bool    use_quaternion_;
+  bool use_quaternion_;
   virtual void abstract_function_() = 0;
 };
 }

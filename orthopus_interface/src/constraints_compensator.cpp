@@ -134,13 +134,13 @@ void ConstraintsCompensator::activeOrientationConstraint(SpaceVelocity& dx_outpu
 
 void ConstraintsCompensator::run(SpaceVelocity& dx_output)
 {
-  eulerFlipHandling();
-  detectOrientationSide(x_current_);
-  updateOrientationConstraint();
+  eulerFlipHandling_();
+  detectOrientationSide_(x_current_);
+  updateOrientationConstraint_();
   activeOrientationConstraint(dx_output);
 }
 
-void ConstraintsCompensator::detectOrientationSide(const SpacePosition& x_input)
+void ConstraintsCompensator::detectOrientationSide_(const SpacePosition& x_input)
 {
   if (use_quaternion_)
   {
@@ -179,7 +179,7 @@ void ConstraintsCompensator::detectOrientationSide(const SpacePosition& x_input)
   }
 }
 
-void ConstraintsCompensator::updateOrientationConstraint()
+void ConstraintsCompensator::updateOrientationConstraint_()
 {
   if (orientation_side_ == ORIENTATION_FRONT)
   {
@@ -209,7 +209,7 @@ void ConstraintsCompensator::updateOrientationConstraint()
   }
 }
 
-void ConstraintsCompensator::eulerFlipHandling()
+void ConstraintsCompensator::eulerFlipHandling_()
 {
   /*
    * HACK : As we only work in the same side (negative yaw) for our use cases

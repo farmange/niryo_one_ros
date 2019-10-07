@@ -68,6 +68,12 @@ add_executable(cartesian_controller
   src/pose_manager.cpp
   src/robot_manager.cpp
   src/cartesian_controller.cpp
+  
+  src/fsm/state_disable.cpp
+  src/fsm/state_idle.cpp
+  src/fsm/state_joint_trajectory.cpp
+  src/fsm/state_space_control.cpp
+  src/fsm/state_space_trajectory.cpp
 )
 target_link_libraries(cartesian_controller ${catkin_LIBRARIES})
 add_dependencies(cartesian_controller ${catkin_EXPORTED_TARGETS})

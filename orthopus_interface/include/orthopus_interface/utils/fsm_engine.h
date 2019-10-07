@@ -46,8 +46,8 @@ public:
 
 protected:
 private:
-  std::vector<FsmState> state_;
-  std::vector<FsmTransition> transition_;
+//   std::vector<FsmState> state_;
+//   std::vector<FsmTransition> transition_;
 };
 }
 #endif
