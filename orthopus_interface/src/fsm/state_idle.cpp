@@ -29,7 +29,7 @@ namespace cartesian_controller
 State* StateIdle::handleInput(RobotManager& robot, Event event)
 {
   ROS_INFO("StateIdle handleInput");
-  
+
   if (event == Event::ExecuteJointTraj)
   {
     return new StateJointTrajectory();
@@ -42,7 +42,7 @@ State* StateIdle::handleInput(RobotManager& robot, Event event)
   {
     return new StateDisable();
   }
-  
+
   // Stay in this state.
   return NULL;
 }
@@ -50,12 +50,10 @@ State* StateIdle::handleInput(RobotManager& robot, Event event)
 void StateIdle::update(RobotManager& robot)
 {
   ROS_INFO("StateIdle update");
-
 }
 
 void StateIdle::enter(RobotManager& robot)
 {
   ROS_INFO("StateIdle entry");
-  
 }
 }

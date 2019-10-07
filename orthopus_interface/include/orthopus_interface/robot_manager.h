@@ -30,7 +30,6 @@
 #include "orthopus_interface/types/joint_position.h"
 #include "orthopus_interface/types/space_velocity.h"
 
-
 #include "orthopus_interface/fsm/state.h"
 #include "orthopus_interface/fsm/event.h"
 #include "orthopus_interface/fsm/state_disable.h"
@@ -38,7 +37,6 @@
 #include "orthopus_interface/fsm/state_joint_trajectory.h"
 #include "orthopus_interface/fsm/state_space_control.h"
 #include "orthopus_interface/fsm/state_space_trajectory.h"
-
 
 namespace cartesian_controller
 {
@@ -94,19 +92,17 @@ private:
   geometry_msgs::Pose drink_pose_;
   geometry_msgs::Pose stand_pose_;
 
-
-  
   void handleInput(Event event);
   void update();
-  
-  friend class StateDisable; 
-  friend class StateIdle; 
-  friend class StateJointTrajectory; 
-  friend class StateSpaceControl; 
-  friend class StateSpaceTrajectory; 
-  State*  state_;
-  Event   event_;
-  
+
+  friend class StateDisable;
+  friend class StateIdle;
+  friend class StateJointTrajectory;
+  friend class StateSpaceControl;
+  friend class StateSpaceTrajectory;
+  State* state_;
+  Event event_;
+
   void cartesian_State();
   void cartesian_Entry();
   void cartesian_Exit();

@@ -21,10 +21,8 @@
 
 #include "ros/ros.h"
 
-
 namespace cartesian_controller
 {
-  
 class FsmState
 {
 public:
@@ -32,9 +30,16 @@ public:
   {
     name_ = name;
   };
-  virtual ~RobotState() {}
-  virtual void handleInput(RobotManager& robot, RobotEvent event) {}
-  virtual void update(RobotManager& robot) {}
+  virtual ~RobotState()
+  {
+  }
+  virtual void handleInput(RobotManager& robot, RobotEvent event)
+  {
+  }
+  virtual void update(RobotManager& robot)
+  {
+  }
+
 protected:
 private:
   std::string name_;
@@ -43,7 +48,7 @@ private:
   virtual void exit_(){};
 };
 }
-
-};
+}
+;
 
 #endif

@@ -49,7 +49,7 @@ private:
 
   bool use_quaternion_;
   int joint_number_;
-  
+
   std::string end_effector_link_;
   JointPosition q_current_;
   SpacePosition x_current_;

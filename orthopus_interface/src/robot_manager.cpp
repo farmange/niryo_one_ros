@@ -27,14 +27,14 @@ void RobotManager::update()
 {
   ROS_DEBUG_STREAM("RobotManager::update");
   ROS_DEBUG_STREAM(state_);
-  
+
   state_->update(*this);
 }
 
 void RobotManager::handleInput(Event event)
 {
   ROS_DEBUG_STREAM("RobotManager::handleInput");
-  
+
   State* state = state_->handleInput(*this, event);
   if (state != NULL)
   {
@@ -43,7 +43,7 @@ void RobotManager::handleInput(Event event)
 
     delete state_;
     state_ = state;
-    
+
     // Call the enter action on the new state.
     state_->enter(*this);
   }
@@ -63,7 +63,7 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion)
   ROS_DEBUG_STREAM("***** FSM TEST *****");
   state_ = new StateDisable();
   event_ = Event::None;
- 
+
   ROS_DEBUG_STREAM("RobotManager constructor");
   retrieveParameters_();
   initializeSubscribers_();
@@ -96,9 +96,9 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion)
     updateFsm_();
     runFsm_();
 
-//     handleInput(event_);    
-//     update();
-    
+    //     handleInput(event_);
+    //     update();
+
     /* This topic publication prevents niryo "RobotCommander" to execute action */
     std_msgs::Bool joystick_enable_msg;
     joystick_enable_msg.data = true;
@@ -175,32 +175,32 @@ bool RobotManager::callbackAction_(niryo_one_msgs::SetInt::Request& req, niryo_o
 {
   if (req.value == RobotManagerFsmAction::Cartesian)
   {
-//     event_ = Event::ExecuteSpaceControl;
+    //     event_ = Event::ExecuteSpaceControl;
     action_requested_ = RobotManagerFsmAction::Cartesian;
   }
   else if (req.value == RobotManagerFsmAction::GotoHome)
   {
-//     event_ = Event::ExecuteJointTraj;
+    //     event_ = Event::ExecuteJointTraj;
     action_requested_ = RobotManagerFsmAction::GotoHome;
   }
   else if (req.value == RobotManagerFsmAction::GotoRest)
   {
-//     event_ = Event::ExecuteJointTraj;
+    //     event_ = Event::ExecuteJointTraj;
     action_requested_ = RobotManagerFsmAction::GotoRest;
   }
   else if (req.value == RobotManagerFsmAction::GotoDrink)
   {
-//     event_ = Event::ExecuteSpaceTraj;
+    //     event_ = Event::ExecuteSpaceTraj;
     action_requested_ = RobotManagerFsmAction::GotoDrink;
   }
   else if (req.value == RobotManagerFsmAction::GotoStandGlass)
   {
-//     event_ = Event::ExecuteSpaceTraj;
+    //     event_ = Event::ExecuteSpaceTraj;
     action_requested_ = RobotManagerFsmAction::GotoStandGlass;
   }
   else if (req.value == RobotManagerFsmAction::FlipPinch)
   {
-//     event_ = Event::ExecuteJointTraj;
+    //     event_ = Event::ExecuteJointTraj;
     action_requested_ = RobotManagerFsmAction::FlipPinch;
   }
   else

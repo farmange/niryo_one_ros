@@ -28,7 +28,7 @@ namespace cartesian_controller
 State* StateJointTrajectory::handleInput(RobotManager& robot, Event event)
 {
   ROS_INFO("StateJointTrajectory handleInput");
-  
+
   if (event == Event::ExecuteSpaceControl)
   {
     return new StateSpaceControl();
@@ -41,7 +41,7 @@ State* StateJointTrajectory::handleInput(RobotManager& robot, Event event)
   {
     return new StateIdle();
   }
-  
+
   return NULL;
 }
 

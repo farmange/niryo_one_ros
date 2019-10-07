@@ -42,7 +42,7 @@ State* StateSpaceControl::handleInput(RobotManager& robot, Event event)
   {
     return new StateSpaceTrajectory();
   }
-  
+
   // Stay in this state.
   return NULL;
 }
@@ -53,11 +53,11 @@ void StateSpaceControl::update(RobotManager& robot)
   ROS_INFO("=== Update joint position (Open loop)...");
   robot.q_current_ = robot.q_command_;
   ROS_INFO("    Done.");
-  
+
   robot.cartesian_controller_.setDxDesired(robot.dx_desired_);
   robot.cartesian_controller_.setInputSelector(CartesianController::INPUT_USER);
   robot.cartesian_controller_.run(robot.q_current_, robot.q_command_);
-  
+
   ROS_INFO("=== Send Niryo One commands...");
   robot.sendJointsCommand_();
   ROS_INFO("    Done.");

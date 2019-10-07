@@ -25,10 +25,10 @@
 
 namespace cartesian_controller
 {
-  class StateIdle : public State
+class StateIdle : public State
 {
 public:
-  StateIdle() {};
+  StateIdle(){};
   State* handleInput(RobotManager& robot, Event event);
   void update(RobotManager& robot);
   void enter(RobotManager& robot);

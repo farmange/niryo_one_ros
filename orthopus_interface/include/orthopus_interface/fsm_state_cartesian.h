@@ -29,31 +29,31 @@ namespace cartesian_controller
 //   FsmState() : FsmState("Cartesian")
 //   {
 //   };
-// 
+//
 // protected:
 // private:
 //   ros::NodeHandle n_;
-//   
+//
 //   void entry_()
 //   {
 //     /* Switch to cartesian mode when position is completed */
 //     cartesian_controller_.reset();
 //     q_command_ = q_meas_;
 //   };
-//   
+//
 //   void do_(){
 //     ROS_INFO("=== Update joint position (Open loop)...");
 //     q_current_ = q_command_;
 //     ROS_INFO("    Done.");
-//     
+//
 //     cartesian_controller_.setDxDesired(dx_desired_);
 //     cartesian_controller_.setInputSelector(CartesianController::INPUT_USER);
 //     cartesian_controller_.run(q_current_, q_command_);
-//     
+//
 //     ROS_INFO("=== Send Niryo One commands...");
 //     sendJointsCommand_();
 //     ROS_INFO("    Done.");
-//     
+//
 //   };
 // };
 }

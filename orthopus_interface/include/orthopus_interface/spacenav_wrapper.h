@@ -36,15 +36,25 @@ public:
   SpacenavWrapper();
 
 private:
-  void joyCallback(const sensor_msgs::Joy::ConstPtr& msg);
-  void processButtons(const sensor_msgs::Joy::ConstPtr& msg);
-  void debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const int button_id, ros::Time& debounce_timer_ptr,
-                       int& button_value_ptr);
-  void updateCartesianMode();
+  ros::NodeHandle n_;
 
-  void updateVelocityFactor();
-  void updateGripperCmd();
-  void updateLearningMode();
+  ros::ServiceClient change_tool_srv_;
+  ros::ServiceClient open_gripper_srv_;
+  ros::ServiceClient close_gripper_srv_;
+
+  void joyCallback_(const sensor_msgs::Joy::ConstPtr& msg);
+  void processButtons_(const sensor_msgs::Joy::ConstPtr& msg);
+  void debounceButtons_(const sensor_msgs::Joy::ConstPtr& msg, const int button_id, ros::Time& debounce_timer_ptr,
+                        int& button_value_ptr);
+  void initializeServices_();
+
+  void updateVelocityFactor_();
+  void updateGripperCmd_();
+  void updateLearningMode_();
+
+  void setGripperId_();
+  void openGripper_();
+  void closeGripper_();
 
   std_msgs::Bool gripper_cmd_;
   ros::Time debounce_button_left_;

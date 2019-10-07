@@ -194,7 +194,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
   if (!kinematic_state_->getJacobian(joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
-                                    reference_point_position, jacobian))
+                                     reference_point_position, jacobian))
   {
     ROS_ERROR("Jacobian computation issue !");
     for (int i = 0; i < dq_computed.size(); i++)

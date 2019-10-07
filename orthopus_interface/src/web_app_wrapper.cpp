@@ -61,7 +61,6 @@ WebAppWrapper::WebAppWrapper()
   button_b_ = 0;
 
   learning_mode_ = 0;
-  cartesian_mode_ = YZ;
   velocity_factor_ = 1.0;
   ros::spin();
 }
@@ -73,7 +72,6 @@ void WebAppWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   updateGripperCmd();
   updateVelocityFactor();
   updateLearningMode();
-  updateCartesianMode();
 
   // Cartesian control with the axes
   geometry_msgs::TwistStamped cartesian_vel;
@@ -92,11 +90,8 @@ void WebAppWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   // Left/Right Axis of the right stick
   cartesian_vel.twist.angular.z = velocity_factor_ * msg->axes[JOY_AXIS_HORIZONTAL_RIGHT];
 
-  std_msgs::Int8 cartesian_mode;
-  cartesian_mode.data = cartesian_mode_;
   cartesian_cmd_pub_.publish(cartesian_vel);
   gripper_cmd_pub_.publish(gripper_cmd_);
-  cartesian_mode_pub_.publish(cartesian_mode);
 }
 
 void WebAppWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
@@ -122,23 +117,6 @@ void WebAppWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const
       debounce_timer_ptr = ros::Time::now() + ros::Duration(JOY_DEBOUNCE_BUTTON_TIME);
       button_value_ptr = msg->buttons[button_id];
     }
-  }
-}
-
-void WebAppWrapper::updateCartesianMode()
-{
-  // Use B to change cartesian mode
-  if (button_b_ == 1 && cartesian_mode_ == XY)
-  {
-    cartesian_mode_ = YZ;
-  }
-  else if (button_b_ == 1 && cartesian_mode_ == YZ)
-  {
-    cartesian_mode_ = XZ;
-  }
-  else if (button_b_ == 1 && cartesian_mode_ == XZ)
-  {
-    cartesian_mode_ = XY;
   }
 }
 

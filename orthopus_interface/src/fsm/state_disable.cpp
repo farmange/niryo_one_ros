@@ -26,24 +26,22 @@ namespace cartesian_controller
 State* StateDisable::handleInput(RobotManager& robot, Event event)
 {
   ROS_INFO("StateDisable handleInput");
-  
+
   if (event == Event::Idle)
   {
     return new StateIdle();
   }
-  
+
   return NULL;
 }
 
 void StateDisable::update(RobotManager& robot)
 {
   ROS_INFO("StateDisable update");
-  
 }
 
 void StateDisable::enter(RobotManager& robot)
 {
   ROS_INFO("StateDisable entry");
-  
 }
 }

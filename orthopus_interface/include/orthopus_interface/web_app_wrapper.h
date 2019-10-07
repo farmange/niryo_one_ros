@@ -36,12 +36,12 @@ public:
   WebAppWrapper();
 
 private:
+  ros::NodeHandle n_;
+
   void joyCallback(const sensor_msgs::Joy::ConstPtr& msg);
   void processButtons(const sensor_msgs::Joy::ConstPtr& msg);
   void debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const int button_id, ros::Time& debounce_timer_ptr,
                        int& button_value_ptr);
-  void updateCartesianMode();
-
   void updateVelocityFactor();
   void updateGripperCmd();
   void updateLearningMode();

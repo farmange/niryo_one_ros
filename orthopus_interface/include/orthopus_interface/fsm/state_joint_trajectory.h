@@ -26,11 +26,11 @@
 namespace cartesian_controller
 {
 class RobotManager;
-  
+
 class StateJointTrajectory : public State
 {
 public:
-  StateJointTrajectory() {};
+  StateJointTrajectory(){};
   State* handleInput(RobotManager& robot, Event event);
   void update(RobotManager& robot);
   void enter(RobotManager& robot);

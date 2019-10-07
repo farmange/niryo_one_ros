@@ -32,8 +32,8 @@ public:
 
 protected:
 private:
-//   FsmState state_init_;
-//   FsmState state_end_;
+  //   FsmState state_init_;
+  //   FsmState state_end_;
   bool condition_(){};
 };
 }

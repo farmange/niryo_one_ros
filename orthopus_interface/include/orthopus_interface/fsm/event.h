@@ -26,12 +26,12 @@ namespace cartesian_controller
 enum class Event
 {
   None = 0,
-//   Cartesian,
-//   GotoHome,
-//   GotoRest,
-//   GotoDrink,
-//   GotoStandGlass,
-//   FlipPinch
+  //   Cartesian,
+  //   GotoHome,
+  //   GotoRest,
+  //   GotoDrink,
+  //   GotoStandGlass,
+  //   FlipPinch
   Disable,
   Idle,
   ExecuteJointTraj,

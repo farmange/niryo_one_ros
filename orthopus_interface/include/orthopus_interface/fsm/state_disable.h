@@ -28,7 +28,7 @@ namespace cartesian_controller
 class StateDisable : public State
 {
 public:
-  StateDisable() {};
+  StateDisable(){};
   State* handleInput(RobotManager& robot, Event event);
   void update(RobotManager& robot);
   void enter(RobotManager& robot);

@@ -25,19 +25,17 @@
 
 namespace cartesian_controller
 {
-  class RobotManager;
- 
+class RobotManager;
+
 class State
 {
 public:
-  State() {};
-  virtual ~State() {};
-  virtual State* handleInput(RobotManager& robot, Event event) {};
-  virtual void update(RobotManager& robot) {};
-  virtual void enter(RobotManager& robot) {};
-  virtual void exit(RobotManager& robot) {};
+  State(){};
+  virtual ~State(){};
+  virtual State* handleInput(RobotManager& robot, Event event){};
+  virtual void update(RobotManager& robot){};
+  virtual void enter(RobotManager& robot){};
+  virtual void exit(RobotManager& robot){};
 };
-
-
 }
 #endif

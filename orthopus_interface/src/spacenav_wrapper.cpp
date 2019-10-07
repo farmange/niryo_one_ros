@@ -18,6 +18,10 @@
  */
 #include "ros/ros.h"
 
+#include "niryo_one_msgs/SetInt.h"
+#include "niryo_one_msgs/OpenGripper.h"
+#include "niryo_one_msgs/CloseGripper.h"
+
 #include "orthopus_interface/spacenav_wrapper.h"
 
 #define JOY_BUTTON_LEFT 0
@@ -30,7 +34,7 @@ namespace cartesian_controller
 {
 SpacenavWrapper::SpacenavWrapper()
 {
-  device_sub_ = n_.subscribe("spacenav/joy", 1, &SpacenavWrapper::joyCallback, this);
+  device_sub_ = n_.subscribe("spacenav/joy", 1, &SpacenavWrapper::joyCallback_, this);
 
   debounce_button_left_ = ros::Time::now();
   debounce_button_right_ = ros::Time::now();
@@ -39,24 +43,36 @@ SpacenavWrapper::SpacenavWrapper()
   button_right_ = 0;
 
   learning_mode_ = 0;
-  cartesian_mode_ = YZ;
   velocity_factor_ = 0.0;
+
+  initializeServices_();
+  setGripperId_();
+
   ros::spin();
 }
+
+void SpacenavWrapper::initializeServices_()
+{
+  ros::service::waitForService("/niryo_one/change_tool");
+  ros::service::waitForService("/niryo_one/tools/open_gripper");
+  ros::service::waitForService("/niryo_one/tools/close_gripper");
+
+  change_tool_srv_ = n_.serviceClient<niryo_one_msgs::SetInt>("niryo_one/change_tool");
+  open_gripper_srv_ = n_.serviceClient<niryo_one_msgs::OpenGripper>("niryo_one/tools/open_gripper");
+  close_gripper_srv_ = n_.serviceClient<niryo_one_msgs::CloseGripper>("niryo_one/tools/close_gripper");
+}
+
 // TODO Put publish action on parent class
 // Convert incoming xbox (joy) commands in require topics
-void SpacenavWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
+void SpacenavWrapper::joyCallback_(const sensor_msgs::Joy::ConstPtr& msg)
 {
-  processButtons(msg);
-  updateGripperCmd();
-  //   updateVelocityFactor();
-  //   updateLearningMode();
-  //   updateCartesianMode();
+  processButtons_(msg);
+  updateGripperCmd_();
 
   // Cartesian control with the axes
   geometry_msgs::TwistStamped cartesian_vel;
   cartesian_vel.header.stamp = ros::Time::now();
-  velocity_factor_ = 0.5;
+  velocity_factor_ = 0.8;
   cartesian_vel.twist.linear.x = velocity_factor_ * msg->axes[0];
   cartesian_vel.twist.linear.y = velocity_factor_ * msg->axes[1];
   cartesian_vel.twist.linear.z = velocity_factor_ * msg->axes[2];
@@ -72,17 +88,17 @@ void SpacenavWrapper::joyCallback(const sensor_msgs::Joy::ConstPtr& msg)
   cartesian_mode_pub_.publish(cartesian_mode);
 }
 
-void SpacenavWrapper::processButtons(const sensor_msgs::Joy::ConstPtr& msg)
+void SpacenavWrapper::processButtons_(const sensor_msgs::Joy::ConstPtr& msg)
 {
   button_left_ = 0;
   button_right_ = 0;
 
-  debounceButtons(msg, JOY_BUTTON_LEFT, debounce_button_left_, button_left_);
-  debounceButtons(msg, JOY_BUTTON_RIGHT, debounce_button_right_, button_right_);
+  debounceButtons_(msg, JOY_BUTTON_LEFT, debounce_button_left_, button_left_);
+  debounceButtons_(msg, JOY_BUTTON_RIGHT, debounce_button_right_, button_right_);
 }
 
-void SpacenavWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, const int button_id,
-                                      ros::Time& debounce_timer_ptr, int& button_value_ptr)
+void SpacenavWrapper::debounceButtons_(const sensor_msgs::Joy::ConstPtr& msg, const int button_id,
+                                       ros::Time& debounce_timer_ptr, int& button_value_ptr)
 {
   if (msg->buttons[button_id])
   {
@@ -94,17 +110,50 @@ void SpacenavWrapper::debounceButtons(const sensor_msgs::Joy::ConstPtr& msg, con
   }
 }
 
-void SpacenavWrapper::updateGripperCmd()
+void SpacenavWrapper::updateGripperCmd_()
 {
   // Use A to toggle gripper state (open/close)
   if (button_left_ == 1 && gripper_cmd_.data == false)
   {
     gripper_cmd_.data = true;
+    openGripper_();
   }
   else if (button_left_ == 1 && gripper_cmd_.data == true)
   {
     gripper_cmd_.data = false;
+    closeGripper_();
   }
+}
+
+void SpacenavWrapper::setGripperId_()
+{
+  ROS_INFO("SpacenavWrapper::setGripperId_");
+  niryo_one_msgs::SetInt gripper_id;
+  gripper_id.request.value = 12;
+  change_tool_srv_.call(gripper_id);  // gripper 2
+}
+
+void SpacenavWrapper::openGripper_()
+{
+  ROS_INFO("SpacenavWrapper::openGripper_");
+  niryo_one_msgs::OpenGripper open_gripper;
+  open_gripper.request.id = 12;
+  open_gripper.request.open_position = 640;
+  open_gripper.request.open_speed = 300;
+  open_gripper.request.open_hold_torque = 128;
+  open_gripper_srv_.call(open_gripper);
+}
+
+void SpacenavWrapper::closeGripper_()
+{
+  ROS_INFO("SpacenavWrapper::closeGripper_");
+  niryo_one_msgs::CloseGripper close_gripper;
+  close_gripper.request.id = 12;
+  close_gripper.request.close_position = 400;
+  close_gripper.request.close_speed = 300;
+  close_gripper.request.close_hold_torque = 128;
+  close_gripper.request.close_max_torque = 1023;
+  close_gripper_srv_.call(close_gripper);
 }
 }
 

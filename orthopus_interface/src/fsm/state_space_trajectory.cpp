@@ -29,7 +29,7 @@ namespace cartesian_controller
 State* StateSpaceTrajectory::handleInput(RobotManager& robot, Event event)
 {
   ROS_INFO("StateSpaceTrajectory handleInput");
-  
+
   if (event == Event::Disable)
   {
     return new StateDisable();
@@ -38,7 +38,7 @@ State* StateSpaceTrajectory::handleInput(RobotManager& robot, Event event)
   {
     return new StateJointTrajectory();
   }
-  
+
   // Stay in this state.
   return NULL;
 }
@@ -46,19 +46,19 @@ State* StateSpaceTrajectory::handleInput(RobotManager& robot, Event event)
 void StateSpaceTrajectory::update(RobotManager& robot)
 {
   ROS_INFO("StateSpaceTrajectory update");
-  
+
   ROS_INFO("=== Update joint position (Open loop)...");
   // TODO check q_current consistency (many affectation could lead to issue
   robot.q_current_ = robot.q_command_;
   ROS_INFO("    Done.");
-  
+
   robot.cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(0, 0.1);
   robot.cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(1, 0.1);
   robot.cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(2, 0.1);
   robot.cartesian_controller_.setDxDesired(robot.dx_desired_);
   robot.cartesian_controller_.setInputSelector(CartesianController::INPUT_TRAJECTORY);
   robot.cartesian_controller_.run(robot.q_current_, robot.q_command_);
-  
+
   ROS_INFO("=== Send Niryo One commands...");
   robot.sendJointsCommand_();
   ROS_INFO("    Done.");
