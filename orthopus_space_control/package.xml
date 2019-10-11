@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>orthopus_space_control</name>
+  <version>0.0.1</version>
+  <description>Robot control in cartesian space using various inputs (xbox joy, spacenav, web app)</description>
+  <author>Florian Armange</author>
+  <maintainer email="florian.armange@orthopus.com">Florian Armange</maintainer>
+  <license>GPLv3</license>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>niryo_one_msgs</depend>
+  <depend>qpoases_ros</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>spacenav_node</depend>
+  <depend>joy</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>web_video_server</depend>
+  <depend>libuvc_camera</depend>
+  <export>
+  </export>
+</package>
+
