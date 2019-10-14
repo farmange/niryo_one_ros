@@ -69,12 +69,20 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
   q_upper_limit_[2] = 1.4;
 
   ROS_DEBUG("Setting up bounds on joint velocity (dq) of the QP");
-  double joint_max_vel;
-  ros::param::get("~joint_max_vel", joint_max_vel);
+  /*
+   * To limit the joint velocity, we define a constraint for the QP optimisation. Assuming a commun limit of dq_max for
+   * all joints, we could write the lower and upper bounds as :
+   *        (-dq_max) < dq < dq_max
+   * so :
+   *      lb = -dq_max
+   *      ub = dq_max
+   */
+  double dq_max;
+  ros::param::get("~joint_max_vel", dq_max);
   JointVelocity limit = JointVelocity(joint_number_);
   for (int i = 0; i < joint_number_; i++)
   {
-    limit[i] = joint_max_vel;
+    limit[i] = dq_max;
   }
   setDqBounds(limit);
 
@@ -186,12 +194,11 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     x_des = x_current_eigen_;
   }
 
-  /* Set kinemtic state of the robot to the previous joint positions computed */
-  kinematic_state_->setVariablePositions(q_current_);
-  kinematic_state_->updateLinkTransforms();
-
   updateAxisConstraints_();
 
+  /* Set kinemtic state of the robot to the current joint positions */
+  kinematic_state_->setVariablePositions(q_current_);
+  kinematic_state_->updateLinkTransforms();
   /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
@@ -209,6 +216,61 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   /* Store desired velocity in eigen vector */
   const Vector6d dx_desired_eigen = Vector6d(dx_desired.data());
 
+  /*
+   * qpOASES solves QPs of the following form :
+   * [1]    min   1/2*x'Hx + x'g
+   *        s.t.  lb  <=  x <= ub
+   *             lbA <= Ax <= ubA
+   * where :
+   *      - x' is the transpose of x
+   *      - H is the hesiian matrix
+   *      - g is the gradient vector
+   *      - lb and ub are respectively the lower and upper bound constraint vectors
+   *      - lbA and ubA are respectively the lower and upper inequality constraint vectors
+   *      - A is the constraint matrix
+   *
+   * .:!:. NOTE : the symbol ' refers to the transpose of a matrix
+   *
+   * === Context ==============================================================================================
+   * Usually, to resolve inverse kinematic, people use the well-known inverse jacobian formula :
+   *        dX = J.dq     =>      dq = J^-1.dX
+   * where :
+   *      - dX is the cartesian velocity
+   *      - dq is the joint velocity
+   *      - J the jacobian
+   * Unfortunatly, this method lacks when robot is in singular configuration and can lead to unstabilities.
+   * ==========================================================================================================
+   *
+   * In our case, to resolve the inverse kinematic, we use a QP to minimize the joint velocity (dq). This minimization
+   * intends to follow a cartesian velocity (dX_des) and position (X_des) trajectory while minimizing joint
+   * velocity (dq) :
+   *        min(dq) (1/2 * || dX - dX_des ||_alpha^2 + 1/2 * || dq ||_beta^2 + 1/2 * || X - X_des ||_gamma^2)
+   * where :
+   *      - alpha is the cartesian velocity weight matrix
+   *      - beta is the joint velocity weight matrix
+   *      - gamma is the cartesian position weight matrix
+   *
+   * Knowing that dX = J.dq, we have :
+   * [2]    min(dq) (1/2 * || J.dq - dX_des ||_alpha^2 + 1/2 * || dq ||_beta^2 + 1/2 * || X - X_des ||_gamma^2)
+   *
+   * In order to reduce X, we perform a Taylor development (I also show how I develop this part):
+   * [3]      1/2 * || X - X_des ||_gamma^2 = 1/2 * || X_0 + T.dX - X_des ||_gamma^2
+   *                                      = 1/2 * || X_0 + T.J.dq - X_des ||_gamma^2
+   *                                      = 1/2 * (X_0'.gamma.X_0 + dq'.J'.gamma.J.dq*T^2 + X_des'.gamma.X_des)
+   *                                      + dq'.J'.gamma.X_0*T - X_des'.gamma.X_0 - X_des'.gamma.J.dq*T
+   * where :
+   *      - X_0 is the initial position
+   *
+   * Then, after developing the rest of the equation [2] as shown in [3]:
+   *        min(dq) (1/2 * dq'.(J'.alpha.J + beta + J'.gamma.J*T^2).dq
+   *               + dq'(-J'.alpha.dX_des + (J'.gamma.X_0 - J'.gamma.Xdes)*T))
+   *
+   * After identification with [1], we have :
+   *        H = J'.alpha.J + beta + J'.gamma.J*T^2
+   *        g = -J'.alpha.dX_des + (J'.gamma.X_0 - J'.gamma.Xdes)*T
+   *
+   */
+
   /* Hessian computation */
   Matrix6d hessian = (jacobian.transpose() * alpha_weight_ * jacobian) + beta_weight_ +
                      (jacobian.transpose() * sampling_period_ * gamma_weight_ * sampling_period_ * jacobian);
@@ -218,15 +280,23 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                (jacobian.transpose() * sampling_period_ * gamma_weight_ * x_current_eigen_) -
                (jacobian.transpose() * sampling_period_ * gamma_weight_ * x_des);
 
-  /*
+  /* In order to limit the joint position, we define a inequality constraint for the QP optimisation.
    * Taylor developpement of joint position is :
-   *           q = q0 + dq*T
-   * with q0 the initial joint position.
+   *        q = q_0 + dq*T
+   * with
+   *      - q_0 the initial joint position.
    *
    * So affine inequality constraint could be written as :
-   *           lb < q < ub
-   *       lb < q0 + dq*T < ub
-   *    (lb-q0) < dq.T < (ub-q0)
+   *        q_min < q < q_max
+   *        q_min < q0 + dq*T < q_max
+   *        (q_min-q0) < dq.T < (q_max-q0)
+   *
+   * so :
+   *        A = I.T
+   *        lbA = q_min-q0
+   *        ubA = q_max-q0
+   * where :
+   *      - I is the identity matrix
    */
   Eigen::Matrix<double, 12, 6, Eigen::RowMajor> A;
   A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * sampling_period_;
@@ -250,13 +320,13 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (x_max_limit_[4] - x_current_eigen_(4, 0)), (x_max_limit_[5] - x_current_eigen_(5, 0))
   };
 
-  // Solve first QP.
+  /* Solve QP */
   qpOASES::real_t xOpt[6];
   qpOASES::int_t nWSR = 10;
   int qp_return = 0;
   if (qp_init_required_)
   {
-    // Initialize QP solver
+    /* Initialize QP solver */
     QP_ = new qpOASES::SQProblem(6, 9);
     qpOASES::Options options;
     options.setToReliable();
@@ -276,7 +346,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   {
     ROS_DEBUG_STREAM("qpOASES : succesfully return");
 
-    // Get and print solution of first QP
+    /* Get solution of the QP */
     QP_->getPrimalSolution(xOpt);
     dq_computed[0] = xOpt[0];
     dq_computed[1] = xOpt[1];
@@ -298,7 +368,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
 
   if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
   {
-    exit(0);  // TODO return state to signal error instead of exit process
+    exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
   }
 }
 
@@ -316,7 +386,8 @@ void InverseKinematic::updateAxisConstraints_()
 
       request_update_constraint_[i] = false;
 
-      /* Update the current desired cartesian position.
+      /*
+       * Update the current desired cartesian position.
        * This allows the axis to drift and so to be control.
        * It is a dirty way of handle that !
        */
@@ -326,13 +397,6 @@ void InverseKinematic::updateAxisConstraints_()
   }
 }
 
-// Keep last set tolerance
-void InverseKinematic::requestUpdateAxisConstraints(int axis)
-{
-  ROS_WARN_STREAM("Update axis " << axis << " constraints with the last tolerance set ("
-                                 << request_update_constraint_tolerance_[axis] << ")");
-  request_update_constraint_[axis] = true;
-}
 void InverseKinematic::requestUpdateAxisConstraints(int axis, double tolerance)
 {
   ROS_WARN_STREAM("Update axis " << axis << " constraints with new tolerance of " << tolerance << "");

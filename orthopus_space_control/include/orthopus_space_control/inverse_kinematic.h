@@ -61,7 +61,6 @@ public:
   void init(const std::string end_effector_link, const double sampling_period, const bool use_quaternion = false);
   void reset();
   void resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired);
-  void requestUpdateAxisConstraints(int axis);
   void requestUpdateAxisConstraints(int axis, double tolerance);
   void setQCurrent(const JointPosition& q_current);
   void setXCurrent(const SpacePosition& x_current);
