@@ -18,8 +18,14 @@
  */
 #include "ros/ros.h"
 
-#include "orthopus_space_control/robot_manager.h"
 #include "niryo_one_msgs/SetInt.h"
+#include "orthopus_space_control/robot_manager.h"
+
+// Eigen
+#include "eigen_conversions/eigen_msg.h"
+
+// TF
+#include "tf/tf.h"
 
 namespace space_control
 {
@@ -32,6 +38,8 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion, co
   , q_command_(joint_number)
   , q_current_(joint_number)
   , q_meas_(joint_number)
+  , x_drink_pose_(use_quaternion)
+  , x_stand_pose_(use_quaternion)
   , dx_desired_(use_quaternion)
   , dx_desired_prev_(use_quaternion)
 {
@@ -90,13 +98,23 @@ void RobotManager::callbackInputDeviceVelocity_(const geometry_msgs::TwistStampe
     dx_desired_[i] = 0.0;
   }
 
-  dx_desired_[0] = msg->twist.linear.x;
-  dx_desired_[1] = msg->twist.linear.y;
-  dx_desired_[2] = msg->twist.linear.z;
+  dx_desired_[SpaceVelocity::kX] = msg->twist.linear.x;
+  dx_desired_[SpaceVelocity::kY] = msg->twist.linear.y;
+  dx_desired_[SpaceVelocity::kZ] = msg->twist.linear.z;
 
-  dx_desired_[3] = msg->twist.angular.x;
-  dx_desired_[4] = msg->twist.angular.y;
-  dx_desired_[5] = msg->twist.angular.z;
+  if (use_quaternion_)
+  {
+    dx_desired_[SpaceVelocity::kQw] = 0.0;
+    dx_desired_[SpaceVelocity::kQx] = msg->twist.angular.x;
+    dx_desired_[SpaceVelocity::kQy] = msg->twist.angular.y;
+    dx_desired_[SpaceVelocity::kQz] = msg->twist.angular.z;
+  }
+  else
+  {
+    dx_desired_[SpaceVelocity::kRoll] = msg->twist.angular.x;
+    dx_desired_[SpaceVelocity::kPitch] = msg->twist.angular.y;
+    dx_desired_[SpaceVelocity::kYaw] = msg->twist.angular.z;
+  }
 
   for (int i = 0; i < 3; i++)
   {
@@ -170,8 +188,8 @@ void RobotManager::initializeSubscribers_()
 {
   ROS_DEBUG_STREAM("RobotManager initializeSubscribers");
   joints_sub_ = n_.subscribe("joint_states", 1, &RobotManager::callbackJointState_, this);
-  dx_input_device_sub_ =
-      n_.subscribe("/orthopus_space_control/input_device_velocity", 1, &RobotManager::callbackInputDeviceVelocity_, this);
+  dx_input_device_sub_ = n_.subscribe("/orthopus_space_control/input_device_velocity", 1,
+                                      &RobotManager::callbackInputDeviceVelocity_, this);
   learning_mode_sub_ = n_.subscribe("/niryo_one/learning_mode", 1, &RobotManager::callbackLearningMode_, this);
 }
 
@@ -188,26 +206,77 @@ void RobotManager::initializeServices_()
 {
   ROS_DEBUG_STREAM("RobotManager initializeServices");
   // TODO : refactor :better name for this service (not action)
-  action_service_ = n_.advertiseService("/niryo_one/orthopus_space_control/action", &RobotManager::callbackAction_, this);
+  action_service_ =
+      n_.advertiseService("/niryo_one/orthopus_space_control/action", &RobotManager::callbackAction_, this);
   manage_pose_service_ = n_.advertiseService("/niryo_one/orthopus_space_control/manage_pose",
                                              &PoseManager::callbackManagePose, &pose_manager_);
 }
 
 void RobotManager::retrieveParameters_()
 {
-  ros::param::get("~drink_pose/position/x", drink_pose_.position.x);
-  ros::param::get("~drink_pose/position/y", drink_pose_.position.y);
-  ros::param::get("~drink_pose/position/z", drink_pose_.position.z);
-  ros::param::get("~drink_pose/orientation/x", drink_pose_.orientation.x);
-  ros::param::get("~drink_pose/orientation/y", drink_pose_.orientation.y);
-  ros::param::get("~drink_pose/orientation/z", drink_pose_.orientation.z);
+  geometry_msgs::Pose drink_pose;
+  geometry_msgs::Pose stand_pose;
 
-  ros::param::get("~stand_pose/position/x", stand_pose_.position.x);
-  ros::param::get("~stand_pose/position/y", stand_pose_.position.y);
-  ros::param::get("~stand_pose/position/z", stand_pose_.position.z);
-  ros::param::get("~stand_pose/orientation/x", stand_pose_.orientation.x);
-  ros::param::get("~stand_pose/orientation/y", stand_pose_.orientation.y);
-  ros::param::get("~stand_pose/orientation/z", stand_pose_.orientation.z);
+  ros::param::get("~drink_pose/position/x", drink_pose.position.x);
+  ros::param::get("~drink_pose/position/y", drink_pose.position.y);
+  ros::param::get("~drink_pose/position/z", drink_pose.position.z);
+  ros::param::get("~drink_pose/orientation/w", drink_pose.orientation.w);
+  ros::param::get("~drink_pose/orientation/x", drink_pose.orientation.x);
+  ros::param::get("~drink_pose/orientation/y", drink_pose.orientation.y);
+  ros::param::get("~drink_pose/orientation/z", drink_pose.orientation.z);
+
+  ros::param::get("~stand_pose/position/x", stand_pose.position.x);
+  ros::param::get("~stand_pose/position/y", stand_pose.position.y);
+  ros::param::get("~stand_pose/position/z", stand_pose.position.z);
+  ros::param::get("~stand_pose/orientation/w", stand_pose.orientation.w);
+  ros::param::get("~stand_pose/orientation/x", stand_pose.orientation.x);
+  ros::param::get("~stand_pose/orientation/y", stand_pose.orientation.y);
+  ros::param::get("~stand_pose/orientation/z", stand_pose.orientation.z);
+
+  x_drink_pose_[SpacePosition::kX] = drink_pose.position.x;
+  x_drink_pose_[SpacePosition::kY] = drink_pose.position.y;
+  x_drink_pose_[SpacePosition::kZ] = drink_pose.position.z;
+
+  x_stand_pose_[SpacePosition::kX] = stand_pose.position.x;
+  x_stand_pose_[SpacePosition::kY] = stand_pose.position.y;
+  x_stand_pose_[SpacePosition::kZ] = stand_pose.position.z;
+
+  if (use_quaternion_)
+  {
+    x_drink_pose_[SpacePosition::kQw] = drink_pose.orientation.w;
+    x_drink_pose_[SpacePosition::kQx] = drink_pose.orientation.x;
+    x_drink_pose_[SpacePosition::kQy] = drink_pose.orientation.y;
+    x_drink_pose_[SpacePosition::kQz] = drink_pose.orientation.z;
+
+    x_stand_pose_[SpacePosition::kQw] = stand_pose.orientation.w;
+    x_stand_pose_[SpacePosition::kQx] = stand_pose.orientation.x;
+    x_stand_pose_[SpacePosition::kQy] = stand_pose.orientation.y;
+    x_stand_pose_[SpacePosition::kQz] = stand_pose.orientation.z;
+  }
+  else
+  {
+    double roll, pitch, yaw;
+    tf::Quaternion q;
+    /* Convert quaternion pose in RPY */
+    q.setValue(drink_pose.orientation.x, drink_pose.orientation.y, drink_pose.orientation.z, drink_pose.orientation.w);
+
+    tf::Matrix3x3 m1(q);
+    m1.getRPY(roll, pitch, yaw);
+
+    x_drink_pose_[SpacePosition::kRoll] = roll;
+    x_drink_pose_[SpacePosition::kPitch] = pitch;
+    x_drink_pose_[SpacePosition::kYaw] = yaw;
+
+    /* Convert quaternion pose in RPY */
+    q.setValue(stand_pose.orientation.x, stand_pose.orientation.y, stand_pose.orientation.z, stand_pose.orientation.w);
+
+    tf::Matrix3x3 m2(q);
+    m2.getRPY(roll, pitch, yaw);
+
+    x_stand_pose_[SpacePosition::kRoll] = roll;
+    x_stand_pose_[SpacePosition::kPitch] = pitch;
+    x_stand_pose_[SpacePosition::kYaw] = -yaw;  // HACK force negative side of rotation (conversion cannot handle that)
+  }
 
   ros::param::get("~pose_goal_joints_tolerance", pose_goal_joints_tolerance_);
   ros::param::get("~sampling_frequency", sampling_freq_);
@@ -381,7 +450,7 @@ void RobotManager::trajDrinkEnter_()
 {
   cartesian_controller_.reset();
   q_command_ = q_meas_;
-  cartesian_controller_.getTrajectoryController()->setTrajectoryPose(drink_pose_);
+  cartesian_controller_.getTrajectoryController()->setTrajectoryPose(x_drink_pose_);
 }
 
 void RobotManager::trajStandUpdate_()
@@ -406,7 +475,7 @@ void RobotManager::trajStandEnter_()
 {
   cartesian_controller_.reset();
   q_command_ = q_meas_;
-  cartesian_controller_.getTrajectoryController()->setTrajectoryPose(stand_pose_);
+  cartesian_controller_.getTrajectoryController()->setTrajectoryPose(x_stand_pose_);
 }
 
 void RobotManager::flipPinchEnter_()

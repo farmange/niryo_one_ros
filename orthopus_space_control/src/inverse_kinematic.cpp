@@ -41,6 +41,15 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
 {
   ROS_DEBUG_STREAM("InverseKinematic constructor");
 
+  if (use_quaternion_)
+  {
+    space_dimension_ = 7;
+  }
+  else
+  {
+    space_dimension_ = 6;
+  }
+
   std::vector<double> alpha_weight_vec;
   std::vector<double> beta_weight_vec;
   std::vector<double> gamma_weight_vec;
@@ -68,7 +77,6 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
   /* HACK: Limit joint_3 max reach to prevent a singularity observe in some cases. */
   q_upper_limit_[2] = 1.4;
 
-  ROS_DEBUG("Setting up bounds on joint velocity (dq) of the QP");
   /*
    * To limit the joint velocity, we define a constraint for the QP optimisation. Assuming a commun limit of dq_max for
    * all joints, we could write the lower and upper bounds as :
@@ -77,6 +85,7 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
    *      lb = -dq_max
    *      ub = dq_max
    */
+  ROS_DEBUG("Setting up bounds on joint velocity (dq) of the QP");
   double dq_max;
   ros::param::get("~joint_max_vel", dq_max);
   JointVelocity limit = JointVelocity(joint_number_);
@@ -110,40 +119,34 @@ void InverseKinematic::init(const std::string end_effector_link, const double sa
 
 void InverseKinematic::setAlphaWeight_(const std::vector<double>& alpha_weight)
 {
-  // Minimize cartesian velocity : dx
-  alpha_weight_ = Matrix6d::Identity(6, 6);
-  alpha_weight_(0, 0) = alpha_weight[0];
-  alpha_weight_(1, 1) = alpha_weight[1];
-  alpha_weight_(2, 2) = alpha_weight[2];
-  alpha_weight_(3, 3) = alpha_weight[3];
-  alpha_weight_(4, 4) = alpha_weight[4];
-  alpha_weight_(5, 5) = alpha_weight[5];
+  // Minimize cartesian velocity (dx) weight
+  alpha_weight_ = MatrixXd::Identity(space_dimension_, space_dimension_);
+  for (int i = 0; i < space_dimension_; i++)
+  {
+    alpha_weight_(i, i) = alpha_weight[i];
+  }
   ROS_DEBUG_STREAM("Set alpha weight to : \n" << alpha_weight_ << "\n");
 }
 
 void InverseKinematic::setBetaWeight_(const std::vector<double>& beta_weight)
 {
-  // Minimize cartesian velocity : dx
-  beta_weight_ = Matrix6d::Identity(6, 6);
-  beta_weight_(0, 0) = beta_weight[0];
-  beta_weight_(1, 1) = beta_weight[1];
-  beta_weight_(2, 2) = beta_weight[2];
-  beta_weight_(3, 3) = beta_weight[3];
-  beta_weight_(4, 4) = beta_weight[4];
-  beta_weight_(5, 5) = beta_weight[5];
+  // Minimize joint velocity (dq) weight
+  beta_weight_ = MatrixXd::Identity(joint_number_, joint_number_);
+  for (int i = 0; i < joint_number_; i++)
+  {
+    beta_weight_(i, i) = beta_weight[i];
+  }
   ROS_DEBUG_STREAM("Set alpha weight to : \n" << beta_weight_ << "\n");
 }
 
 void InverseKinematic::setGammaWeight_(const std::vector<double>& gamma_weight)
 {
   // Minimize cartesian velocity : dx
-  gamma_weight_ = Matrix6d::Identity(6, 6);
-  gamma_weight_(0, 0) = gamma_weight[0];
-  gamma_weight_(1, 1) = gamma_weight[1];
-  gamma_weight_(2, 2) = gamma_weight[2];
-  gamma_weight_(3, 3) = gamma_weight[3];
-  gamma_weight_(4, 4) = gamma_weight[4];
-  gamma_weight_(5, 5) = gamma_weight[5];
+  gamma_weight_ = MatrixXd::Identity(space_dimension_, space_dimension_);
+  for (int i = 0; i < space_dimension_; i++)
+  {
+    gamma_weight_(i, i) = gamma_weight[i];
+  }
   ROS_DEBUG_STREAM("Set alpha weight to : \n" << gamma_weight_ << "\n");
 }
 
@@ -156,13 +159,12 @@ void InverseKinematic::setXCurrent(const SpacePosition& x_current)
 {
   x_current_ = x_current;
   /* As most of computation in this class are eigen matrix operation,
-  the current state is also copied in eigen vector */
-  x_current_eigen_(0, 0) = x_current[0];
-  x_current_eigen_(1, 0) = x_current[1];
-  x_current_eigen_(2, 0) = x_current[2];
-  x_current_eigen_(3, 0) = x_current[3];
-  x_current_eigen_(4, 0) = x_current[4];
-  x_current_eigen_(5, 0) = x_current[5];
+  the current state is also copied in an eigen vector */
+  x_current_eigen_ = VectorXd(space_dimension_);
+  for (int i = 0; i < space_dimension_; i++)
+  {
+    x_current_eigen_(i) = x_current[i];
+  }
 }
 
 void InverseKinematic::setDqBounds(const JointVelocity& dq_bound)
@@ -214,7 +216,11 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   }
 
   /* Store desired velocity in eigen vector */
-  const Vector6d dx_desired_eigen = Vector6d(dx_desired.data());
+  VectorXd dx_desired_eigen = VectorXd(space_dimension_);
+  for (int i = 0; i < space_dimension_; i++)
+  {
+    dx_desired_eigen(i) = dx_desired[i];
+  }
 
   /*
    * qpOASES solves QPs of the following form :
@@ -272,11 +278,11 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    */
 
   /* Hessian computation */
-  Matrix6d hessian = (jacobian.transpose() * alpha_weight_ * jacobian) + beta_weight_ +
+  MatrixXd hessian = (jacobian.transpose() * alpha_weight_ * jacobian) + beta_weight_ +
                      (jacobian.transpose() * sampling_period_ * gamma_weight_ * sampling_period_ * jacobian);
 
   /* Gradient vector computation */
-  Vector6d g = (-jacobian.transpose() * alpha_weight_ * dx_desired_eigen) +
+  VectorXd g = (-jacobian.transpose() * alpha_weight_ * dx_desired_eigen) +
                (jacobian.transpose() * sampling_period_ * gamma_weight_ * x_current_eigen_) -
                (jacobian.transpose() * sampling_period_ * gamma_weight_ * x_des);
 

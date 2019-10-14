@@ -39,10 +39,6 @@ PoseManager::PoseManager(const int joint_number, const bool use_quaternion)
   q_saved_pose_.emplace("Home", q);
   ros::param::get("~rest_position", q);
   q_saved_pose_.emplace("Rest", q);
-  ros::param::get("~drink_position", q);
-  q_saved_pose_.emplace("Drink", q);
-  ros::param::get("~flip_position", q);
-  q_saved_pose_.emplace("Flip", q);
 }
 
 const JointPosition PoseManager::getJoints(const std::string position_name)
@@ -52,6 +48,11 @@ const JointPosition PoseManager::getJoints(const std::string position_name)
 
 void PoseManager::setJoints(const std::string position_name, const JointPosition q_pose_to_record)
 {
+  /* Remove entry if exists */
+  if (q_saved_pose_.find(position_name) != q_saved_pose_.end())
+  {
+    q_saved_pose_.erase(position_name);
+  }
   q_saved_pose_.emplace(position_name, q_pose_to_record);
 }
 

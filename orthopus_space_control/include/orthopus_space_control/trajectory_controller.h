@@ -21,12 +21,12 @@
 
 #include "ros/ros.h"
 
-#include "sensor_msgs/JointState.h"
 #include "geometry_msgs/Pose.h"
+#include "sensor_msgs/JointState.h"
 
-#include "orthopus_space_control/utils/pi_controller.h"
 #include "orthopus_space_control/types/space_position.h"
 #include "orthopus_space_control/types/space_velocity.h"
+#include "orthopus_space_control/utils/pi_controller.h"
 
 namespace space_control
 {
@@ -39,7 +39,7 @@ public:
   void computeTrajectory(SpaceVelocity& dx_output);
   bool isTrajectoryCompleted();
   void setXCurrent(const SpacePosition& x_current);
-  void setTrajectoryPose(const geometry_msgs::Pose& traj_des_pose);
+  void setTrajectoryPose(const SpacePosition& x_pose);
 
 protected:
 private:

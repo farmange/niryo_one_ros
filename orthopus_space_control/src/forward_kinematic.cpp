@@ -62,9 +62,9 @@ void ForwardKinematic::resolveForwardKinematic()
   /* Convert cartesian state to goemetry_msgs::Pose */
   tf::poseEigenToMsg(end_effector_state, current_pose);
 
-  x_current_[0] = current_pose.position.x;
-  x_current_[1] = current_pose.position.y;
-  x_current_[2] = current_pose.position.z;
+  x_current_[SpacePosition::kX] = current_pose.position.x;
+  x_current_[SpacePosition::kY] = current_pose.position.y;
+  x_current_[SpacePosition::kZ] = current_pose.position.z;
 
   if (use_quaternion_ == false)
   {
@@ -76,16 +76,16 @@ void ForwardKinematic::resolveForwardKinematic()
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
 
-    x_current_[3] = roll;
-    x_current_[4] = pitch;
-    x_current_[5] = yaw;
+    x_current_[SpacePosition::kRoll] = roll;
+    x_current_[SpacePosition::kPitch] = pitch;
+    x_current_[SpacePosition::kYaw] = yaw;
   }
   else
   {
-    x_current_[3] = current_pose.orientation.w;
-    x_current_[4] = current_pose.orientation.x;
-    x_current_[5] = current_pose.orientation.y;
-    x_current_[6] = current_pose.orientation.z;
+    x_current_[SpacePosition::kQw] = current_pose.orientation.w;
+    x_current_[SpacePosition::kQx] = current_pose.orientation.x;
+    x_current_[SpacePosition::kQy] = current_pose.orientation.y;
+    x_current_[SpacePosition::kQz] = current_pose.orientation.z;
   }
 }
 void ForwardKinematic::setQCurrent(const JointPosition& q_current)

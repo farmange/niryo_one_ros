@@ -78,7 +78,7 @@ void ConstraintsCompensator::reset()
   }
 }
 
-// TODO add use_quaternion flag and code to handle it
+// TODO quat : check that
 void ConstraintsCompensator::setXCurrent(const SpacePosition& x_current)
 {
   x_current_ = x_current;
@@ -91,8 +91,7 @@ void ConstraintsCompensator::setXCurrent(const SpacePosition& x_current)
   }
   else
   {
-    /*
-     * HACK : This allows to handle axis inversion. For exemple, when the tool frame orientation
+    /* HACK : This allows to handle axis inversion. For exemple, when the tool frame orientation
      * is RPY = (0,0,PI) then roll and pitch are in opposite direction from initial orientation
      * RPY = (0,0,0).
      */
@@ -183,42 +182,50 @@ void ConstraintsCompensator::updateOrientationConstraint_()
 {
   if (orientation_side_ == ORIENTATION_FRONT)
   {
-    x_const_[3] = 0.0;
-    x_const_[4] = 0.0;
-    x_const_[5] = 0.0;
     if (use_quaternion_)
     {
-      x_const_[6] = 0.0;
+      x_const_[SpacePosition::kQw] = 0.0;
+      x_const_[SpacePosition::kQx] = 0.0;
+      x_const_[SpacePosition::kQy] = 0.0;
+      x_const_[SpacePosition::kQz] = 0.0;
+    }
+    else
+    {
+      x_const_[SpacePosition::kRoll] = 0.0;
+      x_const_[SpacePosition::kPitch] = 0.0;
+      x_const_[SpacePosition::kYaw] = 0.0;
     }
   }
   else if (orientation_side_ == ORIENTATION_BACK)
   {
     if (use_quaternion_)
     {
-      x_const_[3] = 0.0;
-      x_const_[4] = 0.0;
-      x_const_[5] = 0.0;
-      x_const_[6] = -1.0;
+      x_const_[SpacePosition::kQw] = 0.0;
+      x_const_[SpacePosition::kQx] = 0.0;
+      x_const_[SpacePosition::kQy] = 0.0;
+      x_const_[SpacePosition::kQz] = -1.0;
     }
     else
     {
-      x_const_[3] = 0.0;
-      x_const_[4] = 0.0;
-      x_const_[5] = -M_PI;
+      x_const_[SpacePosition::kRoll] = 0.0;
+      x_const_[SpacePosition::kPitch] = 0.0;
+      x_const_[SpacePosition::kYaw] = -M_PI;
     }
   }
 }
 
 void ConstraintsCompensator::eulerFlipHandling_()
 {
-  /*
-   * HACK : As we only work in the same side (negative yaw) for our use cases
-   * (space control in front and back direction of the arm only), this ensure that
-   * no flipping happened
-   */
-  if (x_current_[SpacePosition::kYaw] > M_PI / 2)
+  if (use_quaternion_ == false)
   {
-    x_current_[SpacePosition::kYaw] -= 2 * M_PI;
+    /* HACK : As we only work in the same side (negative yaw) for our use cases
+     * (space control in front and back direction of the arm only), this ensure that
+     * no flipping happened
+     */
+    if (x_current_[SpacePosition::kYaw] > M_PI / 2)
+    {
+      x_current_[SpacePosition::kYaw] -= 2 * M_PI;
+    }
   }
 }
 }

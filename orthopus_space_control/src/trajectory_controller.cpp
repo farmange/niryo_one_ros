@@ -77,8 +77,7 @@ void TrajectoryController::setXCurrent(const SpacePosition& x_current)
   }
   else
   {
-    /*
-     * HACK : This allows to handle axis inversion. For exemple, when the tool frame orientation
+    /* HACK : This allows to handle axis inversion. For exemple, when the tool frame orientation
      * is RPY = (0,0,PI) then roll and pitch are in opposite direction from initial orientation
      * RPY = (0,0,0).
      */
@@ -100,17 +99,10 @@ void TrajectoryController::setXCurrent(const SpacePosition& x_current)
   }
 }
 
-void TrajectoryController::setTrajectoryPose(const geometry_msgs::Pose& traj_des_pose)
+void TrajectoryController::setTrajectoryPose(const SpacePosition& x_pose)
 {
   is_completed_ = false;
-
-  /* Here I suppose that user is passing RPY command in pose */
-  x_traj_desired_[0] = traj_des_pose.position.x;
-  x_traj_desired_[1] = traj_des_pose.position.y;
-  x_traj_desired_[2] = traj_des_pose.position.z;
-  x_traj_desired_[3] = traj_des_pose.orientation.x;
-  x_traj_desired_[4] = traj_des_pose.orientation.y;
-  x_traj_desired_[5] = traj_des_pose.orientation.z;
+  x_traj_desired_ = x_pose;
 }
 
 void TrajectoryController::computeTrajectory(SpaceVelocity& dx_output)
@@ -151,14 +143,16 @@ void TrajectoryController::updateTrajectoryCompletion_()
 
 void TrajectoryController::eulerFlipHandling_()
 {
-  /*
-   * HACK : As we only work in the same side (negative yaw) for our use cases
-   * (space control in front and back direction of the arm only), this ensure that
-   * no flipping happened
-   */
-  if (x_current_[SpacePosition::kYaw] > M_PI / 2)
+  if (use_quaternion_ == false)
   {
-    x_current_[SpacePosition::kYaw] -= 2 * M_PI;
+    /* HACK : As we only work in the same side (negative yaw) for our use cases
+     * (space control in front and back direction of the arm only), this ensure that
+     * no flipping happened
+     */
+    if (x_current_[SpacePosition::kYaw] > M_PI / 2)
+    {
+      x_current_[SpacePosition::kYaw] -= 2 * M_PI;
+    }
   }
 }
 

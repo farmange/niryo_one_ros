@@ -78,7 +78,6 @@ void CartesianController::reset()
 
 void CartesianController::setDxDesired(const SpaceVelocity& dx_desired)
 {
-  // TODO check size
   dx_desired_ = dx_desired;
 }
 
@@ -110,8 +109,6 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   else
   {
     ROS_INFO("=== Retrieve user space velocity...");
-    // TODO check size
-    //     dx_desired_selected_ = dx_desired_;
     ROS_DEBUG_STREAM("User sent space velocity                         : " << dx_desired_);
 
     ROS_INFO("=== Perform constraints compensation...");

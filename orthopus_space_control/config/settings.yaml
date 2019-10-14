@@ -3,9 +3,9 @@
 #
 
 #
-#  Minimize cartesian velocity coefs : dx
+#  Minimize cartesian velocity coefs : dx (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
 #        
-alpha_weight:     [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+alpha_weight:     [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
 
 #
 #  Minimize joints velocities coefs : dq
@@ -13,9 +13,9 @@ alpha_weight:     [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
 beta_weight:      [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
 #
-#  Minimize cartesian position coefs : x
+#  Minimize cartesian position coefs : x (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
 #        
-gamma_weight:     [0., 0., 0., 0., 0., 0.]
+gamma_weight:     [0., 0., 0., 0., 0., 0., 0.]
 
 #
 #  Saved joint positions 
@@ -36,6 +36,7 @@ drink_pose:
     y: -0.126
     z: 0.402
   orientation:
+    w : 1.0
     x : 0.0
     y : 0.0
     z : 0.0
@@ -46,9 +47,10 @@ stand_pose:
     y: -0.137
     z: 0.402
   orientation:
+    w : 0.0
     x : 0.0
     y : 0.0
-    z : -3.14
+    z : -1.0
 
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"

@@ -37,10 +37,12 @@
 // Eigen
 #include "Eigen/Dense"
 
-typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix6d;
-typedef Eigen::Matrix<double, 6, 1> Vector6d;
-typedef Eigen::Matrix<double, 7, 7, Eigen::RowMajor> Matrix7d;
-typedef Eigen::Matrix<double, 7, 1> Vector7d;
+// typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix6d;
+// typedef Eigen::Matrix<double, 6, 1> Vector6d;
+// typedef Eigen::Matrix<double, 7, 7, Eigen::RowMajor> Matrix7d;
+// typedef Eigen::Matrix<double, 7, 1> Vector7d;
+typedef Eigen::VectorXd VectorXd;
+typedef Eigen::MatrixXd MatrixXd;
 
 namespace space_control
 {
@@ -70,14 +72,15 @@ protected:
 private:
   ros::NodeHandle n_;
   int joint_number_;
+  int space_dimension_;
   bool use_quaternion_;
   double sampling_period_;
   bool qp_init_required_; /*!< Flag to track the first iteration of QP solver */
 
   JointPosition q_current_;  /*!< Current joint position */
   SpacePosition x_current_;  /*!< Current space position */
-  Vector6d x_current_eigen_; /*!< Copy of x_current in eigen format (use in matrix computation) */
-  Vector6d x_des;            /*!< TODO */
+  VectorXd x_current_eigen_; /*!< Copy of x_current in eigen format (use in matrix computation) */
+  VectorXd x_des;            /*!< TODO */
 
   std::string end_effector_link_;
 
@@ -90,9 +93,9 @@ private:
   SpacePosition x_min_limit_; /*!< Space min limit used in lower constraints bound vector lbA */
   SpacePosition x_max_limit_; /*!< Space max limit used in upper constraints bound vector ubA */
 
-  Matrix6d alpha_weight_; /*!< Diagonal matrix which contains weight for space velocity minimization */
-  Matrix6d beta_weight_;  /*!< Diagonal matrix which contains weight for joint velocity minimization */
-  Matrix6d gamma_weight_; /*!< Diagonal matrix which contains weight for space position minimization */
+  MatrixXd alpha_weight_; /*!< Diagonal matrix which contains weight for space velocity minimization */
+  MatrixXd beta_weight_;  /*!< Diagonal matrix which contains weight for joint velocity minimization */
+  MatrixXd gamma_weight_; /*!< Diagonal matrix which contains weight for space position minimization */
 
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 

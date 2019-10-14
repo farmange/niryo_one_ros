@@ -23,16 +23,16 @@
 
 #include "sensor_msgs/JointState.h"
 
-#include "orthopus_space_control/pose_manager.h"
 #include "orthopus_space_control/cartesian_controller.h"
+#include "orthopus_space_control/pose_manager.h"
 #include "orthopus_space_control/robot_manager_fsm.h"
 
 #include "orthopus_space_control/types/joint_position.h"
 #include "orthopus_space_control/types/space_velocity.h"
 
+#include "orthopus_space_control/fsm/engine.h"
 #include "orthopus_space_control/fsm/state.h"
 #include "orthopus_space_control/fsm/transition.h"
-#include "orthopus_space_control/fsm/engine.h"
 
 namespace space_control
 {
@@ -69,11 +69,11 @@ private:
   JointPosition q_current_;
   JointPosition q_meas_;
 
+  SpacePosition x_drink_pose_;
+  SpacePosition x_stand_pose_;
+
   SpaceVelocity dx_desired_;
   SpaceVelocity dx_desired_prev_;
-
-  geometry_msgs::Pose drink_pose_;
-  geometry_msgs::Pose stand_pose_;
 
   /* FSM engine */
   Engine<RobotManager>* engine_;
