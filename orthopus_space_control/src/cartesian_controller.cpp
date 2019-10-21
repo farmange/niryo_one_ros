@@ -69,6 +69,14 @@ void CartesianController::init(double sampling_period, PoseManager& pose_manager
   cc_.init(sampling_period_);
 }
 
+void CartesianController::setDebugPublishers(ros::Publisher& q_current_debug_pub, ros::Publisher& x_current_debug_pub,
+                                             ros::Publisher& dx_desired_debug_pub)
+{
+  q_current_debug_pub_ = q_current_debug_pub;
+  x_current_debug_pub_ = x_current_debug_pub;
+  dx_desired_debug_pub_ = dx_desired_debug_pub;
+}
+
 void CartesianController::reset()
 {
   tc_.reset();
@@ -115,6 +123,7 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
     cc_.setXCurrent(x_current_);
     cc_.setDxInput(dx_desired_);
     cc_.run(dx_desired_selected_);
+    // dx_desired_selected_ = dx_desired_;
     ROS_DEBUG_STREAM("Constraints compensator updates space velocity   : " << dx_desired_selected_);
   }
 
@@ -131,7 +140,9 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
 
   /* Write joint command output */
   q_command = q_command_;
-  ROS_INFO(" ");
+  ROS_INFO("----------------------------------------");
+
+  publishDebugTopic_();
 }
 
 ConstraintsCompensator* CartesianController::getConstraintsCompensator()
@@ -147,5 +158,57 @@ TrajectoryController* CartesianController::getTrajectoryController()
 InverseKinematic* CartesianController::getInverseKinematic()
 {
   return &ik_;
+}
+
+void CartesianController::publishDebugTopic_()
+{
+  /* debug current joint position */
+  sensor_msgs::JointState q_current_state;
+  q_current_state.position.resize(joint_number_);
+  for (int i = 0; i < joint_number_; i++)
+  {
+    q_current_state.position[i] = q_current_[i];
+  }
+  q_current_debug_pub_.publish(q_current_state);
+
+  /* debug current space position (result of forward kinematic) */
+  geometry_msgs::Pose x_current_pose;
+  x_current_pose.position.x = x_current_[SpacePosition::kX];
+  x_current_pose.position.y = x_current_[SpacePosition::kY];
+  x_current_pose.position.z = x_current_[SpacePosition::kZ];
+  if (use_quaternion_)
+  {
+    x_current_pose.orientation.w = x_current_[SpacePosition::kQw];
+    x_current_pose.orientation.x = x_current_[SpacePosition::kQx];
+    x_current_pose.orientation.y = x_current_[SpacePosition::kQy];
+    x_current_pose.orientation.z = x_current_[SpacePosition::kQz];
+  }
+  else
+  {
+    x_current_pose.orientation.x = x_current_[SpacePosition::kRoll];
+    x_current_pose.orientation.y = x_current_[SpacePosition::kPitch];
+    x_current_pose.orientation.z = x_current_[SpacePosition::kYaw];
+  }
+  x_current_debug_pub_.publish(x_current_pose);
+
+  /* debug space velocity which is sent to inverse kinematic solver */
+  geometry_msgs::Pose dx_desired_pose;
+  dx_desired_pose.position.x = dx_desired_selected_[SpacePosition::kX];
+  dx_desired_pose.position.y = dx_desired_selected_[SpacePosition::kY];
+  dx_desired_pose.position.z = dx_desired_selected_[SpacePosition::kZ];
+  if (use_quaternion_)
+  {
+    dx_desired_pose.orientation.w = dx_desired_selected_[SpacePosition::kQw];
+    dx_desired_pose.orientation.x = dx_desired_selected_[SpacePosition::kQx];
+    dx_desired_pose.orientation.y = dx_desired_selected_[SpacePosition::kQy];
+    dx_desired_pose.orientation.z = dx_desired_selected_[SpacePosition::kQz];
+  }
+  else
+  {
+    dx_desired_pose.orientation.x = dx_desired_selected_[SpacePosition::kRoll];
+    dx_desired_pose.orientation.y = dx_desired_selected_[SpacePosition::kPitch];
+    dx_desired_pose.orientation.z = dx_desired_selected_[SpacePosition::kYaw];
+  }
+  dx_desired_debug_pub_.publish(dx_desired_pose);
 }
 }

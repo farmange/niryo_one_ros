@@ -22,12 +22,12 @@
 #include "ros/ros.h"
 
 // MoveIt!
-#include "moveit/robot_model_loader/robot_model_loader.h"
 #include "moveit/robot_model/robot_model.h"
+#include "moveit/robot_model_loader/robot_model_loader.h"
 #include "moveit/robot_state/robot_state.h"
 
-#include "sensor_msgs/JointState.h"
 #include "geometry_msgs/Pose.h"
+#include "sensor_msgs/JointState.h"
 
 #include "orthopus_space_control/types/joint_position.h"
 #include "orthopus_space_control/types/space_position.h"
@@ -38,7 +38,7 @@ class ForwardKinematic
 {
 public:
   ForwardKinematic(const int joint_number, const bool use_quaternion);
-  void init(const std::string end_effector_link, const bool use_quaternion = false);
+  void init(const std::string end_effector_link);
   void resolveForwardKinematic();
   void setQCurrent(const JointPosition& q_current);
   void getXCurrent(SpacePosition& x_current);

@@ -88,6 +88,7 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion, co
 void RobotManager::init()
 {
   cartesian_controller_.init(sampling_period_, pose_manager_);
+  cartesian_controller_.setDebugPublishers(q_current_debug_pub_, x_current_debug_pub_, dx_desired_debug_pub_);
 }
 
 void RobotManager::callbackInputDeviceVelocity_(const geometry_msgs::TwistStampedPtr& msg)
@@ -196,10 +197,12 @@ void RobotManager::initializeSubscribers_()
 void RobotManager::initializePublishers_()
 {
   ROS_DEBUG_STREAM("RobotManager initializePublishers");
-
   command_pub_ =
       n_.advertise<trajectory_msgs::JointTrajectory>("/niryo_one_follow_joint_trajectory_controller/command", 1);
   joystick_enabled_pub_ = n_.advertise<std_msgs::Bool>("/niryo_one/joystick_interface/is_enabled", 1);
+  q_current_debug_pub_ = n_.advertise<sensor_msgs::JointState>("/orthopus_space_control/q_current", 1);
+  x_current_debug_pub_ = n_.advertise<geometry_msgs::Pose>("/orthopus_space_control/x_current", 1);
+  dx_desired_debug_pub_ = n_.advertise<geometry_msgs::Pose>("/orthopus_space_control/dx_desired", 1);
 }
 
 void RobotManager::initializeServices_()

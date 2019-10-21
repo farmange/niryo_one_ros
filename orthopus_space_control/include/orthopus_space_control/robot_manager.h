@@ -47,6 +47,9 @@ private:
   ros::NodeHandle n_;
   ros::Publisher command_pub_;
   ros::Publisher joystick_enabled_pub_;
+  ros::Publisher q_current_debug_pub_;
+  ros::Publisher x_current_debug_pub_;
+  ros::Publisher dx_desired_debug_pub_;
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_input_device_sub_;
   ros::Subscriber learning_mode_sub_;

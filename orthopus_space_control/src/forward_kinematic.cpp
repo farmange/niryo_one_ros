@@ -37,13 +37,11 @@ ForwardKinematic::ForwardKinematic(const int joint_number, const bool use_quater
   kinematic_model_ = robot_model_loader.getModel();
   kinematic_state_ = std::make_shared<robot_state::RobotState>(kinematic_model_);
   kinematic_state_->setToDefaultValues();
-  use_quaternion_ = false;
   end_effector_link_ = "";
 }
 
-void ForwardKinematic::init(const std::string end_effector_link, const bool use_quaternion)
+void ForwardKinematic::init(const std::string end_effector_link)
 {
-  use_quaternion_ = use_quaternion;
   end_effector_link_ = end_effector_link;
 }
 
@@ -66,7 +64,14 @@ void ForwardKinematic::resolveForwardKinematic()
   x_current_[SpacePosition::kY] = current_pose.position.y;
   x_current_[SpacePosition::kZ] = current_pose.position.z;
 
-  if (use_quaternion_ == false)
+  if (use_quaternion_)
+  {
+    x_current_[SpacePosition::kQw] = current_pose.orientation.w;
+    x_current_[SpacePosition::kQx] = current_pose.orientation.x;
+    x_current_[SpacePosition::kQy] = current_pose.orientation.y;
+    x_current_[SpacePosition::kQz] = current_pose.orientation.z;
+  }
+  else
   {
     /* Convert quaternion pose in RPY */
     tf::Quaternion q(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
@@ -80,14 +85,8 @@ void ForwardKinematic::resolveForwardKinematic()
     x_current_[SpacePosition::kPitch] = pitch;
     x_current_[SpacePosition::kYaw] = yaw;
   }
-  else
-  {
-    x_current_[SpacePosition::kQw] = current_pose.orientation.w;
-    x_current_[SpacePosition::kQx] = current_pose.orientation.x;
-    x_current_[SpacePosition::kQy] = current_pose.orientation.y;
-    x_current_[SpacePosition::kQz] = current_pose.orientation.z;
-  }
 }
+
 void ForwardKinematic::setQCurrent(const JointPosition& q_current)
 {
   q_current_ = q_current;

@@ -78,7 +78,7 @@ void ConstraintsCompensator::reset()
   }
 }
 
-// TODO quat : check that
+// TODO Following code does not work with quaternion
 void ConstraintsCompensator::setXCurrent(const SpacePosition& x_current)
 {
   x_current_ = x_current;
@@ -126,6 +126,9 @@ void ConstraintsCompensator::activeOrientationConstraint(SpaceVelocity& dx_outpu
       double error = x_const_[3 + i] - (x_current_[3 + i] * euler_factor_[i]);
       double pi_result;
       pi_ctrl_[i].execute(error, pi_result);
+      // ROS_ERROR("PI debug (%d) ; x_const_ = %5f ; x_current_ = %5f ; error = %5f ; pi_result = %5f ; "
+      //           "euler_factor_ = %5f",
+      //           i, x_const_[3 + i], x_current_[3 + i], error, pi_result, euler_factor_[i]);
       dx_output[3 + i] = pi_result;
     }
   }
@@ -143,15 +146,19 @@ void ConstraintsCompensator::detectOrientationSide_(const SpacePosition& x_input
 {
   if (use_quaternion_)
   {
-    if ((std::abs(x_input[3]) < 0.01) && (std::abs(x_input[4]) < 0.01) && (std::abs(x_input[5]) < 0.01) &&
-        (std::abs(x_input[6]) < 1.0) && (std::abs(x_input[6]) > 0.99))
+    if ((std::abs(x_input[SpacePosition::kQw]) < 0.1) && (std::abs(x_input[SpacePosition::kQw]) < 0.1) &&
+        (std::abs(x_input[SpacePosition::kQy]) < 0.1) && (std::abs(x_input[SpacePosition::kQz]) < 1.1) &&
+        (std::abs(x_input[SpacePosition::kQz]) > 0.9))
     {
       orientation_side_ = ORIENTATION_BACK;
+      ROS_ERROR("ORIENTATION_BACK");
     }
-    else if ((std::abs(x_input[3]) < 0.01) && (std::abs(x_input[4]) < 0.01) && (std::abs(x_input[5]) < 0.01) &&
-             (std::abs(x_input[6]) < 0.01))
+    else if ((std::abs(x_input[SpacePosition::kQw]) < 1.1) && (std::abs(x_input[SpacePosition::kQw]) > 0.9) &&
+             (std::abs(x_input[SpacePosition::kQx]) < 0.1) && (std::abs(x_input[SpacePosition::kQy]) < 0.1) &&
+             (std::abs(x_input[SpacePosition::kQz]) < 0.1))
     {
       orientation_side_ = ORIENTATION_FRONT;
+      ROS_ERROR("ORIENTATION_FRONT");
     }
     else
     {
@@ -184,7 +191,7 @@ void ConstraintsCompensator::updateOrientationConstraint_()
   {
     if (use_quaternion_)
     {
-      x_const_[SpacePosition::kQw] = 0.0;
+      x_const_[SpacePosition::kQw] = 1.0;
       x_const_[SpacePosition::kQx] = 0.0;
       x_const_[SpacePosition::kQy] = 0.0;
       x_const_[SpacePosition::kQz] = 0.0;

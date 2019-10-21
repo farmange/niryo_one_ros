@@ -37,10 +37,6 @@
 // Eigen
 #include "Eigen/Dense"
 
-// typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix6d;
-// typedef Eigen::Matrix<double, 6, 1> Vector6d;
-// typedef Eigen::Matrix<double, 7, 7, Eigen::RowMajor> Matrix7d;
-// typedef Eigen::Matrix<double, 7, 1> Vector7d;
 typedef Eigen::VectorXd VectorXd;
 typedef Eigen::MatrixXd MatrixXd;
 

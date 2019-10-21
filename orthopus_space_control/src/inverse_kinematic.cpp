@@ -204,15 +204,15 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
-  if (!kinematic_state_->getJacobian(joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
-                                     reference_point_position, jacobian))
+  if (use_quaternion_)
   {
-    ROS_ERROR("Jacobian computation issue !");
-    for (int i = 0; i < dq_computed.size(); i++)
-    {
-      dq_computed[i] = 0.0;
-    }
-    return;
+    kinematic_state_->getJacobian(joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
+                                  reference_point_position, jacobian, true);
+  }
+  else
+  {
+    kinematic_state_->getJacobian(joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
+                                  reference_point_position, jacobian);
   }
 
   /* Store desired velocity in eigen vector */

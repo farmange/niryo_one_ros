@@ -22,14 +22,14 @@
 #include "ros/ros.h"
 
 #include "geometry_msgs/TwistStamped.h"
+#include "niryo_one_msgs/SetInt.h"
 #include "std_msgs/Bool.h"
 #include "std_msgs/Int32.h"
-#include "niryo_one_msgs/SetInt.h"
 
+#include "orthopus_space_control/constraints_compensator.h"
 #include "orthopus_space_control/inverse_kinematic.h"
 #include "orthopus_space_control/pose_manager.h"
 #include "orthopus_space_control/trajectory_controller.h"
-#include "orthopus_space_control/constraints_compensator.h"
 
 #include "orthopus_space_control/forward_kinematic.h"
 #include "orthopus_space_control/velocity_integrator.h"
@@ -58,6 +58,8 @@ public:
 
   void setDxDesired(const SpaceVelocity& dx_desired);
   void setInputSelector(const InputSelectorType input_selector);
+  void setDebugPublishers(ros::Publisher& q_current_debug_pub, ros::Publisher& x_current_debug_pub,
+                          ros::Publisher& dx_desired_debug_pub);
 
   // Callbacks
   void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
@@ -74,6 +76,10 @@ private:
   int joint_number_;
   bool use_quaternion_;
   double sampling_period_;
+
+  ros::Publisher q_current_debug_pub_;
+  ros::Publisher x_current_debug_pub_;
+  ros::Publisher dx_desired_debug_pub_;
 
   TrajectoryController tc_;
   InverseKinematic ik_;
@@ -96,6 +102,8 @@ private:
   SpaceVelocity dx_desired_selected_;
 
   InputSelectorType input_selector_;
+
+  void publishDebugTopic_();
 };
 }
 #endif
