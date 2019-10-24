@@ -56,13 +56,14 @@ class InverseKinematic
 {
 public:
   InverseKinematic(const int joint_number, const bool use_quaternion);
-  void init(const std::string end_effector_link, const double sampling_period, const bool use_quaternion = false);
+  void init(const std::string end_effector_link, const double sampling_period);
   void reset();
   void resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired);
   void requestUpdateAxisConstraints(int axis, double tolerance);
   void setQCurrent(const JointPosition& q_current);
   void setXCurrent(const SpacePosition& x_current);
   void setDqBounds(const JointVelocity& dq_bound);
+  void setOmega(const SpaceVelocity& omega);
 
 protected:
 private:
@@ -72,12 +73,18 @@ private:
   bool use_quaternion_;
   double sampling_period_;
   bool qp_init_required_; /*!< Flag to track the first iteration of QP solver */
+  bool jacobian_init_flag_;
+
+  Eigen::Quaterniond jacobian_q_prev_;
+  std::vector<double> gamma_weight_vec;
 
   JointPosition q_current_;  /*!< Current joint position */
   SpacePosition x_current_;  /*!< Current space position */
   VectorXd x_current_eigen_; /*!< Copy of x_current in eigen format (use in matrix computation) */
   VectorXd x_des;            /*!< TODO */
 
+  bool reset_axis[7];
+  bool reset_axis2[7];
   std::string end_effector_link_;
 
   JointPosition dq_lower_limit_; /*!< Joint lower velocity bound (vector lb) */
@@ -86,8 +93,12 @@ private:
   JointPosition q_lower_limit_; /*!< Joint lower limit used in lower constraints bound vector lbA */
   JointPosition q_upper_limit_; /*!< Joint upper limit used in upper constraints bound vector ubA */
 
-  SpacePosition x_min_limit_; /*!< Space min limit used in lower constraints bound vector lbA */
-  SpacePosition x_max_limit_; /*!< Space max limit used in upper constraints bound vector ubA */
+  // SpacePosition x_min_limit_; /*!< Space min limit used in lower constraints bound vector lbA */
+  // SpacePosition x_max_limit_; /*!< Space max limit used in upper constraints bound vector ubA */
+  double x_min_limit[7]; /*!< Space min limit used in lower constraints bound vector lbA */
+  double x_max_limit[7]; /*!< Space max limit used in upper constraints bound vector ubA */
+
+  SpaceVelocity dx_omega_;
 
   MatrixXd alpha_weight_; /*!< Diagonal matrix which contains weight for space velocity minimization */
   MatrixXd beta_weight_;  /*!< Diagonal matrix which contains weight for joint velocity minimization */
@@ -105,7 +116,11 @@ private:
   void updateAxisConstraints_();
   void setAlphaWeight_(const std::vector<double>& alpha_weight);
   void setBetaWeight_(const std::vector<double>& beta_weight);
-  void setGammaWeight_(const std::vector<double>& gamma_weight);
+  void setGammaWeight_(const std::vector<double>& gamma_weight, const Eigen::Quaterniond& q);
+  bool getJacobian_(const robot_state::RobotStatePtr kinematic_state, const robot_state::JointModelGroup* group,
+                    const robot_state::LinkModel* link, const robot_model::LinkModel* root_link_model,
+                    const Eigen::Vector3d& reference_point_position, Eigen::MatrixXd& jacobian,
+                    bool use_quaternion_representation);
 };
 }
 #endif

@@ -65,7 +65,8 @@ private:
   bool debug_;
   bool use_quaternion_;
   double sampling_period_;
-  double cartesian_max_vel_;
+  double space_position_max_vel_;
+  double space_orientation_max_vel_;
   double pose_goal_joints_tolerance_;
 
   JointPosition q_command_;

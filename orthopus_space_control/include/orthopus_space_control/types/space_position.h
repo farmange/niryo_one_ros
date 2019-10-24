@@ -28,7 +28,7 @@ namespace space_control
 class SpacePosition : public SpaceBase
 {
 public:
-  SpacePosition(bool use_quaternion) : SpaceBase(use_quaternion){};
+  SpacePosition() : SpaceBase(){};
 
 private:
 };

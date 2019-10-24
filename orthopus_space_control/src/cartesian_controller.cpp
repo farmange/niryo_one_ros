@@ -25,6 +25,8 @@
 
 #include "orthopus_space_control/cartesian_controller.h"
 
+#include <tf/tf.h>
+
 #define INIT_TIME 2
 
 namespace space_control
@@ -38,13 +40,14 @@ CartesianController::CartesianController(const int joint_number, const bool use_
   , cc_(joint_number, use_quaternion)
   , joint_number_(joint_number)
   , use_quaternion_(use_quaternion)
-  , x_current_(use_quaternion)
-  , x_orientation_constraint_(use_quaternion)
-  , dx_desired_(use_quaternion)
-  , dx_user_desired_(use_quaternion)
-  , dx_desired_prev_(use_quaternion)
-  , dx_input_constrained_(use_quaternion)
-  , dx_desired_selected_(use_quaternion)
+  , x_current_()
+  , x_orientation_constraint_()
+  , x_des_quat_int()
+  , dx_desired_()
+  , dx_user_desired_()
+  , dx_desired_quat_()
+  , dx_input_constrained_()
+  , dx_desired_selected_()
   , q_command_(joint_number)
   , q_current_(joint_number)
   , dq_desired_(joint_number)
@@ -80,6 +83,7 @@ void CartesianController::setDebugPublishers(ros::Publisher& q_current_debug_pub
 void CartesianController::reset()
 {
   tc_.reset();
+  fk_.reset();
   ik_.reset();
   cc_.reset();
 }
@@ -100,11 +104,24 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   q_current_ = q_current;
 
   ROS_INFO("=== Start FK computation...");
-  ROS_DEBUG_STREAM("Input joint position                             : " << q_current_);
+  ROS_DEBUG_STREAM("Input joint position :");
+  ROS_DEBUG_STREAM("q_current_           : " << q_current_);
   fk_.setQCurrent(q_current_);
   fk_.resolveForwardKinematic();
   fk_.getXCurrent(x_current_);
-  ROS_DEBUG_STREAM("Forward kinematic computes space position        : " << x_current_);
+  ROS_DEBUG_STREAM("Forward kinematic computes space position : ");
+  ROS_DEBUG_STREAM("x_current_           : " << x_current_);
+
+  /* Convert cartesian euler velocity into quaternion velocity according to the formula :
+   *    quat_dot = 1/2 * omega * quat(t)
+   */
+  tf::Quaternion init_quat(x_current_.getQx(), x_current_.getQy(), x_current_.getQz(), x_current_.getQw());
+  /* The omega vector (store in dx_desired_) can be consider as a quaternion with a scalar part equal to zero */
+  tf::Quaternion half_omega_quat(0.5 * dx_desired_.getQx(), 0.5 * dx_desired_.getQy(), 0.5 * dx_desired_.getQz(), 0.0);
+  /* quaternion product */
+  tf::Quaternion vel_quat = half_omega_quat * init_quat;
+  dx_desired_quat_.setPosition(dx_desired_.getPosition());
+  dx_desired_quat_.setOrientation(vel_quat);
 
   if (input_selector_ == INPUT_TRAJECTORY)
   {
@@ -112,31 +129,39 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
     ROS_INFO("=== Perform trajectory control...");
     tc_.setXCurrent(x_current_);
     tc_.computeTrajectory(dx_desired_selected_);
-    ROS_DEBUG_STREAM("Trajectory controller generates space velocity   : " << dx_desired_selected_);
+    ROS_DEBUG_STREAM("Trajectory controller generates space velocity :");
+    ROS_DEBUG_STREAM("dx_desired_selected_ : " << dx_desired_selected_);
   }
   else
   {
     ROS_INFO("=== Retrieve user space velocity...");
-    ROS_DEBUG_STREAM("User sent space velocity                         : " << dx_desired_);
+    ROS_DEBUG_STREAM("User sent space velocity : ");
+    ROS_DEBUG_STREAM("dx_desired_ (omega)  : " << dx_desired_);
 
-    ROS_INFO("=== Perform constraints compensation...");
-    cc_.setXCurrent(x_current_);
-    cc_.setDxInput(dx_desired_);
-    cc_.run(dx_desired_selected_);
-    // dx_desired_selected_ = dx_desired_;
-    ROS_DEBUG_STREAM("Constraints compensator updates space velocity   : " << dx_desired_selected_);
+    // ROS_INFO("=== Perform constraints compensation...");
+    // cc_.setXCurrent(x_current_);
+    // cc_.setDxInput(dx_desired_);
+    // cc_.run(dx_desired_selected_);
+    dx_desired_selected_ = dx_desired_quat_;
+    // ROS_DEBUG_STREAM("Constraints compensator updates space velocity   : " << dx_desired_selected_);
   }
+
+  ROS_DEBUG_STREAM("Desired space velocity :");
+  ROS_DEBUG_STREAM("dx_desired_selected_ : " << dx_desired_selected_);
 
   ROS_INFO("=== Start IK computation...");
   ik_.setQCurrent(q_current_);
   ik_.setXCurrent(x_current_);
+  ik_.setOmega(dx_desired_);
   ik_.resolveInverseKinematic(dq_desired_, dx_desired_selected_);
-  ROS_DEBUG_STREAM("Inverse kinematic computes joint velocity        : " << dq_desired_);
+  ROS_DEBUG_STREAM("Inverse kinematic computes joint velocity :");
+  ROS_DEBUG_STREAM("dq_desired_          : " << dq_desired_);
 
   ROS_INFO("=== Integrate joint velocity...");
   vi_.setQCurrent(q_current_);
   vi_.integrate(dq_desired_, q_command_);
-  ROS_DEBUG_STREAM("Velocity integrator computes joint position      : " << q_command_);
+  ROS_DEBUG_STREAM("Velocity integrator computes joint position :");
+  ROS_DEBUG_STREAM("q_command_           : " << q_command_);
 
   /* Write joint command output */
   q_command = q_command_;
@@ -173,42 +198,24 @@ void CartesianController::publishDebugTopic_()
 
   /* debug current space position (result of forward kinematic) */
   geometry_msgs::Pose x_current_pose;
-  x_current_pose.position.x = x_current_[SpacePosition::kX];
-  x_current_pose.position.y = x_current_[SpacePosition::kY];
-  x_current_pose.position.z = x_current_[SpacePosition::kZ];
-  if (use_quaternion_)
-  {
-    x_current_pose.orientation.w = x_current_[SpacePosition::kQw];
-    x_current_pose.orientation.x = x_current_[SpacePosition::kQx];
-    x_current_pose.orientation.y = x_current_[SpacePosition::kQy];
-    x_current_pose.orientation.z = x_current_[SpacePosition::kQz];
-  }
-  else
-  {
-    x_current_pose.orientation.x = x_current_[SpacePosition::kRoll];
-    x_current_pose.orientation.y = x_current_[SpacePosition::kPitch];
-    x_current_pose.orientation.z = x_current_[SpacePosition::kYaw];
-  }
+  x_current_pose.position.x = x_current_.getX();
+  x_current_pose.position.y = x_current_.getY();
+  x_current_pose.position.z = x_current_.getZ();
+  x_current_pose.orientation.w = x_current_.getQw();
+  x_current_pose.orientation.x = x_current_.getQx();
+  x_current_pose.orientation.y = x_current_.getQy();
+  x_current_pose.orientation.z = x_current_.getQz();
   x_current_debug_pub_.publish(x_current_pose);
 
   /* debug space velocity which is sent to inverse kinematic solver */
   geometry_msgs::Pose dx_desired_pose;
-  dx_desired_pose.position.x = dx_desired_selected_[SpacePosition::kX];
-  dx_desired_pose.position.y = dx_desired_selected_[SpacePosition::kY];
-  dx_desired_pose.position.z = dx_desired_selected_[SpacePosition::kZ];
-  if (use_quaternion_)
-  {
-    dx_desired_pose.orientation.w = dx_desired_selected_[SpacePosition::kQw];
-    dx_desired_pose.orientation.x = dx_desired_selected_[SpacePosition::kQx];
-    dx_desired_pose.orientation.y = dx_desired_selected_[SpacePosition::kQy];
-    dx_desired_pose.orientation.z = dx_desired_selected_[SpacePosition::kQz];
-  }
-  else
-  {
-    dx_desired_pose.orientation.x = dx_desired_selected_[SpacePosition::kRoll];
-    dx_desired_pose.orientation.y = dx_desired_selected_[SpacePosition::kPitch];
-    dx_desired_pose.orientation.z = dx_desired_selected_[SpacePosition::kYaw];
-  }
+  dx_desired_pose.position.x = dx_desired_selected_.getX();
+  dx_desired_pose.position.y = dx_desired_selected_.getY();
+  dx_desired_pose.position.z = dx_desired_selected_.getZ();
+  dx_desired_pose.orientation.w = dx_desired_selected_.getQw();
+  dx_desired_pose.orientation.x = dx_desired_selected_.getQx();
+  dx_desired_pose.orientation.y = dx_desired_selected_.getQy();
+  dx_desired_pose.orientation.z = dx_desired_selected_.getQz();
   dx_desired_debug_pub_.publish(dx_desired_pose);
 }
 }

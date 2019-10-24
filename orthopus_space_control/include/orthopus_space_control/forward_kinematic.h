@@ -39,6 +39,7 @@ class ForwardKinematic
 public:
   ForwardKinematic(const int joint_number, const bool use_quaternion);
   void init(const std::string end_effector_link);
+  void reset();
   void resolveForwardKinematic();
   void setQCurrent(const JointPosition& q_current);
   void getXCurrent(SpacePosition& x_current);
@@ -48,6 +49,7 @@ private:
   ros::NodeHandle n_;
 
   bool use_quaternion_;
+  bool init_flag_;
   int joint_number_;
 
   std::string end_effector_link_;
@@ -55,6 +57,7 @@ private:
   SpacePosition x_current_;
   robot_model::RobotModelPtr kinematic_model_;
   robot_state::RobotStatePtr kinematic_state_;
+  Eigen::Quaterniond conv_quat_prev_;
 };
 }
 #endif

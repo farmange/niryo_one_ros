@@ -28,7 +28,7 @@ namespace space_control
 class SpaceVelocity : public SpaceBase
 {
 public:
-  SpaceVelocity(bool use_quaternion) : SpaceBase(use_quaternion){};
+  SpaceVelocity() : SpaceBase(){};
 
 private:
 };

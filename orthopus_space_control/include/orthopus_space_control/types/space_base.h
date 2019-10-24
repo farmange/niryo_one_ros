@@ -20,6 +20,12 @@
 #define CARTESIAN_CONTROLLER_SPACE_BASE_H
 
 #include "ros/ros.h"
+#include "tf/tf.h"
+
+// Eigen
+#include "Eigen/Dense"
+
+typedef Eigen::Matrix<double, 7, 1> Vector7d;
 
 namespace space_control
 {
@@ -32,60 +38,139 @@ namespace space_control
 class SpaceBase : public std::vector<double>
 {
 public:
-  /** Position part of the vector */
-  enum PositionIndex
-  {
-    kX = 0, /**< X component */
-    kY = 1, /**< Y component */
-    kZ = 2  /**< Z component */
-  };
-
-  /** Orientation part of the vector (Euler form) */
-  enum EulerIndex
-  {
-    kRoll = 3,  /**< Roll component */
-    kPitch = 4, /**< Pitch component */
-    kYaw = 5    /**< Yaw component */
-  };
-
-  /** Orientation part of the vector (quaternion form) */
-  enum QuatIndex
-  {
-    kQw = 3, /**< Scalar part of the quaternion */
-    kQx = 4, /**< X component of vector part of the quaternion */
-    kQy = 5, /**< Y component of vector part of the quaternion */
-    kQz = 6  /**< Z component of vector part of the quaternion */
-  };
-
-  SpaceBase(bool use_quaternion) : use_quaternion_(use_quaternion)
-  {
-    if (use_quaternion_)
-    {
-      resize(7, 0.0);
-    }
-    else
-    {
-      resize(6, 0.0);
-    }
-  }
-
+  SpaceBase() : position_(0, 0, 0), orientation_(0, 0, 0, 0){};
   virtual ~SpaceBase() = 0;
 
-  bool getUseQuaternion()
+  /* Setter / Getter */
+  void setX(double x)
   {
-    return use_quaternion_;
+    position_(0) = x;
+  };
+  double getX() const
+  {
+    return position_(0);
+  };
+
+  void setY(double y)
+  {
+    position_(1) = y;
+  };
+  double getY() const
+  {
+    return position_(1);
+  };
+
+  void setZ(double z)
+  {
+    position_(2) = z;
+  };
+  double getZ() const
+  {
+    return position_(2);
+  };
+
+  double getQw() const
+  {
+    return orientation_.getW();
+  };
+  void setQw(double qw)
+  {
+    orientation_.setW(qw);
+  };
+
+  double getQx() const
+  {
+    return orientation_.getX();
+  };
+  void setQx(double qx)
+  {
+    orientation_.setX(qx);
+  };
+
+  double getQy() const
+  {
+    return orientation_.getY();
+  };
+  void setQy(double qy)
+  {
+    orientation_.setY(qy);
+  };
+
+  double getQz() const
+  {
+    return orientation_.getZ();
+  };
+  void setQz(double qz)
+  {
+    orientation_.setZ(qz);
+  };
+
+  Eigen::Vector3d getPosition() const
+  {
+    return position_;
+  }
+  void setPosition(const Eigen::Vector3d& p)
+  {
+    position_ = p;
   }
 
-  /* Overload ostream << operator */
+  tf::Quaternion getOrientation() const
+  {
+    return orientation_;
+  }
+  void setOrientation(const tf::Quaternion& q)
+  {
+    orientation_ = q;
+  }
+
+  Vector7d getRawVector()
+  {
+    Vector7d ret;
+    ret(0) = position_(0);
+    ret(1) = position_(1);
+    ret(2) = position_(2);
+    ret(3) = double(orientation_.getW());
+    ret(4) = double(orientation_.getX());
+    ret(5) = double(orientation_.getY());
+    ret(6) = double(orientation_.getZ());
+    return ret;
+  }
+
+  double operator[](int i) const
+  {
+    if (i >= 0 && i < 3)
+    {
+      return position_[i];
+    }
+    else if (i == 3)
+    {
+      return orientation_.w();
+    }
+    else if (i == 4)
+    {
+      return orientation_.x();
+    }
+    else if (i == 5)
+    {
+      return orientation_.y();
+    }
+    else if (i == 6)
+    {
+      return orientation_.z();
+    }
+  }
+
+  /* ostream << operator */
   friend std::ostream& operator<<(std::ostream& os, const SpaceBase& sp)
   {
-    using namespace std;
-    copy(sp.begin(), sp.end(), ostream_iterator<double>(os, ", "));
-    return os;
+    return os << "position : [" << sp.position_(0) << ", " << sp.position_(1) << ", " << sp.position_(2)
+              << "] orientation :[" << sp.orientation_.getW() << ", " << sp.orientation_.getX() << ", "
+              << sp.orientation_.getY() << ", " << sp.orientation_.getZ() << "]";
   }
 
 private:
-  bool use_quaternion_;
+  Eigen::Vector3d position_;
+  tf::Quaternion orientation_;
 };
 }
 #endif

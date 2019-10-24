@@ -25,21 +25,15 @@ namespace space_control
 ConstraintsCompensator::ConstraintsCompensator(const int joint_number, const bool use_quaternion)
   : joint_number_(joint_number)
   , use_quaternion_(use_quaternion)
-  , x_current_(use_quaternion)
-  , x_const_(use_quaternion)
-  , dx_input_(use_quaternion)
+  , x_current_()
+  , x_const_()
+  , dx_input_()
   , sampling_period_(0.0)
 {
   ROS_DEBUG_STREAM("ConstraintsCompensator constructor");
 
-  if (use_quaternion_)
-  {
-    orientation_dimension_ = 4;
-  }
-  else
-  {
-    orientation_dimension_ = 3;
-  }
+  orientation_dimension_ = 4;
+
   pi_ctrl_.resize(orientation_dimension_);
   euler_factor_.resize(orientation_dimension_, 0.0);
 }
@@ -57,14 +51,14 @@ void ConstraintsCompensator::setOrientationConstraint(const SpacePosition& x_con
 void ConstraintsCompensator::init(double sampling_period)
 {
   sampling_period_ = sampling_period;
-  double p_gain, i_gain, cartesian_max_vel;
+  double p_gain, i_gain, space_position_max_vel;
   ros::param::get("~constraint_ctrl_p_gain", p_gain);
   ros::param::get("~constraint_ctrl_i_gain", i_gain);
-  ros::param::get("~cartesian_max_vel", cartesian_max_vel);
+  ros::param::get("~space_position_max_vel", space_position_max_vel);
 
   for (int i = 0; i < orientation_dimension_; i++)
   {
-    pi_ctrl_[i].init(sampling_period_, -cartesian_max_vel, cartesian_max_vel);
+    pi_ctrl_[i].init(sampling_period_, -space_position_max_vel, space_position_max_vel);
     pi_ctrl_[i].setGains(p_gain, i_gain);
   }
 }
@@ -85,32 +79,7 @@ void ConstraintsCompensator::setXCurrent(const SpacePosition& x_current)
   euler_factor_[0] = 1.0;
   euler_factor_[1] = 1.0;
   euler_factor_[2] = 1.0;
-  if (use_quaternion_)
-  {
-    euler_factor_[3] = 1.0;
-  }
-  else
-  {
-    /* HACK : This allows to handle axis inversion. For exemple, when the tool frame orientation
-     * is RPY = (0,0,PI) then roll and pitch are in opposite direction from initial orientation
-     * RPY = (0,0,0).
-     */
-    if (std::abs(x_current_[SpacePosition::kRoll]) > M_PI / 2)
-    {
-      euler_factor_[1] = -1.0;
-      euler_factor_[2] = -1.0;
-    }
-    if (std::abs(x_current_[SpacePosition::kPitch]) > M_PI / 2)
-    {
-      euler_factor_[0] = -1.0;
-      euler_factor_[2] = -1.0;
-    }
-    if (std::abs(x_current_[SpacePosition::kYaw]) > M_PI / 2)
-    {
-      euler_factor_[0] = -1.0;
-      euler_factor_[1] = -1.0;
-    }
-  }
+  euler_factor_[3] = 1.0;
 }
 
 void ConstraintsCompensator::activeOrientationConstraint(SpaceVelocity& dx_output)
@@ -129,7 +98,7 @@ void ConstraintsCompensator::activeOrientationConstraint(SpaceVelocity& dx_outpu
       // ROS_ERROR("PI debug (%d) ; x_const_ = %5f ; x_current_ = %5f ; error = %5f ; pi_result = %5f ; "
       //           "euler_factor_ = %5f",
       //           i, x_const_[3 + i], x_current_[3 + i], error, pi_result, euler_factor_[i]);
-      dx_output[3 + i] = pi_result;
+      // dx_output[3 + i] = pi_result;
     }
   }
 }
@@ -144,95 +113,13 @@ void ConstraintsCompensator::run(SpaceVelocity& dx_output)
 
 void ConstraintsCompensator::detectOrientationSide_(const SpacePosition& x_input)
 {
-  if (use_quaternion_)
-  {
-    if ((std::abs(x_input[SpacePosition::kQw]) < 0.1) && (std::abs(x_input[SpacePosition::kQw]) < 0.1) &&
-        (std::abs(x_input[SpacePosition::kQy]) < 0.1) && (std::abs(x_input[SpacePosition::kQz]) < 1.1) &&
-        (std::abs(x_input[SpacePosition::kQz]) > 0.9))
-    {
-      orientation_side_ = ORIENTATION_BACK;
-      ROS_ERROR("ORIENTATION_BACK");
-    }
-    else if ((std::abs(x_input[SpacePosition::kQw]) < 1.1) && (std::abs(x_input[SpacePosition::kQw]) > 0.9) &&
-             (std::abs(x_input[SpacePosition::kQx]) < 0.1) && (std::abs(x_input[SpacePosition::kQy]) < 0.1) &&
-             (std::abs(x_input[SpacePosition::kQz]) < 0.1))
-    {
-      orientation_side_ = ORIENTATION_FRONT;
-      ROS_ERROR("ORIENTATION_FRONT");
-    }
-    else
-    {
-      ROS_ERROR("Orientation undefined : could not properly constrain orientation !");
-      orientation_side_ = ORIENTATION_UNDEFINED;
-    }
-  }
-  else
-  {
-    if ((std::abs(x_input[3]) < 0.2) && (std::abs(x_input[4]) < 0.2) && (std::abs(x_input[5]) < 3.34) &&
-        (std::abs(x_input[5]) > 2.94))
-    {
-      orientation_side_ = ORIENTATION_BACK;
-    }
-    else if ((std::abs(x_input[3]) < 0.2) && (std::abs(x_input[4]) < 0.2) && (std::abs(x_input[5]) < 0.2))
-    {
-      orientation_side_ = ORIENTATION_FRONT;
-    }
-    else
-    {
-      ROS_ERROR("Orientation undefined : could not properly constrain orientation !");
-      orientation_side_ = ORIENTATION_UNDEFINED;
-    }
-  }
 }
 
 void ConstraintsCompensator::updateOrientationConstraint_()
 {
-  if (orientation_side_ == ORIENTATION_FRONT)
-  {
-    if (use_quaternion_)
-    {
-      x_const_[SpacePosition::kQw] = 1.0;
-      x_const_[SpacePosition::kQx] = 0.0;
-      x_const_[SpacePosition::kQy] = 0.0;
-      x_const_[SpacePosition::kQz] = 0.0;
-    }
-    else
-    {
-      x_const_[SpacePosition::kRoll] = 0.0;
-      x_const_[SpacePosition::kPitch] = 0.0;
-      x_const_[SpacePosition::kYaw] = 0.0;
-    }
-  }
-  else if (orientation_side_ == ORIENTATION_BACK)
-  {
-    if (use_quaternion_)
-    {
-      x_const_[SpacePosition::kQw] = 0.0;
-      x_const_[SpacePosition::kQx] = 0.0;
-      x_const_[SpacePosition::kQy] = 0.0;
-      x_const_[SpacePosition::kQz] = -1.0;
-    }
-    else
-    {
-      x_const_[SpacePosition::kRoll] = 0.0;
-      x_const_[SpacePosition::kPitch] = 0.0;
-      x_const_[SpacePosition::kYaw] = -M_PI;
-    }
-  }
 }
 
 void ConstraintsCompensator::eulerFlipHandling_()
 {
-  if (use_quaternion_ == false)
-  {
-    /* HACK : As we only work in the same side (negative yaw) for our use cases
-     * (space control in front and back direction of the arm only), this ensure that
-     * no flipping happened
-     */
-    if (x_current_[SpacePosition::kYaw] > M_PI / 2)
-    {
-      x_current_[SpacePosition::kYaw] -= 2 * M_PI;
-    }
-  }
 }
 }

@@ -38,10 +38,10 @@ RobotManager::RobotManager(const int joint_number, const bool use_quaternion, co
   , q_command_(joint_number)
   , q_current_(joint_number)
   , q_meas_(joint_number)
-  , x_drink_pose_(use_quaternion)
-  , x_stand_pose_(use_quaternion)
-  , dx_desired_(use_quaternion)
-  , dx_desired_prev_(use_quaternion)
+  , x_drink_pose_()
+  , x_stand_pose_()
+  , dx_desired_()
+  , dx_desired_prev_()
 {
   ROS_DEBUG_STREAM("RobotManager constructor");
   retrieveParameters_();
@@ -94,53 +94,15 @@ void RobotManager::init()
 void RobotManager::callbackInputDeviceVelocity_(const geometry_msgs::TwistStampedPtr& msg)
 {
   //   ROS_DEBUG_STREAM("callbackInputDeviceVelocity");
-  for (int i = 0; i < dx_desired_.size(); i++)
-  {
-    dx_desired_[i] = 0.0;
-  }
 
-  dx_desired_[SpaceVelocity::kX] = msg->twist.linear.x;
-  dx_desired_[SpaceVelocity::kY] = msg->twist.linear.y;
-  dx_desired_[SpaceVelocity::kZ] = msg->twist.linear.z;
+  dx_desired_.setX(msg->twist.linear.x * space_position_max_vel_);
+  dx_desired_.setY(msg->twist.linear.y * space_position_max_vel_);
+  dx_desired_.setZ(msg->twist.linear.z * space_position_max_vel_);
 
-  if (use_quaternion_)
-  {
-    dx_desired_[SpaceVelocity::kQw] = 0.0;
-    dx_desired_[SpaceVelocity::kQx] = msg->twist.angular.x;
-    dx_desired_[SpaceVelocity::kQy] = msg->twist.angular.y;
-    dx_desired_[SpaceVelocity::kQz] = msg->twist.angular.z;
-  }
-  else
-  {
-    dx_desired_[SpaceVelocity::kRoll] = msg->twist.angular.x;
-    dx_desired_[SpaceVelocity::kPitch] = msg->twist.angular.y;
-    dx_desired_[SpaceVelocity::kYaw] = msg->twist.angular.z;
-  }
-
-  for (int i = 0; i < 3; i++)
-  {
-    if (dx_desired_[i] != 0)
-    {
-      cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(i, 1.0);
-    }
-    else if (dx_desired_[i] == 0 && dx_desired_prev_[i] != 0)
-    {
-      cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(i, 0.001);
-    }
-    dx_desired_prev_[i] = dx_desired_[i];
-  }
-  for (int i = 3; i < 6; i++)
-  {
-    if (dx_desired_[i] != 0)
-    {
-      cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(i, 1.0);
-    }
-    else if (dx_desired_[i] == 0 && dx_desired_prev_[i] != 0)
-    {
-      cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(i, 0.001);
-    }
-    dx_desired_prev_[i] = dx_desired_[i];
-  }
+  dx_desired_.setQw(0.0);
+  dx_desired_.setQx(msg->twist.angular.x * space_orientation_max_vel_);
+  dx_desired_.setQy(msg->twist.angular.y * space_orientation_max_vel_);
+  dx_desired_.setQz(msg->twist.angular.z * space_orientation_max_vel_);
 }
 
 void RobotManager::callbackLearningMode_(const std_msgs::BoolPtr& msg)
@@ -236,54 +198,58 @@ void RobotManager::retrieveParameters_()
   ros::param::get("~stand_pose/orientation/y", stand_pose.orientation.y);
   ros::param::get("~stand_pose/orientation/z", stand_pose.orientation.z);
 
-  x_drink_pose_[SpacePosition::kX] = drink_pose.position.x;
-  x_drink_pose_[SpacePosition::kY] = drink_pose.position.y;
-  x_drink_pose_[SpacePosition::kZ] = drink_pose.position.z;
+  // x_drink_pose_[SpacePosition::kX] = drink_pose.position.x;
+  // x_drink_pose_[SpacePosition::kY] = drink_pose.position.y;
+  // x_drink_pose_[SpacePosition::kZ] = drink_pose.position.z;
 
-  x_stand_pose_[SpacePosition::kX] = stand_pose.position.x;
-  x_stand_pose_[SpacePosition::kY] = stand_pose.position.y;
-  x_stand_pose_[SpacePosition::kZ] = stand_pose.position.z;
+  // x_stand_pose_[SpacePosition::kX] = stand_pose.position.x;
+  // x_stand_pose_[SpacePosition::kY] = stand_pose.position.y;
+  // x_stand_pose_[SpacePosition::kZ] = stand_pose.position.z;
 
-  if (use_quaternion_)
-  {
-    x_drink_pose_[SpacePosition::kQw] = drink_pose.orientation.w;
-    x_drink_pose_[SpacePosition::kQx] = drink_pose.orientation.x;
-    x_drink_pose_[SpacePosition::kQy] = drink_pose.orientation.y;
-    x_drink_pose_[SpacePosition::kQz] = drink_pose.orientation.z;
+  // if (use_quaternion_)
+  // {
+  //   x_drink_pose_[SpacePosition::kQw] = drink_pose.orientation.w;
+  //   x_drink_pose_[SpacePosition::kQx] = drink_pose.orientation.x;
+  //   x_drink_pose_[SpacePosition::kQy] = drink_pose.orientation.y;
+  //   x_drink_pose_[SpacePosition::kQz] = drink_pose.orientation.z;
 
-    x_stand_pose_[SpacePosition::kQw] = stand_pose.orientation.w;
-    x_stand_pose_[SpacePosition::kQx] = stand_pose.orientation.x;
-    x_stand_pose_[SpacePosition::kQy] = stand_pose.orientation.y;
-    x_stand_pose_[SpacePosition::kQz] = stand_pose.orientation.z;
-  }
-  else
-  {
-    double roll, pitch, yaw;
-    tf::Quaternion q;
-    /* Convert quaternion pose in RPY */
-    q.setValue(drink_pose.orientation.x, drink_pose.orientation.y, drink_pose.orientation.z, drink_pose.orientation.w);
+  //   x_stand_pose_[SpacePosition::kQw] = stand_pose.orientation.w;
+  //   x_stand_pose_[SpacePosition::kQx] = stand_pose.orientation.x;
+  //   x_stand_pose_[SpacePosition::kQy] = stand_pose.orientation.y;
+  //   x_stand_pose_[SpacePosition::kQz] = stand_pose.orientation.z;
+  // }
+  // else
+  // {
+  //   double roll, pitch, yaw;
+  //   tf::Quaternion q;
+  //   /* Convert quaternion pose in RPY */
+  //   q.setValue(drink_pose.orientation.x, drink_pose.orientation.y, drink_pose.orientation.z,
+  //   drink_pose.orientation.w);
 
-    tf::Matrix3x3 m1(q);
-    m1.getRPY(roll, pitch, yaw);
+  //   tf::Matrix3x3 m1(q);
+  //   m1.getRPY(roll, pitch, yaw);
 
-    x_drink_pose_[SpacePosition::kRoll] = roll;
-    x_drink_pose_[SpacePosition::kPitch] = pitch;
-    x_drink_pose_[SpacePosition::kYaw] = yaw;
+  //   x_drink_pose_[SpacePosition::kRoll] = roll;
+  //   x_drink_pose_[SpacePosition::kPitch] = pitch;
+  //   x_drink_pose_[SpacePosition::kYaw] = yaw;
 
-    /* Convert quaternion pose in RPY */
-    q.setValue(stand_pose.orientation.x, stand_pose.orientation.y, stand_pose.orientation.z, stand_pose.orientation.w);
+  //   /* Convert quaternion pose in RPY */
+  //   q.setValue(stand_pose.orientation.x, stand_pose.orientation.y, stand_pose.orientation.z,
+  //   stand_pose.orientation.w);
 
-    tf::Matrix3x3 m2(q);
-    m2.getRPY(roll, pitch, yaw);
+  //   tf::Matrix3x3 m2(q);
+  //   m2.getRPY(roll, pitch, yaw);
 
-    x_stand_pose_[SpacePosition::kRoll] = roll;
-    x_stand_pose_[SpacePosition::kPitch] = pitch;
-    x_stand_pose_[SpacePosition::kYaw] = -yaw;  // HACK force negative side of rotation (conversion cannot handle that)
-  }
+  //   x_stand_pose_[SpacePosition::kRoll] = roll;
+  //   x_stand_pose_[SpacePosition::kPitch] = pitch;
+  //   x_stand_pose_[SpacePosition::kYaw] = -yaw;  // HACK force negative side of rotation (conversion cannot handle
+  //   that)
+  // }
 
   ros::param::get("~pose_goal_joints_tolerance", pose_goal_joints_tolerance_);
   ros::param::get("~sampling_frequency", sampling_freq_);
-  ros::param::get("~cartesian_max_vel", cartesian_max_vel_);
+  ros::param::get("~space_position_max_vel", space_position_max_vel_);
+  ros::param::get("~space_orientation_max_vel", space_orientation_max_vel_);
   ros::param::get("~debug", debug_);
 }
 void RobotManager::initializeStateMachine_()
@@ -594,7 +560,7 @@ double RobotManager::computeDuration_(const JointPosition q_pose) const
       delta_max = delta_tmp;
     }
   }
-  duration = delta_max / cartesian_max_vel_;
+  duration = delta_max / space_position_max_vel_;
   return duration;
 }
 
@@ -622,7 +588,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "robot_manager");
   int joint_number = 6;
-  bool use_quaternion = false;
+  bool use_quaternion = true;
   bool debug = false;
 
   ros::param::get("~joint_number", joint_number);

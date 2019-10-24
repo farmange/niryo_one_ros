@@ -94,10 +94,11 @@ private:
 
   SpacePosition x_current_;
   SpacePosition x_orientation_constraint_;
+  SpacePosition x_des_quat_int;
 
   SpaceVelocity dx_user_desired_;
   SpaceVelocity dx_desired_;
-  SpaceVelocity dx_desired_prev_;
+  SpaceVelocity dx_desired_quat_;
   SpaceVelocity dx_input_constrained_;
   SpaceVelocity dx_desired_selected_;
 

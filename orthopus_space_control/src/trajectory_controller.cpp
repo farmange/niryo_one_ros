@@ -23,11 +23,7 @@
 namespace space_control
 {
 TrajectoryController::TrajectoryController(const int joint_number, const bool use_quaternion)
-  : joint_number_(joint_number)
-  , use_quaternion_(use_quaternion)
-  , x_traj_desired_(use_quaternion)
-  , x_current_(use_quaternion)
-  , sampling_period_(0.0)
+  : joint_number_(joint_number), use_quaternion_(use_quaternion), x_traj_desired_(), x_current_(), sampling_period_(0.0)
 {
   ROS_DEBUG_STREAM("TrajectoryController constructor");
 
@@ -40,14 +36,14 @@ void TrajectoryController::init(double sampling_period)
 {
   sampling_period_ = sampling_period;
   is_completed_ = true;
-  double p_gain, i_gain, cartesian_max_vel;
+  double p_gain, i_gain, space_position_max_vel;
   ros::param::get("~trajectory_ctrl_p_gain", p_gain);
   ros::param::get("~trajectory_ctrl_i_gain", i_gain);
-  ros::param::get("~cartesian_max_vel", cartesian_max_vel);
+  ros::param::get("~space_position_max_vel", space_position_max_vel);
 
   for (int i = 0; i < x_traj_desired_.size(); i++)
   {
-    pi_ctrl_[i].init(sampling_period_, -cartesian_max_vel, cartesian_max_vel);
+    pi_ctrl_[i].init(sampling_period_, -space_position_max_vel, space_position_max_vel);
     pi_ctrl_[i].setGains(p_gain, i_gain);
     euler_factor_[i] = 1.0;
   }
@@ -71,32 +67,7 @@ void TrajectoryController::setXCurrent(const SpacePosition& x_current)
   euler_factor_[2] = 1.0;
   euler_factor_[3] = 1.0;
   euler_factor_[4] = 1.0;
-  if (use_quaternion_)
-  {
-    euler_factor_[5] = 1.0;
-  }
-  else
-  {
-    /* HACK : This allows to handle axis inversion. For exemple, when the tool frame orientation
-     * is RPY = (0,0,PI) then roll and pitch are in opposite direction from initial orientation
-     * RPY = (0,0,0).
-     */
-    if (std::abs(x_current_[SpacePosition::kRoll]) > M_PI / 2)
-    {
-      euler_factor_[4] = -1.0;
-      euler_factor_[5] = -1.0;
-    }
-    if (std::abs(x_current_[SpacePosition::kPitch]) > M_PI / 2)
-    {
-      euler_factor_[3] = -1.0;
-      euler_factor_[5] = -1.0;
-    }
-    if (std::abs(x_current_[SpacePosition::kYaw]) > M_PI / 2)
-    {
-      euler_factor_[3] = -1.0;
-      euler_factor_[4] = -1.0;
-    }
-  }
+  euler_factor_[5] = 1.0;
 }
 
 void TrajectoryController::setTrajectoryPose(const SpacePosition& x_pose)
@@ -130,7 +101,7 @@ void TrajectoryController::updateTrajectoryCompletion_()
         ROS_DEBUG("Trajectory status : delta of %5f on %d axis", x_traj_desired_[i] - x_current_[i], i);
       }
     }
-    for (int i = 3; i < 6; i++)
+    for (int i = 3; i < 7; i++)
     {
       if (std::abs(x_traj_desired_[i] - x_current_[i]) > traj_orientation_tolerance_)
       {
@@ -143,17 +114,6 @@ void TrajectoryController::updateTrajectoryCompletion_()
 
 void TrajectoryController::eulerFlipHandling_()
 {
-  if (use_quaternion_ == false)
-  {
-    /* HACK : As we only work in the same side (negative yaw) for our use cases
-     * (space control in front and back direction of the arm only), this ensure that
-     * no flipping happened
-     */
-    if (x_current_[SpacePosition::kYaw] > M_PI / 2)
-    {
-      x_current_[SpacePosition::kYaw] -= 2 * M_PI;
-    }
-  }
 }
 
 void TrajectoryController::processPi_(SpaceVelocity& dx_output)
@@ -163,7 +123,7 @@ void TrajectoryController::processPi_(SpaceVelocity& dx_output)
     double error = (x_traj_desired_[i] - x_current_[i] * euler_factor_[i]);
     double pi_result;
     pi_ctrl_[i].execute(error, pi_result);
-    dx_output[i] = pi_result;
+    // dx_output[i] = pi_result;
   }
 }
 }

@@ -5,17 +5,21 @@
 #
 #  Minimize cartesian velocity coefs : dx (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
 #        
-alpha_weight:     [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+alpha_weight:     [4., 4., 4., 1., 1., 1., 1.]
+# alpha_weight:     [0., 0., 0., 0., 0., 0., 0.]
 
 #
 #  Minimize joints velocities coefs : dq
 #        
-beta_weight:      [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+beta_weight:      [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+# beta_weight:     [0., 0., 0., 0., 0., 0., 0.]
 
 #
 #  Minimize cartesian position coefs : x (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
 #        
-gamma_weight:     [0., 0., 0., 0., 0., 0., 0.]
+# gamma_weight:     [400., 400., 400., 100., 100., 100., 100.]
+# gamma_weight:     [1000000., 1000000., 1000000., 0.0, 50000., 1., 50000.]
+gamma_weight:     [0., 0., 0., 0.0, 0., 0., 0.]
 
 #
 #  Saved joint positions 
@@ -67,13 +71,14 @@ trajectory_ctrl_i_gain      : 0.1
 constraint_ctrl_p_gain      : 10.0
 constraint_ctrl_i_gain      : 0.1
 
-joint_max_vel               : 0.4
-cartesian_max_vel           : 0.8
+joint_max_vel               : 0.4   # rad/s
+space_position_max_vel      : 0.5   # m/s
+space_orientation_max_vel   : 0.5   # rad/s
 
 debug                       : true
 # Pose goal joints tolerance
-pose_goal_joints_tolerance  : 0.03 # rad
+pose_goal_joints_tolerance  : 0.03  # rad
 
-sampling_frequency          : 10
+sampling_frequency          : 10    # Hz
 
 

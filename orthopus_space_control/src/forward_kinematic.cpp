@@ -22,7 +22,6 @@
 
 // Eigen
 #include "Eigen/Dense"
-#include "eigen_conversions/eigen_msg.h"
 
 // TF
 #include "tf/tf.h"
@@ -30,7 +29,7 @@
 namespace space_control
 {
 ForwardKinematic::ForwardKinematic(const int joint_number, const bool use_quaternion)
-  : joint_number_(joint_number), use_quaternion_(use_quaternion), x_current_(use_quaternion), q_current_(joint_number)
+  : joint_number_(joint_number), use_quaternion_(use_quaternion), x_current_(), q_current_(joint_number)
 {
   ROS_DEBUG_STREAM("ForwardKinematic constructor");
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
@@ -43,12 +42,16 @@ ForwardKinematic::ForwardKinematic(const int joint_number, const bool use_quater
 void ForwardKinematic::init(const std::string end_effector_link)
 {
   end_effector_link_ = end_effector_link;
+  init_flag_ = true;
+}
+
+void ForwardKinematic::reset()
+{
+  init_flag_ = true;
 }
 
 void ForwardKinematic::resolveForwardKinematic()
 {
-  geometry_msgs::Pose current_pose;
-
   /* Set kinemtic state of the robot to the previous joint positions computed */
   kinematic_state_->setVariablePositions(q_current_);
   kinematic_state_->updateLinkTransforms();
@@ -57,34 +60,37 @@ void ForwardKinematic::resolveForwardKinematic()
   const Eigen::Affine3d& end_effector_state =
       kinematic_state_->getGlobalLinkTransform(kinematic_state_->getLinkModel(end_effector_link_));
 
-  /* Convert cartesian state to goemetry_msgs::Pose */
-  tf::poseEigenToMsg(end_effector_state, current_pose);
-
-  x_current_[SpacePosition::kX] = current_pose.position.x;
-  x_current_[SpacePosition::kY] = current_pose.position.y;
-  x_current_[SpacePosition::kZ] = current_pose.position.z;
-
-  if (use_quaternion_)
+  /* Convert rotation matrix in quaternion */
+  // TODO QUAT : eigen or tf ?
+  Eigen::Quaterniond conv_quat(end_effector_state.linear());
+  Eigen::Quaterniond* final_quat;
+  if (init_flag_)
   {
-    x_current_[SpacePosition::kQw] = current_pose.orientation.w;
-    x_current_[SpacePosition::kQx] = current_pose.orientation.x;
-    x_current_[SpacePosition::kQy] = current_pose.orientation.y;
-    x_current_[SpacePosition::kQz] = current_pose.orientation.z;
+    init_flag_ = false;
+    final_quat = new Eigen::Quaterniond(conv_quat);
   }
   else
   {
-    /* Convert quaternion pose in RPY */
-    tf::Quaternion q(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
-                     current_pose.orientation.w);
-
-    tf::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-
-    x_current_[SpacePosition::kRoll] = roll;
-    x_current_[SpacePosition::kPitch] = pitch;
-    x_current_[SpacePosition::kYaw] = yaw;
+    double diff_norm = sqrt(pow(conv_quat.w() - conv_quat_prev_.w(), 2) + pow(conv_quat.x() - conv_quat_prev_.x(), 2) +
+                            pow(conv_quat.y() - conv_quat_prev_.y(), 2) + pow(conv_quat.z() - conv_quat_prev_.z(), 2));
+    if (diff_norm > 1)
+    {
+      final_quat = new Eigen::Quaterniond(-conv_quat.w(), -conv_quat.x(), -conv_quat.y(), -conv_quat.z());
+    }
+    else
+    {
+      final_quat = new Eigen::Quaterniond(conv_quat);
+    }
   }
+  conv_quat_prev_ = *final_quat;
+
+  x_current_.setX(end_effector_state.translation()[0]);
+  x_current_.setY(end_effector_state.translation()[1]);
+  x_current_.setZ(end_effector_state.translation()[2]);
+  x_current_.setQw(final_quat->w());
+  x_current_.setQx(final_quat->x());
+  x_current_.setQy(final_quat->y());
+  x_current_.setQz(final_quat->z());
 }
 
 void ForwardKinematic::setQCurrent(const JointPosition& q_current)
