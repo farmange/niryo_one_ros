@@ -5,8 +5,8 @@
 #
 #  Minimize cartesian velocity coefs : dx (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
 #        
-alpha_weight:     [4., 4., 4., 1., 1., 1., 1.]
-# alpha_weight:     [0., 0., 0., 0., 0., 0., 0.]
+# alpha_weight:     [4., 4., 4., 1., 1., 1., 1.]
+alpha_weight:     [0., 0., 0., 0., 0., 0., 0.]
 
 #
 #  Minimize joints velocities coefs : dq
@@ -19,12 +19,16 @@ beta_weight:      [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
 #        
 # gamma_weight:     [400., 400., 400., 100., 100., 100., 100.]
 # gamma_weight:     [1000000., 1000000., 1000000., 0.0, 50000., 1., 50000.]
-gamma_weight:     [0., 0., 0., 0.0, 0., 0., 0.]
+# gamma_weight:     [0., 0., 0., 0.0, 0., 0., 0.]
+
+delta_weight: [400., 400., 400.]
+epsilon_weight: [0., 100., 100., 100.]
 
 #
 #  Saved joint positions 
 #        
-home_position:    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+# home_position:    [0.75, 0.1, 0.2, 0.3, 0.4, 0.5]
+home_position:    [0., 0., 0., 0., 0., 0.]
 rest_position:    [0.0, 0.64, -1.397, 0.0, 0.0, 0.0]
 
 

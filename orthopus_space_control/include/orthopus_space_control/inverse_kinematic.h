@@ -100,15 +100,19 @@ private:
 
   SpaceVelocity dx_omega_;
 
-  MatrixXd alpha_weight_; /*!< Diagonal matrix which contains weight for space velocity minimization */
-  MatrixXd beta_weight_;  /*!< Diagonal matrix which contains weight for joint velocity minimization */
-  MatrixXd gamma_weight_; /*!< Diagonal matrix which contains weight for space position minimization */
+  MatrixXd alpha_weight_;   /*!< Diagonal matrix which contains weight for space velocity minimization */
+  MatrixXd beta_weight_;    /*!< Diagonal matrix which contains weight for joint velocity minimization */
+  MatrixXd gamma_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
+  MatrixXd delta_weight_;   /*!< TODO */
+  MatrixXd epsilon_weight_; /*!< TODO */
 
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 
   robot_model::RobotModelPtr kinematic_model_;      /*!< MoveIt RobotModel pointer */
   robot_state::RobotStatePtr kinematic_state_;      /*!< MoveIt RobotState pointer */
   robot_state::JointModelGroup* joint_model_group_; /*!< MoveIt JointModelGroup pointer */
+
+  Eigen::Quaterniond quat_des;
 
   bool request_update_constraint_[6];
   double request_update_constraint_tolerance_[6];
@@ -117,10 +121,13 @@ private:
   void setAlphaWeight_(const std::vector<double>& alpha_weight);
   void setBetaWeight_(const std::vector<double>& beta_weight);
   void setGammaWeight_(const std::vector<double>& gamma_weight, const Eigen::Quaterniond& q);
+  void setDeltaWeight_(const std::vector<double>& delta_weight);
+  void setEpsilonWeight_(const std::vector<double>& epsilon_weight);
+
   bool getJacobian_(const robot_state::RobotStatePtr kinematic_state, const robot_state::JointModelGroup* group,
                     const robot_state::LinkModel* link, const robot_model::LinkModel* root_link_model,
                     const Eigen::Vector3d& reference_point_position, Eigen::MatrixXd& jacobian,
-                    bool use_quaternion_representation);
+                    bool use_quaternion_representation, bool impl);
 };
 }
 #endif
