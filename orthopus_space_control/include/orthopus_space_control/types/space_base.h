@@ -20,7 +20,6 @@
 #define CARTESIAN_CONTROLLER_SPACE_BASE_H
 
 #include "ros/ros.h"
-#include "tf/tf.h"
 
 // Eigen
 #include "Eigen/Dense"
@@ -71,38 +70,38 @@ public:
 
   double getQw() const
   {
-    return orientation_.getW();
+    return orientation_.w();
   };
   void setQw(double qw)
   {
-    orientation_.setW(qw);
+    orientation_.w() = qw;
   };
 
   double getQx() const
   {
-    return orientation_.getX();
+    return orientation_.x();
   };
   void setQx(double qx)
   {
-    orientation_.setX(qx);
+    orientation_.x() = qx;
   };
 
   double getQy() const
   {
-    return orientation_.getY();
+    return orientation_.y();
   };
   void setQy(double qy)
   {
-    orientation_.setY(qy);
+    orientation_.y() = qy;
   };
 
   double getQz() const
   {
-    return orientation_.getZ();
+    return orientation_.z();
   };
   void setQz(double qz)
   {
-    orientation_.setZ(qz);
+    orientation_.z() = qz;
   };
 
   Eigen::Vector3d getPosition() const
@@ -114,11 +113,11 @@ public:
     position_ = p;
   }
 
-  tf::Quaternion getOrientation() const
+  Eigen::Quaterniond getOrientation() const
   {
     return orientation_;
   }
-  void setOrientation(const tf::Quaternion& q)
+  void setOrientation(const Eigen::Quaterniond& q)
   {
     orientation_ = q;
   }
@@ -129,13 +128,39 @@ public:
     ret(0) = position_(0);
     ret(1) = position_(1);
     ret(2) = position_(2);
-    ret(3) = double(orientation_.getW());
-    ret(4) = double(orientation_.getX());
-    ret(5) = double(orientation_.getY());
-    ret(6) = double(orientation_.getZ());
+    ret(3) = orientation_.w();
+    ret(4) = orientation_.x();
+    ret(5) = orientation_.y();
+    ret(6) = orientation_.z();
     return ret;
   }
 
+  /* Write raw data operator */
+  double& operator[](int i)
+  {
+    if (i >= 0 && i < 3)
+    {
+      return position_[i];
+    }
+    else if (i == 3)
+    {
+      return orientation_.w();
+    }
+    else if (i == 4)
+    {
+      return orientation_.x();
+    }
+    else if (i == 5)
+    {
+      return orientation_.y();
+    }
+    else if (i == 6)
+    {
+      return orientation_.z();
+    }
+  }
+
+  /* Read raw data operator */
   double operator[](int i) const
   {
     if (i >= 0 && i < 3)
@@ -164,13 +189,13 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const SpaceBase& sp)
   {
     return os << "position : [" << sp.position_(0) << ", " << sp.position_(1) << ", " << sp.position_(2)
-              << "] orientation :[" << sp.orientation_.getW() << ", " << sp.orientation_.getX() << ", "
-              << sp.orientation_.getY() << ", " << sp.orientation_.getZ() << "]";
+              << "] orientation :[" << sp.orientation_.w() << ", " << sp.orientation_.x() << ", " << sp.orientation_.y()
+              << ", " << sp.orientation_.z() << "]";
   }
 
 private:
   Eigen::Vector3d position_;
-  tf::Quaternion orientation_;
+  Eigen::Quaterniond orientation_;
 };
 }
 #endif

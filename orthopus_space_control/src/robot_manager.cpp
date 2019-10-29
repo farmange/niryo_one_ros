@@ -403,9 +403,6 @@ void RobotManager::trajDrinkUpdate_()
   q_current_ = q_command_;
   ROS_INFO("    Done.");
 
-  cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(0, 0.1);
-  cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(1, 0.1);
-  cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(2, 0.1);
   cartesian_controller_.setDxDesired(dx_desired_);
   cartesian_controller_.setInputSelector(CartesianController::INPUT_TRAJECTORY);
   cartesian_controller_.run(q_current_, q_command_);
@@ -428,9 +425,6 @@ void RobotManager::trajStandUpdate_()
   q_current_ = q_command_;
   ROS_INFO("    Done.");
 
-  cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(0, 0.1);
-  cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(1, 0.1);
-  cartesian_controller_.getInverseKinematic()->requestUpdateAxisConstraints(2, 0.1);
   cartesian_controller_.setDxDesired(dx_desired_);
   cartesian_controller_.setInputSelector(CartesianController::INPUT_TRAJECTORY);
   cartesian_controller_.run(q_current_, q_command_);

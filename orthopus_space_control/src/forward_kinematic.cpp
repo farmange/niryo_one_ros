@@ -31,7 +31,6 @@ namespace space_control
 ForwardKinematic::ForwardKinematic(const int joint_number, const bool use_quaternion)
   : joint_number_(joint_number), use_quaternion_(use_quaternion), x_current_(), q_current_(joint_number)
 {
-  ROS_DEBUG_STREAM("ForwardKinematic constructor");
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   kinematic_model_ = robot_model_loader.getModel();
   kinematic_state_ = std::make_shared<robot_state::RobotState>(kinematic_model_);
@@ -60,37 +59,43 @@ void ForwardKinematic::resolveForwardKinematic()
   const Eigen::Affine3d& end_effector_state =
       kinematic_state_->getGlobalLinkTransform(kinematic_state_->getLinkModel(end_effector_link_));
 
-  /* Convert rotation matrix in quaternion */
-  // TODO QUAT : eigen or tf ?
+  /* Convert rotation matrix to quaternion */
   Eigen::Quaterniond conv_quat(end_effector_state.linear());
-  Eigen::Quaterniond* final_quat;
+  /* Warning : During the convertion in quaternion, sign could change as there are tow quaternion definitions possible
+   * (q and -q) for the same rotation. The following code ensure quaternion continuity between to occurence of this
+   * method call
+   */
   if (init_flag_)
   {
     init_flag_ = false;
-    final_quat = new Eigen::Quaterniond(conv_quat);
   }
   else
   {
-    double diff_norm = sqrt(pow(conv_quat.w() - conv_quat_prev_.w(), 2) + pow(conv_quat.x() - conv_quat_prev_.x(), 2) +
-                            pow(conv_quat.y() - conv_quat_prev_.y(), 2) + pow(conv_quat.z() - conv_quat_prev_.z(), 2));
+    /* Detect if a discontinuity happened between new quaternion and the previous one */
+    double diff_norm = sqrt(pow(conv_quat.w() - x_current_.getQw(), 2) + pow(conv_quat.x() - x_current_.getQx(), 2) +
+                            pow(conv_quat.y() - x_current_.getQy(), 2) + pow(conv_quat.z() - x_current_.getQz(), 2));
     if (diff_norm > 1)
     {
-      final_quat = new Eigen::Quaterniond(-conv_quat.w(), -conv_quat.x(), -conv_quat.y(), -conv_quat.z());
+      ROS_DEBUG_NAMED("ForwardKinematic", "A discontinuity has been detected during quaternion conversion.");
+      /* If discontinuity happened, change sign of the quaternion */
+      conv_quat.w() = -conv_quat.w();
+      conv_quat.x() = -conv_quat.x();
+      conv_quat.y() = -conv_quat.y();
+      conv_quat.z() = -conv_quat.z();
     }
     else
     {
-      final_quat = new Eigen::Quaterniond(conv_quat);
+      /* Else, do nothing and keep quaternion sign */
     }
   }
-  conv_quat_prev_ = *final_quat;
 
   x_current_.setX(end_effector_state.translation()[0]);
   x_current_.setY(end_effector_state.translation()[1]);
   x_current_.setZ(end_effector_state.translation()[2]);
-  x_current_.setQw(final_quat->w());
-  x_current_.setQx(final_quat->x());
-  x_current_.setQy(final_quat->y());
-  x_current_.setQz(final_quat->z());
+  x_current_.setQw(conv_quat.w());
+  x_current_.setQx(conv_quat.x());
+  x_current_.setQy(conv_quat.y());
+  x_current_.setQz(conv_quat.z());
 }
 
 void ForwardKinematic::setQCurrent(const JointPosition& q_current)

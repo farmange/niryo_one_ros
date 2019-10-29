@@ -59,10 +59,8 @@ public:
   void init(const std::string end_effector_link, const double sampling_period);
   void reset();
   void resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired);
-  void requestUpdateAxisConstraints(int axis, double tolerance);
   void setQCurrent(const JointPosition& q_current);
   void setXCurrent(const SpacePosition& x_current);
-  void setDqBounds(const JointVelocity& dq_bound);
   void setOmega(const SpaceVelocity& omega);
 
 protected:
@@ -75,7 +73,7 @@ private:
   bool qp_init_required_; /*!< Flag to track the first iteration of QP solver */
   bool jacobian_init_flag_;
 
-  Eigen::Quaterniond jacobian_q_prev_;
+  Eigen::Quaterniond jacobian_quat_prev_;  // TODO used
   std::vector<double> gamma_weight_vec;
 
   JointPosition q_current_;  /*!< Current joint position */
@@ -113,21 +111,28 @@ private:
   robot_state::JointModelGroup* joint_model_group_; /*!< MoveIt JointModelGroup pointer */
 
   Eigen::Quaterniond quat_des;
+  bool flag_save[3];
+  bool flag_orient_save[3];
+  Eigen::Vector4d Qsnap[3];
 
   bool request_update_constraint_[6];
   double request_update_constraint_tolerance_[6];
 
-  void updateAxisConstraints_();
   void setAlphaWeight_(const std::vector<double>& alpha_weight);
   void setBetaWeight_(const std::vector<double>& beta_weight);
   void setGammaWeight_(const std::vector<double>& gamma_weight, const Eigen::Quaterniond& q);
   void setDeltaWeight_(const std::vector<double>& delta_weight);
   void setEpsilonWeight_(const std::vector<double>& epsilon_weight);
+  void setDqBounds_(const JointVelocity& dq_bound);
 
+  /**
+  * \brief Compute jacobian
+  *
+  * This is an updated version of MoveIt (RobotState class) implementation with quaternion discontinuity handling.
+  */
   bool getJacobian_(const robot_state::RobotStatePtr kinematic_state, const robot_state::JointModelGroup* group,
-                    const robot_state::LinkModel* link, const robot_model::LinkModel* root_link_model,
-                    const Eigen::Vector3d& reference_point_position, Eigen::MatrixXd& jacobian,
-                    bool use_quaternion_representation, bool impl);
+                    const robot_state::LinkModel* link, const Eigen::Vector3d& reference_point_position,
+                    Eigen::MatrixXd& jacobian, bool use_quaternion_representation, bool impl);
 };
 }
 #endif

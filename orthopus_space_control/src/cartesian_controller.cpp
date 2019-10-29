@@ -115,11 +115,12 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   /* Convert cartesian euler velocity into quaternion velocity according to the formula :
    *    quat_dot = 1/2 * omega * quat(t)
    */
-  tf::Quaternion init_quat(x_current_.getQx(), x_current_.getQy(), x_current_.getQz(), x_current_.getQw());
+  Eigen::Quaterniond init_quat(x_current_.getQw(), x_current_.getQx(), x_current_.getQy(), x_current_.getQz());
   /* The omega vector (store in dx_desired_) can be consider as a quaternion with a scalar part equal to zero */
-  tf::Quaternion half_omega_quat(0.5 * dx_desired_.getQx(), 0.5 * dx_desired_.getQy(), 0.5 * dx_desired_.getQz(), 0.0);
+  Eigen::Quaterniond half_omega_quat(0.0, 0.5 * dx_desired_.getQx(), 0.5 * dx_desired_.getQy(),
+                                     0.5 * dx_desired_.getQz());
   /* quaternion product */
-  tf::Quaternion vel_quat = half_omega_quat * init_quat;
+  Eigen::Quaterniond vel_quat = half_omega_quat * init_quat;
   dx_desired_quat_.setPosition(dx_desired_.getPosition());
   dx_desired_quat_.setOrientation(vel_quat);
 

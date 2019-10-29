@@ -57,7 +57,6 @@ private:
   SpacePosition x_current_;
   robot_model::RobotModelPtr kinematic_model_;
   robot_state::RobotStatePtr kinematic_state_;
-  Eigen::Quaterniond conv_quat_prev_;
 };
 }
 #endif
