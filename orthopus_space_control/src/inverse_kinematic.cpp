@@ -332,15 +332,47 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
 
-  const robot_model::JointModel* root_joint_model = joint_model_group_->getJointModels()[0];
   getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
                reference_point_position, jacobian, true, false);
 
+  /**********************************/
+  Eigen::MatrixXd jacob_temp;
+  getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
+               reference_point_position, jacob_temp, false, false);
+  Eigen::MatrixXd Jw_R0(3, 6);
+  Jw_R0 = jacob_temp.bottomLeftCorner(3, 6);
+
+  Eigen::MatrixXd Rc_R0(4, 3);
+  Eigen::MatrixXd Rc_R1(4, 3);
+  double rc_w = quat_current.w(), rc_x = quat_current.x(), rc_y = quat_current.y(), rc_z = quat_current.z();
+  Rc_R0 << -rc_x, -rc_y, -rc_z, rc_w, rc_z, -rc_y, -rc_z, rc_w, rc_x, rc_y, -rc_x, rc_w;
+  Rc_R1 << -rc_x, -rc_y, -rc_z, rc_w, -rc_z, rc_y, rc_z, rc_w, -rc_x, -rc_y, rc_x, rc_w;
+
+  Eigen::MatrixXd Jw_R1 = Rc_R1.transpose() * Rc_R0 * Jw_R0;
+  // ROS_ERROR_STREAM("Rc_R0 = \n" << Rc_R0);
+  // ROS_ERROR_STREAM("Rc_R1 = \n" << Rc_R1);
+  // ROS_ERROR_STREAM("Jw_R0 = \n" << Jw_R0);
+  // ROS_ERROR_STREAM("Jw_R1 = \n" << Jw_R1);
+
+  Eigen::MatrixXd Jr_R0 = 0.5 * Rc_R0 * Jw_R0;
+  Eigen::MatrixXd Jr_R00 = 0.5 * Rc_R1 * Jw_R1;
+  Eigen::MatrixXd Jr_R1 = 0.5 * Rc_R0 * Jw_R1;
+  // ROS_ERROR_STREAM("jacobian (world) = \n" << jacobian);
+  // jacobian.bottomLeftCorner(4, 6) = Jr_R1;
+  // ROS_ERROR_STREAM("Jr_R1 = \n" << Jr_R1);
+
+  // ROS_ERROR_STREAM("Jr_R0 = \n" << Jr_R0);
+  // ROS_ERROR_STREAM("Jr_R00 = \n" << Jr_R00);
+  // ROS_ERROR_STREAM("=======================");
+  //  ROS_ERROR_STREAM("jacobian_w = \n" << jacobian.bottomLeftCorner(4, 6));
+
+  /**********************************/
   Eigen::MatrixXd jacobian_p = jacobian.topLeftCorner(3, 6);
-  Eigen::MatrixXd jacobian_q = jacobian.bottomRightCorner(4, 6);
+  Eigen::MatrixXd jacobian_q = jacobian.bottomLeftCorner(4, 6);
+
   // ROS_ERROR_STREAM("jacobian = \n" << jacobian);
   // ROS_ERROR_STREAM("jacobian_p = \n" << jacobian_p);
-  ROS_ERROR_STREAM("jacobian_q = \n" << jacobian_q);
+  // ROS_ERROR_STREAM("jacobian_q = \n" << jacobian_q);
   /*
    * qpOASES solves QPs of the following form :
    * [1]    min   1/2*x'Hx + x'g
@@ -408,10 +440,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
       (jacobian_p.transpose() * sampling_period_ * delta_weight_ * x_des_p_) +
       (jacobian_q.transpose() * sampling_period_ * epsilon_weight_ * quat_des_transfert_matrix * quat_current_vec) */;
 
-  for (int i = 0; i < space_dimension_; i++)
-  {
-    ROS_ERROR("Delta between x_current and x_des for axis %d : %2f mm", i, (x_current_eigen_[i] - x_des[i]) * 1000.0);
-  }
+  // for (int i = 0; i < space_dimension_; i++)
+  // {
+  //   ROS_ERROR("Delta between x_current and x_des for axis %d : %2f mm", i, (x_current_eigen_[i] - x_des[i]) *
+  //   1000.0);
+  // }
+
   /* In order to limit the joint position, we define a inequality constraint for the QP optimisation.
    * Taylor developpement of joint position is :
    *        q = q_0 + dq*T
@@ -430,13 +464,15 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    * where :
    *      - I is the identity matrix
    */
-  Eigen::Matrix<double, 13, 6, Eigen::RowMajor> A;
+  Eigen::Matrix<double, 12, 6, Eigen::RowMajor> A;
   A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * sampling_period_;
   A.block(6, 0, 3, 6) = jacobian.topLeftCorner(3, 6) * sampling_period_;
 
   const double eps_pos = 0.001;
   const double eps_orientation = 0.001;
   const double inf = 1.0;
+  Eigen::Quaterniond r_c_cong = quat_current.conjugate();
+
   Eigen::MatrixXd snap_transfert_matrix(4, 4);
   double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
   snap_transfert_matrix << ws, xs, ys, zs, -xs, ws, -zs, ys, -ys, zs, ws, -xs, -zs, -ys, xs, ws;
@@ -452,6 +488,10 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     Qsnap[0] = snap_transfert_matrix.block(1, 0, 1, 4).transpose();
     Qsnap[1] = snap_transfert_matrix.block(2, 0, 1, 4).transpose();
     Qsnap[2] = snap_transfert_matrix.block(3, 0, 1, 4).transpose();
+
+    r_snap = quat_current;
+    r_snap_cong = r_snap.conjugate();
+    Rs_cong = xR(quat_current) * Rx(r_c_cong) * xR(r_snap_cong);
   }
 
   for (int i = 0; i < 3; i++)
@@ -476,77 +516,43 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   x_min_limit[3] = -1.1;
   x_max_limit[3] = +1.1;
 
-  if (delta_quat.x() != 0.0)
+  for (int i = 0; i < 3; i++)
   {
-    flag_orient_save[0] = true;
-    x_min_limit[4] = -1.0;
-    x_max_limit[4] = +1.0;
-  }
-  else
-  {
-    if (flag_orient_save[0] == true)
+    if (dx_omega_[4 + i] != 0.0)
     {
-      flag_orient_save[0] = false;
-      double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
-      Qsnap[0] << -xs, ws, -zs, ys;
-      ROS_DEBUG_STREAM("Qsnap[0].transpose() = " << Qsnap[0].transpose());
+      flag_orient_save[i] = true;
+      x_min_limit[4 + i] = -10.0;
+      x_max_limit[4 + i] = +10.0;
     }
-    double QdQc0 = (Qsnap[0].transpose() * quat_current_vec);
-    x_min_limit[4] = -eps_orientation - QdQc0;
-    x_max_limit[4] = +eps_orientation - QdQc0;
-  }
-
-  if (delta_quat.y() != 0.0)
-  {
-    flag_orient_save[1] = true;
-    x_min_limit[5] = -1.0;
-    x_max_limit[5] = +1.0;
-  }
-  else
-  {
-    if (flag_orient_save[1] == true)
+    else
     {
-      flag_orient_save[1] = false;
-      double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
-      Qsnap[1] << -ys, zs, ws, -xs;
-      ROS_DEBUG_STREAM("Qsnap[1].transpose() = " << Qsnap[1].transpose());
+      if (flag_orient_save[i] == true)
+      {
+        flag_orient_save[i] = false;
+        double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
+        r_snap.w() = ws;
+        r_snap.x() = xs;
+        r_snap.y() = ys;
+        r_snap.z() = zs;
+        r_snap_cong = r_snap.conjugate();
+      }
+      // Rs_cong = xR(quat_current) * Rx(r_c_cong) * xR(r_snap_cong);
+      Rs_cong = xR(r_snap_cong);
+      Eigen::Vector4d Rsrc = Rs_cong * quat_current_vec;
+      double QdQc0 = Rsrc(1 + i);
+      x_min_limit[4 + i] = -eps_orientation - QdQc0;
+      x_max_limit[4 + i] = +eps_orientation - QdQc0;
     }
-    double QdQc0 = (Qsnap[1].transpose() * quat_current_vec);
-    x_min_limit[5] = -eps_orientation - QdQc0;
-    x_max_limit[5] = +eps_orientation - QdQc0;
   }
-
-  if (delta_quat.z() != 0.0)
-  {
-    flag_orient_save[2] = true;
-    x_min_limit[6] = -1.0;
-    x_max_limit[6] = +1.0;
-  }
-  else
-  {
-    if (flag_orient_save[2] == true)
-    {
-      flag_orient_save[2] = false;
-      double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
-      Qsnap[2] << -zs, -ys, xs, ws;
-      ROS_DEBUG_STREAM("Qsnap[2].transpose() = " << Qsnap[2].transpose());
-    }
-    double QdQc0 = (Qsnap[2].transpose() * quat_current_vec);
-    x_min_limit[6] = -eps_orientation - QdQc0;
-    x_max_limit[6] = +eps_orientation - QdQc0;
-  }
-  snap_transfert_matrix.block(1, 0, 1, 4) = Qsnap[0].transpose();
-  snap_transfert_matrix.block(2, 0, 1, 4) = Qsnap[1].transpose();
-  snap_transfert_matrix.block(3, 0, 1, 4) = Qsnap[2].transpose();
 
   /* constraint of quaternion part */
-  A.bottomRightCorner(4, 6) = snap_transfert_matrix * jacobian_q * sampling_period_;
+  A.bottomLeftCorner(3, 6) = (Rs_cong * jacobian_q.bottomLeftCorner(4, 6) * sampling_period_).bottomLeftCorner(3, 6);
+  ROS_WARN_STREAM("A = \n" << A);
+  ROS_WARN_STREAM("x_min_limit = \n" << SpacePosition(x_min_limit));
+  ROS_WARN_STREAM("x_current_ = \n" << x_current_);
+  ROS_WARN_STREAM("x_max_limit = \n" << SpacePosition(x_max_limit));
 
-  // ROS_WARN_STREAM("x_min_limit = \n" << Vector7d(x_min_limit));
-  // ROS_WARN_STREAM("x_current_ = \n" << x_current_);
-  // ROS_WARN_STREAM("x_max_limit = \n" << Vector7d(x_max_limit));
-  // ROS_WARN_STREAM("snap_transfert_matrix = \n" << snap_transfert_matrix);
-
+  // TODO add function to handle constaints beautifuly
   double lbA[] = { /* Joints min hard limits constraints */
                    (q_lower_limit_[0] - q_current_[0]),
                    (q_lower_limit_[1] - q_current_[1]),
@@ -557,11 +563,9 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (x_min_limit[0] - x_current_eigen_(0, 0)),
                    (x_min_limit[1] - x_current_eigen_(1, 0)),
                    (x_min_limit[2] - x_current_eigen_(2, 0)),
-                   x_min_limit[3],
                    x_min_limit[4],
                    x_min_limit[5],
                    x_min_limit[6]
-
   };
 
   double ubA[] = { /* Joints max hard limits constraints */
@@ -574,7 +578,6 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (x_max_limit[0] - x_current_eigen_(0, 0)),
                    (x_max_limit[1] - x_current_eigen_(1, 0)),
                    (x_max_limit[2] - x_current_eigen_(2, 0)),
-                   x_max_limit[3],
                    x_max_limit[4],
                    x_max_limit[5],
                    x_max_limit[6]
@@ -587,7 +590,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   if (qp_init_required_)
   {
     /* Initialize QP solver */
-    QP_ = new qpOASES::SQProblem(6, 13);  // HACK : ONLY JOINT VELOCITY LIMIT
+    QP_ = new qpOASES::SQProblem(6, 12);  // HACK : ONLY JOINT VELOCITY LIMIT
     qpOASES::Options options;
     options.setToReliable();
     // options.printLevel = qpOASES::PL_NONE;
@@ -614,16 +617,52 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     dq_computed[3] = xOpt[3];
     dq_computed[4] = xOpt[4];
     dq_computed[5] = xOpt[5];
+
+    /*********** DEBUG **************/
+    Eigen::Matrix<double, 6, 1> dq_eigen;
+    for (int i = 0; i < 6; i++)
+    {
+      dq_eigen(i) = dq_computed[i];
+    };
+    ROS_DEBUG_STREAM("result = \n" << A.bottomLeftCorner(3, 6) * dq_eigen);
+    /********************************/
   }
   else
   {
     ROS_ERROR("qpOASES : Failed with code : %d !", qp_return);
+    /*********** DEBUG **************/
+    Eigen::Matrix<double, 6, 1> dq_eigen;
+    Eigen::Matrix<double, 4, 1> eps_eigen;
+    Eigen::Matrix<double, 4, 1> min_l;
+    Eigen::Matrix<double, 4, 1> max_l;
+    for (int i = 0; i < 6; i++)
+    {
+      dq_eigen(i) = dq_computed[i];
+    };
+    for (int i = 0; i < 4; i++)
+    {
+      eps_eigen(i) = 0.001;
+      min_l(i) = x_min_limit[3 + i];
+      max_l(i) = x_max_limit[3 + i];
+    };
+    // ROS_DEBUG_STREAM("Rc_R1 = \n" << Rc_R1);
+    // ROS_DEBUG_STREAM("(snap_transfert_matrix * Rc_R1) = \n" << (snap_transfert_matrix * Rc_R1));
+
+    // ROS_DEBUG_STREAM("min = \n" << -eps_eigen - (snap_transfert_matrix * Rc_R1));
+    ROS_DEBUG_STREAM("x_min_limit = \n" << min_l);
+    ROS_DEBUG_STREAM("snap_transfert_matrix* Jr_R1* sampling_period_* dq_eigen = \n"
+                     << snap_transfert_matrix * Jr_R1 * sampling_period_ * dq_eigen);
+    // ROS_DEBUG_STREAM("max = \n" << eps_eigen - (snap_transfert_matrix * Rc_R1));
+    ROS_DEBUG_STREAM("x_max_limit = \n" << max_l);
+    /********************************/
+
     dq_computed[0] = 0.0;
     dq_computed[1] = 0.0;
     dq_computed[2] = 0.0;
     dq_computed[3] = 0.0;
     dq_computed[4] = 0.0;
     dq_computed[5] = 0.0;
+
     // std::cout << "Press Enter to Continue";
     // std::cin.ignore();
   }
@@ -764,5 +803,21 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
     jacobian.block(3, 0, 4, columns) = 0.5 * quaternion_update_matrix * jacobian.block(3, 0, 3, columns);
   }
   return true;
+}
+
+Eigen::Matrix4d InverseKinematic::xR(Eigen::Quaterniond& quat)
+{
+  double w = quat.w(), x = quat.x(), y = quat.y(), z = quat.z();
+  Eigen::Matrix4d ret_mat;
+  ret_mat << w, -x, -y, -z, x, w, z, -y, y, -z, w, x, z, y, -x, w;
+  return ret_mat;
+}
+
+Eigen::Matrix4d InverseKinematic::Rx(Eigen::Quaterniond& quat)
+{
+  double w = quat.w(), x = quat.x(), y = quat.y(), z = quat.z();
+  Eigen::Matrix4d ret_mat;
+  ret_mat << w, -x, -y, -z, x, w, -z, y, y, z, w, -x, z, -y, x, w;
+  return ret_mat;
 }
 }

@@ -29,6 +29,7 @@ class SpaceVelocity : public SpaceBase
 {
 public:
   SpaceVelocity() : SpaceBase(){};
+  SpaceVelocity(double (&raw_data)[7]) : SpaceBase(raw_data){};
 
 private:
 };

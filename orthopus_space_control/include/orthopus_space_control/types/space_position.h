@@ -29,6 +29,7 @@ class SpacePosition : public SpaceBase
 {
 public:
   SpacePosition() : SpaceBase(){};
+  SpacePosition(double (&raw_data)[7]) : SpaceBase(raw_data){};
 
 private:
 };

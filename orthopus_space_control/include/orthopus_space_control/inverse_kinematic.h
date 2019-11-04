@@ -133,6 +133,13 @@ private:
   bool getJacobian_(const robot_state::RobotStatePtr kinematic_state, const robot_state::JointModelGroup* group,
                     const robot_state::LinkModel* link, const Eigen::Vector3d& reference_point_position,
                     Eigen::MatrixXd& jacobian, bool use_quaternion_representation, bool impl);
+
+  Eigen::Matrix4d xR(Eigen::Quaterniond& quat);
+  Eigen::Matrix4d Rx(Eigen::Quaterniond& quat);
+
+  Eigen::Quaterniond r_snap;
+  Eigen::Quaterniond r_snap_cong;
+  Eigen::MatrixXd Rs_cong;
 };
 }
 #endif

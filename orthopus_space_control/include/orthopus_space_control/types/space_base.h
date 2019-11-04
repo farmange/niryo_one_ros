@@ -38,6 +38,15 @@ class SpaceBase : public std::vector<double>
 {
 public:
   SpaceBase() : position_(0, 0, 0), orientation_(0, 0, 0, 0){};
+
+  SpaceBase(double (&raw_data)[7])
+  {
+    for (int i = 0; i < 7; i++)
+    {
+      (*this)[i] = raw_data[i];
+    }
+  };
+
   virtual ~SpaceBase() = 0;
 
   /* Setter / Getter */
