@@ -427,6 +427,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   x_min_limit[3] = -1.1;
   x_max_limit[3] = +1.1;
 
+  Eigen::Matrix4d conjugate = Eigen::Matrix4d::Identity();
+  conjugate(1, 1) = -1.0;
+  conjugate(2, 2) = -1.0;
+  conjugate(3, 3) = -1.0;
+  ROS_WARN_STREAM("conjugate = \n" << conjugate);
+
   for (int i = 0; i < 3; i++)
   {
     if (dx_omega_[4 + i] != 0.0)
@@ -447,10 +453,15 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
         r_snap.z() = zs;
         r_snap_cong = r_snap.conjugate();
       }
-      // Rs_cong = xR(quat_current) * Rx(r_c_cong) * xR(r_snap_cong);
-      Rs_cong = xR(r_snap_cong);
+
+      // World control
+      // Rs_cong = Rx(r_snap) * conjugate;
+      // Tool control
+      Rs_cong = xR(r_snap) * conjugate;
       Eigen::Vector4d Rsrc = Rs_cong * quat_current_vec;
       double QdQc0 = Rsrc(1 + i);
+      // x_min_limit[4 + i] = -eps_orientation;
+      // x_max_limit[4 + i] = +eps_orientation;
       x_min_limit[4 + i] = -eps_orientation - QdQc0;
       x_max_limit[4 + i] = +eps_orientation - QdQc0;
     }
@@ -458,10 +469,6 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
 
   /* constraint of quaternion part */
   A.bottomLeftCorner(3, 6) = (Rs_cong * jacobian_q.bottomLeftCorner(4, 6) * sampling_period_).bottomLeftCorner(3, 6);
-  // ROS_WARN_STREAM("A = \n" << A);
-  // ROS_WARN_STREAM("x_min_limit = \n" << SpacePosition(x_min_limit));
-  // ROS_WARN_STREAM("x_current_ = \n" << x_current_);
-  // ROS_WARN_STREAM("x_max_limit = \n" << SpacePosition(x_max_limit));
 
   // TODO add function to handle constaints beautifuly
   double lbA[] = { /* Joints min hard limits constraints */
@@ -762,6 +769,7 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
   return true;
 }
 
+/* Quaternion post-product matrix */
 Eigen::Matrix4d InverseKinematic::xR(Eigen::Quaterniond& quat)
 {
   double w = quat.w(), x = quat.x(), y = quat.y(), z = quat.z();
@@ -770,6 +778,7 @@ Eigen::Matrix4d InverseKinematic::xR(Eigen::Quaterniond& quat)
   return ret_mat;
 }
 
+/* Quaternion pre-product matrix */
 Eigen::Matrix4d InverseKinematic::Rx(Eigen::Quaterniond& quat)
 {
   double w = quat.w(), x = quat.x(), y = quat.y(), z = quat.z();
