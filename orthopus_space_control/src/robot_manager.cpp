@@ -198,9 +198,21 @@ void RobotManager::retrieveParameters_()
   ros::param::get("~stand_pose/orientation/y", stand_pose.orientation.y);
   ros::param::get("~stand_pose/orientation/z", stand_pose.orientation.z);
 
-  // x_drink_pose_[SpacePosition::kX] = drink_pose.position.x;
-  // x_drink_pose_[SpacePosition::kY] = drink_pose.position.y;
-  // x_drink_pose_[SpacePosition::kZ] = drink_pose.position.z;
+  x_drink_pose_.setX(drink_pose.position.x);
+  x_drink_pose_.setY(drink_pose.position.y);
+  x_drink_pose_.setZ(drink_pose.position.z);
+  x_drink_pose_.setQw(drink_pose.orientation.w);
+  x_drink_pose_.setQx(drink_pose.orientation.x);
+  x_drink_pose_.setQy(drink_pose.orientation.y);
+  x_drink_pose_.setQz(drink_pose.orientation.z);
+
+  x_stand_pose_.setX(stand_pose.position.x);
+  x_stand_pose_.setY(stand_pose.position.y);
+  x_stand_pose_.setZ(stand_pose.position.z);
+  x_stand_pose_.setQw(stand_pose.orientation.w);
+  x_stand_pose_.setQx(stand_pose.orientation.x);
+  x_stand_pose_.setQy(stand_pose.orientation.y);
+  x_stand_pose_.setQz(stand_pose.orientation.z);
 
   // x_stand_pose_[SpacePosition::kX] = stand_pose.position.x;
   // x_stand_pose_[SpacePosition::kY] = stand_pose.position.y;

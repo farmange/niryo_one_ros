@@ -50,10 +50,10 @@ private:
 
   SpacePosition x_current_;
   SpacePosition x_traj_desired_;
-  PiController pi_ctrl_[6];
+  PiController pi_ctrl_[7];
 
   bool is_completed_;
-  double euler_factor_[6];
+  double euler_factor_[7];
   double traj_position_tolerance_;
   double traj_orientation_tolerance_;
 

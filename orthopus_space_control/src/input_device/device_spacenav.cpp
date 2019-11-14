@@ -34,9 +34,9 @@ DeviceSpacenav::DeviceSpacenav()
   button_right_ = 0;
 
   gripper_toggle_ = false;
-  
+
   ros::param::get("~debounce_button_time", debounce_button_time_);
-  
+
   setGripperId_();
 
   ros::spin();
@@ -54,11 +54,11 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::Joy::ConstPtr& msg)
   cartesian_vel.twist.linear.y = msg->axes[1];
   cartesian_vel.twist.linear.z = msg->axes[2];
 
-  /* TODO For now, orientation is not control using spacenav joy. This feature 
+  /* TODO For now, orientation is not control using spacenav joy. This feature
    * will be enabled in the future */
-  //   cartesian_vel.twist.angular.x = msg->axes[3];
-  //   cartesian_vel.twist.angular.y = msg->axes[4];
-  //   cartesian_vel.twist.angular.z = msg->axes[5];
+  cartesian_vel.twist.angular.x = msg->axes[3];
+  cartesian_vel.twist.angular.y = msg->axes[4];
+  cartesian_vel.twist.angular.z = msg->axes[5];
 
   cartesian_cmd_pub_.publish(cartesian_vel);
 }

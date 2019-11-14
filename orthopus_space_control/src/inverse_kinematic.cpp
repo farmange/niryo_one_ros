@@ -22,7 +22,6 @@
 
 #include <eigen_conversions/eigen_msg.h>
 #include <math.h>
-#include <tf/tf.h>
 
 namespace space_control
 {
@@ -217,63 +216,16 @@ void InverseKinematic::reset()
   /* Initialize a flag used to init QP if required */
   qp_init_required_ = true;
   jacobian_init_flag_ = true;
-  for (int i = 0; i < space_dimension_; i++)
-  {
-    reset_axis[i] = true;
-    reset_axis2[i] = true;
-  }
 }
 
 void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired)
 {
-  if (qp_init_required_)
-  {
-    x_des = x_current_eigen_;  // HACK : store the initial space position
-    Eigen::Quaterniond quat_current(x_current_[3], x_current_[4], x_current_[5], x_current_[6]);
-    // quat_des = quat_current;
-  }
   /* Store desired velocity in eigen vector */
   VectorXd dx_desired_eigen = VectorXd(space_dimension_);
   for (int i = 0; i < space_dimension_; i++)
   {
     dx_desired_eigen(i) = dx_desired[i];
   }
-
-  // Eigen::Quaterniond quat_cool(x_current_.getQw(), x_current_.getQx(), x_current_.getQy(), x_current_.getQz());
-  // setGammaWeight_(gamma_weight_vec, quat_cool);
-
-  ////////////////////////////// position XYZ //////////////////////////////
-  for (int i = 0; i < 3; i++)
-  {
-    if (dx_desired[i] != 0.0)
-    {
-      reset_axis[i] = true;
-    }
-    else
-    {
-      if (reset_axis[i] == true)
-      {
-        x_des[i] = x_current_[i];
-        reset_axis[i] = false;
-      }
-    }
-    // compute desired position according to taylor development
-    x_des[i] = x_des[i] + dx_desired[i] * sampling_period_;
-  }
-  Eigen::Vector3d x_current_eigen_p_;
-  x_current_eigen_p_(0) = x_current_eigen_(0);
-  x_current_eigen_p_(1) = x_current_eigen_(1);
-  x_current_eigen_p_(2) = x_current_eigen_(2);
-  Eigen::Vector3d x_des_p_;
-  x_des_p_(0) = x_des(0);
-  x_des_p_(1) = x_des(1);
-  x_des_p_(2) = x_des(2);
-
-  //////////////////////////// orientation Qwxyz ///////////////////////////
-  Eigen::Quaterniond omega_quat_tool(0, dx_omega_[4], dx_omega_[5], dx_omega_[6]);
-  ROS_DEBUG("omega_quat_tool = %5f, %5f, %5f; %5f ", omega_quat_tool.w(), omega_quat_tool.x(), omega_quat_tool.y(),
-            omega_quat_tool.z());
-  ROS_DEBUG("|omega_quat_tool| = %5f ", omega_quat_tool.norm());
 
   Eigen::Quaterniond quat_current(x_current_[3], x_current_[4], x_current_[5], x_current_[6]);
   Eigen::Vector4d quat_current_vec;
@@ -283,46 +235,6 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   quat_current_vec(3) = quat_current.z();
   ROS_DEBUG("quat_current = %5f, %5f, %5f; %5f ", quat_current.w(), quat_current.x(), quat_current.y(),
             quat_current.z());
-  ROS_DEBUG("|quat_current| = %5f ", quat_current.norm());
-
-  // Eigen::Quaterniond omega_quat_world = quat_current * omega_quat_tool * quat_current.conjugate();
-  Eigen::Quaterniond omega_quat_world = omega_quat_tool;
-
-  ROS_DEBUG("|omega_quat_world| = %5f ", omega_quat_world.norm());
-
-  double delta_quat_raw[4];
-  double temp = 0.5 * omega_quat_world.norm() * sampling_period_;
-  if (omega_quat_tool.norm() > 0)
-  {
-    delta_quat_raw[0] = cos(temp);
-    delta_quat_raw[1] = (omega_quat_world.x() / omega_quat_world.norm()) * sin(temp);
-    delta_quat_raw[2] = (omega_quat_world.y() / omega_quat_world.norm()) * sin(temp);
-    delta_quat_raw[3] = (omega_quat_world.z() / omega_quat_world.norm()) * sin(temp);
-  }
-  else
-  {
-    delta_quat_raw[0] = 1.0;
-    delta_quat_raw[1] = 0.0;
-    delta_quat_raw[2] = 0.0;
-    delta_quat_raw[3] = 0.0;
-  }
-  ROS_DEBUG("delta_quat_raw = %5f, %5f, %5f; %5f ", delta_quat_raw[0], delta_quat_raw[1], delta_quat_raw[2],
-            delta_quat_raw[3]);
-  Eigen::Quaterniond delta_quat(delta_quat_raw[0], delta_quat_raw[1], delta_quat_raw[2], delta_quat_raw[3]);
-  ROS_DEBUG("delta_quat = %5f, %5f, %5f; %5f ", delta_quat.w(), delta_quat.x(), delta_quat.y(), delta_quat.z());
-
-  // quat_des = delta_quat * quat_des;
-  // ROS_DEBUG("quat_des = %5f, %5f, %5f; %5f ", quat_des.w(), quat_des.x(), quat_des.y(), quat_des.z());
-  // ROS_DEBUG("|quat_des| = %5f ", quat_des.norm());
-
-  // Eigen::Quaterniond quat_error = quat_des * quat_current.conjugate();
-  // ROS_DEBUG("quat_error = %5f, %5f, %5f; %5f ", quat_error.w(), quat_error.x(), quat_error.y(), quat_error.z());
-  // ROS_DEBUG("|quat_error| = %5f ", quat_error.norm());
-
-  // double w = quat_des.w(), x = quat_des.x(), y = quat_des.y(), z = quat_des.z();
-  // Eigen::MatrixXd quat_des_transfert_matrix(4, 4);
-  // quat_des_transfert_matrix << w, x, y, z, -x, w, -z, y, -y, z, w, -x, -z, -y, x, w;
-  // ROS_ERROR_STREAM("quat_des_transfert_matrix = \n" << quat_des_transfert_matrix);
 
   /* Set kinemtic state of the robot to the current joint positions */
   kinematic_state_->setVariablePositions(q_current_);
@@ -331,9 +243,13 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   /* Get jacobian from kinematic state (Moveit) */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
+  Eigen::MatrixXd jacobian_tool;
 
   getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
                reference_point_position, jacobian, true, false);
+
+  getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
+               reference_point_position, jacobian_tool, true, true);
 
   /**********************************/
   Eigen::MatrixXd jacob_temp;
@@ -357,20 +273,27 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   Eigen::MatrixXd Jr_R0 = 0.5 * Rc_R0 * Jw_R0;
   Eigen::MatrixXd Jr_R00 = 0.5 * Rc_R1 * Jw_R1;
   Eigen::MatrixXd Jr_R1 = 0.5 * Rc_R0 * Jw_R1;
-  // ROS_ERROR_STREAM("jacobian (world) = \n" << jacobian);
+  ROS_ERROR_STREAM("jacobian (world) = \n" << jacobian);
+  ROS_ERROR_STREAM("jacobian (tool) = \n" << jacobian_tool);
+  // HACK uncomment this line for tool frame control (not stable)
   // jacobian.bottomLeftCorner(4, 6) = Jr_R1;
-  // ROS_ERROR_STREAM("Jr_R1 = \n" << Jr_R1);
 
+  // ROS_ERROR_STREAM("jacobian = \n" << jacobian.bottomLeftCorner(4, 6););
   // ROS_ERROR_STREAM("Jr_R0 = \n" << Jr_R0);
-  // ROS_ERROR_STREAM("Jr_R00 = \n" << Jr_R00);
-  // ROS_ERROR_STREAM("=======================");
-  //  ROS_ERROR_STREAM("jacobian_w = \n" << jacobian.bottomLeftCorner(4, 6));
+  // ROS_ERROR_STREAM("is equal : " << Jr_R0.isApprox(jacobian.bottomLeftCorner(4, 6)));
+
+  ROS_ERROR_STREAM("=======================");
 
   /**********************************/
+  // jacobian.topLeftCorner(3, 6) = jacobian_tool.topLeftCorner(3, 6);
+  // jacobian.bottomLeftCorner(4, 6) = jacobian_tool.bottomLeftCorner(4, 6);
   Eigen::MatrixXd jacobian_p = jacobian.topLeftCorner(3, 6);
   Eigen::MatrixXd jacobian_q = jacobian.bottomLeftCorner(4, 6);
 
-  // ROS_ERROR_STREAM("jacobian = \n" << jacobian);
+  // ROS_ERROR_STREAM("jacobian_tool = \n" << jacobian_tool.bottomLeftCorner(4, 6););
+  // ROS_ERROR_STREAM("Jr_R1 = \n" << Jr_R1);
+  // ROS_ERROR_STREAM("is equal : " << Jr_R1.isApprox(jacobian_tool.bottomLeftCorner(4, 6)));
+
   // ROS_ERROR_STREAM("jacobian_p = \n" << jacobian_p);
   // ROS_ERROR_STREAM("jacobian_q = \n" << jacobian_q);
   /*
@@ -429,22 +352,10 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    */
 
   /* Hessian computation */
-  MatrixXd hessian = (jacobian.transpose() * alpha_weight_ * jacobian) + beta_weight_ /* +
-                     (jacobian_p.transpose() * sampling_period_ * delta_weight_ * sampling_period_ * jacobian_p) +
-                     (jacobian_q.transpose() * quat_des_transfert_matrix.transpose() * epsilon_weight_ *
-                      quat_des_transfert_matrix * jacobian_q * sampling_period_ * sampling_period_) */;
+  MatrixXd hessian = (jacobian.transpose() * alpha_weight_ * jacobian) + beta_weight_;
 
   /* Gradient vector computation */
-  VectorXd g = (-jacobian.transpose() * alpha_weight_ * dx_desired_eigen) /* +
-      (jacobian_p.transpose() * sampling_period_ * delta_weight_ * x_current_eigen_p_) -
-      (jacobian_p.transpose() * sampling_period_ * delta_weight_ * x_des_p_) +
-      (jacobian_q.transpose() * sampling_period_ * epsilon_weight_ * quat_des_transfert_matrix * quat_current_vec) */;
-
-  // for (int i = 0; i < space_dimension_; i++)
-  // {
-  //   ROS_ERROR("Delta between x_current and x_des for axis %d : %2f mm", i, (x_current_eigen_[i] - x_des[i]) *
-  //   1000.0);
-  // }
+  VectorXd g = (-jacobian.transpose() * alpha_weight_ * dx_desired_eigen);
 
   /* In order to limit the joint position, we define a inequality constraint for the QP optimisation.
    * Taylor developpement of joint position is :
@@ -547,10 +458,10 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
 
   /* constraint of quaternion part */
   A.bottomLeftCorner(3, 6) = (Rs_cong * jacobian_q.bottomLeftCorner(4, 6) * sampling_period_).bottomLeftCorner(3, 6);
-  ROS_WARN_STREAM("A = \n" << A);
-  ROS_WARN_STREAM("x_min_limit = \n" << SpacePosition(x_min_limit));
-  ROS_WARN_STREAM("x_current_ = \n" << x_current_);
-  ROS_WARN_STREAM("x_max_limit = \n" << SpacePosition(x_max_limit));
+  // ROS_WARN_STREAM("A = \n" << A);
+  // ROS_WARN_STREAM("x_min_limit = \n" << SpacePosition(x_min_limit));
+  // ROS_WARN_STREAM("x_current_ = \n" << x_current_);
+  // ROS_WARN_STREAM("x_max_limit = \n" << SpacePosition(x_max_limit));
 
   // TODO add function to handle constaints beautifuly
   double lbA[] = { /* Joints min hard limits constraints */
@@ -593,8 +504,10 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     QP_ = new qpOASES::SQProblem(6, 12);  // HACK : ONLY JOINT VELOCITY LIMIT
     qpOASES::Options options;
     options.setToReliable();
+    // options.enableInertiaCorrection = qpOASES::BT_TRUE;
     // options.printLevel = qpOASES::PL_NONE;
     QP_->setOptions(options);
+
     qp_return = QP_->init(hessian.data(), g.data(), A.data(), dq_lower_limit_.data(), dq_upper_limit_.data(), lbA, ubA,
                           nWSR, 0);
     qp_init_required_ = false;
@@ -604,6 +517,8 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     qp_return = QP_->hotstart(hessian.data(), g.data(), A.data(), dq_lower_limit_.data(), dq_upper_limit_.data(), lbA,
                               ubA, nWSR, 0);
   }
+
+  // enableInertiaCorrection ? ?
 
   if (qp_return == qpOASES::SUCCESSFUL_RETURN)
   {
@@ -620,11 +535,26 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
 
     /*********** DEBUG **************/
     Eigen::Matrix<double, 6, 1> dq_eigen;
+    Eigen::Matrix<double, 4, 1> min_l;
+    Eigen::Matrix<double, 4, 1> max_l;
+    Eigen::Matrix<double, 12, 1> lbA_eigen;
+    Eigen::Matrix<double, 12, 1> ubA_eigen;
     for (int i = 0; i < 6; i++)
     {
       dq_eigen(i) = dq_computed[i];
+    }
+    Eigen::Matrix<double, 12, 1> Aq = A * dq_eigen;
+    for (int i = 0; i < 12; i++)
+    {
+      if (Aq(i) > ubA[i] || Aq(i) < lbA[i])
+      {
+        ROS_ERROR("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+      }
+      else
+      {
+        ROS_DEBUG("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+      }
     };
-    ROS_DEBUG_STREAM("result = \n" << A.bottomLeftCorner(3, 6) * dq_eigen);
     /********************************/
   }
   else
@@ -632,28 +562,26 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     ROS_ERROR("qpOASES : Failed with code : %d !", qp_return);
     /*********** DEBUG **************/
     Eigen::Matrix<double, 6, 1> dq_eigen;
-    Eigen::Matrix<double, 4, 1> eps_eigen;
     Eigen::Matrix<double, 4, 1> min_l;
     Eigen::Matrix<double, 4, 1> max_l;
+    Eigen::Matrix<double, 12, 1> lbA_eigen;
+    Eigen::Matrix<double, 12, 1> ubA_eigen;
     for (int i = 0; i < 6; i++)
     {
       dq_eigen(i) = dq_computed[i];
-    };
-    for (int i = 0; i < 4; i++)
+    }
+    Eigen::Matrix<double, 12, 1> Aq = A * dq_eigen;
+    for (int i = 0; i < 12; i++)
     {
-      eps_eigen(i) = 0.001;
-      min_l(i) = x_min_limit[3 + i];
-      max_l(i) = x_max_limit[3 + i];
+      if (Aq(i) > ubA[i] || Aq(i) < lbA[i])
+      {
+        ROS_ERROR("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+      }
+      else
+      {
+        ROS_DEBUG("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+      }
     };
-    // ROS_DEBUG_STREAM("Rc_R1 = \n" << Rc_R1);
-    // ROS_DEBUG_STREAM("(snap_transfert_matrix * Rc_R1) = \n" << (snap_transfert_matrix * Rc_R1));
-
-    // ROS_DEBUG_STREAM("min = \n" << -eps_eigen - (snap_transfert_matrix * Rc_R1));
-    ROS_DEBUG_STREAM("x_min_limit = \n" << min_l);
-    ROS_DEBUG_STREAM("snap_transfert_matrix* Jr_R1* sampling_period_* dq_eigen = \n"
-                     << snap_transfert_matrix * Jr_R1 * sampling_period_ * dq_eigen);
-    // ROS_DEBUG_STREAM("max = \n" << eps_eigen - (snap_transfert_matrix * Rc_R1));
-    ROS_DEBUG_STREAM("x_max_limit = \n" << max_l);
     /********************************/
 
     dq_computed[0] = 0.0;
@@ -667,9 +595,13 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     // std::cin.ignore();
   }
 
+  QP_->printProperties();
   if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
   {
-    exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
+    // reset();
+    // exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
+    std::cout << "Press Enter to Continue";
+    std::cin.ignore();
   }
 }
 
@@ -705,6 +637,18 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
 
   Eigen::Vector3d joint_axis;
   Eigen::Affine3d joint_transform;
+
+  const robot_state::LinkModel* tool_link = kinematic_state_->getLinkModel("tool_link");
+  Eigen::Affine3d reference_transform_2 =
+      tool_link ? kinematic_state->getGlobalLinkTransform(tool_link).inverse() : Eigen::Affine3d::Identity();
+  Eigen::Affine3d link_transform_2 = reference_transform_2 * kinematic_state->getGlobalLinkTransform(tool_link);
+
+  if (impl)
+  {
+    reference_transform = reference_transform_2;
+    // link_transform = link_transform_2;
+    point_transform = link_transform_2 * reference_point_position;
+  }
 
   while (link)
   {
@@ -745,10 +689,23 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
       break;
     link = pjm->getParentLinkModel();
   }
+
   if (use_quaternion_representation)
   {
+    Eigen::Quaterniond* conv_quat_temp;
+    // if (impl)
+    // {
+    //   /* Convert rotation matrix to quaternion */
+    //   conv_quat_temp = new Eigen::Quaterniond(link_transform_2.rotation());
+    // }
+    // else
+    // {
+    /* Convert rotation matrix to quaternion */
+    conv_quat_temp = new Eigen::Quaterniond(link_transform.rotation());
+    // }
     /* Convert rotation matrix to quaternion */
     Eigen::Quaterniond conv_quat(link_transform.rotation());
+
     /* Warning : During the convertion in quaternion, sign could change as there are tow quaternion definitions possible
      * (q and -q) for the same rotation. The following code ensure quaternion continuity between to occurence of this
      * method call
@@ -781,25 +738,25 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
 
     double w = conv_quat.w(), x = conv_quat.x(), y = conv_quat.y(), z = conv_quat.z();
     Eigen::MatrixXd quaternion_update_matrix(4, 3);
-    if (impl)
-    {
-      // vrai pour omega exprimé dans R tool
-      // Le quaternion resultant est exprimé dans R world ???
-      // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
-      //        [x]           [  w -z  y ]    [ omega_2 ]
-      //        [y]           [  z  w -x ]    [ omega_3 ]
-      //        [z]           [ -y  x  w ]
-      quaternion_update_matrix << -x, -y, -z, w, -z, y, z, w, -x, -y, x, w;
-    }
-    else
-    {
-      // vrai pour omega exprimé dans R world
-      // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
-      //        [x]           [  w  z -y ]    [ omega_2 ]
-      //        [y]           [ -z  w  x ]    [ omega_3 ]
-      //        [z]           [  y -x  w ]
-      quaternion_update_matrix << -x, -y, -z, w, z, -y, -z, w, x, y, -x, w;
-    }
+    // if (impl)
+    // {
+    //   // vrai pour omega exprimé dans R tool
+    //   // Le quaternion resultant est exprimé dans R world ???
+    //   // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
+    //   //        [x]           [  w -z  y ]    [ omega_2 ]
+    //   //        [y]           [  z  w -x ]    [ omega_3 ]
+    //   //        [z]           [ -y  x  w ]
+    //   quaternion_update_matrix << -x, -y, -z, w, -z, y, z, w, -x, -y, x, w;
+    // }
+    // else
+    // {
+    // vrai pour omega exprimé dans R world
+    // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
+    //        [x]           [  w  z -y ]    [ omega_2 ]
+    //        [y]           [ -z  w  x ]    [ omega_3 ]
+    //        [z]           [  y -x  w ]
+    quaternion_update_matrix << -x, -y, -z, w, z, -y, -z, w, x, y, -x, w;
+    // }
     jacobian.block(3, 0, 4, columns) = 0.5 * quaternion_update_matrix * jacobian.block(3, 0, 3, columns);
   }
   return true;

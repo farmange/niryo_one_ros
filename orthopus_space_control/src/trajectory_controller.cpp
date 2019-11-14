@@ -28,8 +28,8 @@ TrajectoryController::TrajectoryController(const int joint_number, const bool us
   ROS_DEBUG_STREAM("TrajectoryController constructor");
 
   // TODO Improvement: put following value in param
-  traj_position_tolerance_ = 0.005;     // 5 mm
-  traj_orientation_tolerance_ = 0.001;  // 0.01 rad = 0.573 deg
+  traj_position_tolerance_ = 0.005;    // 5 mm
+  traj_orientation_tolerance_ = 0.02;  // 0.01 rad = 0.573 deg // TODO it is not radian in case of quaternion
 }
 
 void TrajectoryController::init(double sampling_period)
@@ -41,7 +41,7 @@ void TrajectoryController::init(double sampling_period)
   ros::param::get("~trajectory_ctrl_i_gain", i_gain);
   ros::param::get("~space_position_max_vel", space_position_max_vel);
 
-  for (int i = 0; i < x_traj_desired_.size(); i++)
+  for (int i = 0; i < 7; i++)
   {
     pi_ctrl_[i].init(sampling_period_, -space_position_max_vel, space_position_max_vel);
     pi_ctrl_[i].setGains(p_gain, i_gain);
@@ -51,7 +51,7 @@ void TrajectoryController::init(double sampling_period)
 
 void TrajectoryController::reset()
 {
-  for (int i = 0; i < x_traj_desired_.size(); i++)
+  for (int i = 0; i < 7; i++)
   {
     pi_ctrl_[i].reset();
     euler_factor_[i] = 1.0;
@@ -118,12 +118,20 @@ void TrajectoryController::eulerFlipHandling_()
 
 void TrajectoryController::processPi_(SpaceVelocity& dx_output)
 {
-  for (int i = 0; i < x_traj_desired_.size(); i++)
+  for (int i = 0; i < 7; i++)
   {
-    double error = (x_traj_desired_[i] - x_current_[i] * euler_factor_[i]);
-    double pi_result;
-    pi_ctrl_[i].execute(error, pi_result);
-    // dx_output[i] = pi_result;
+    if (i == 3)
+    {
+      dx_output[i] = 0.0;
+    }
+    else
+    {
+      double error = (x_traj_desired_[i] - x_current_[i] * euler_factor_[i]);
+      double pi_result;
+      ROS_DEBUG("error[%d] : %5f", i, error);
+      pi_ctrl_[i].execute(error, pi_result);
+      dx_output[i] = pi_result;
+    }
   }
 }
 }

@@ -50,7 +50,7 @@ drink_pose:
     x : 0.0
     y : 0.0
     z : 0.0
-    
+
 stand_pose:
   position:
     x: -0.0237
@@ -60,7 +60,7 @@ stand_pose:
     w : 0.0
     x : 0.0
     y : 0.0
-    z : -1.0
+    z : 1.0
 
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"
@@ -80,6 +80,7 @@ constraint_ctrl_i_gain      : 0.1
 joint_max_vel               : 0.4   # rad/s
 space_position_max_vel      : 0.5   # m/s
 space_orientation_max_vel   : 0.5   # rad/s
+# TODO not sure space_orientation_max_vel is properly used (unit in radian but orientation handle in quaternion)
 
 debug                       : true
 # Pose goal joints tolerance
