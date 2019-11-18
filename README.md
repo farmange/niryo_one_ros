@@ -1,14 +1,26 @@
-# Niryo One ROS stack
+# ArmStrong - Niryo One ROS stack
 
-(Niryo One : [https://niryo.com](https://niryo.com/?utm_source=github))
+This is a fork of the [official Niryo One ROS stack](https://github.com/NiryoRobotics/niryo_one_ros). 
+Please refer the Niryo One documentation for installation and setup of the environment.
 
-![niryo one rviz simulation](https://niryo.com/wp-content/uploads/2018/08/ros_rviz_niryo_one_colors.png)
+The aim of the ArmStrong project is to turn Niryo One to a real assistive robot for people with upper limb immobility like muscular dystrophy.
+In this way, we work to improve robot control through wheelchair joystick but also explore different kinds of user interfaces.
 
-This repository contains all ROS packages used on Niryo One (Raspberry Pi 3B - Xubuntu for ARM).
+**This is a WIP project so it could be unstable !**
 
-## How to use Niryo One with a graphical interface ?
 
-You can [download Niryo One Studio](https://niryo.com/download/?utm_source=github) (Linux, Windows and MacOS compatible).
+## Features (what's differ from the original Niryo One ROS stack ?)
+
+The main contribution are the qpoases_ros and orthopus_space_control ROS package that bring space control ability. 
+
+### orthopus\_space\_control package
+
+TODO : Add global overview of the control scheme 
+
+### qpoases_ros package
+
+TODO : Add global overview of the control scheme :
+[include](File:qpoases_ros/README.md)
 
 ## How to install Niryo One ROS packages on your computer (x86) - Simulation Mode
 
@@ -30,24 +42,27 @@ Create a catkin workspace and clone Niryo One ROS stack :
 ```
 mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/src
-git clone https://github.com/NiryoRobotics/niryo_one_ros.git .
+git clone git@github.com:ArmStrong-Robotics/niryo_one_ros.git .
+```
+Install dependencies :
+```
+cd ~/catkin_ws
+rosdep update
+rosdep install qpoases_ros -y
+rosdep install orthopus_space_control --ignore-src -y
 ```
 Build the packages :
 ```
-cd ~/catkin_ws
 catkin_make
 ```
-Don't forget to use those commands before you try to launch anything (you can add them in your .bashrc) :
+
+**Don't forget to use those commands before you try to launch anything (you can add them in your .bashrc) :**
 ```
 source /opt/ros/kinetic/setup.bash
 source ~/catkin_ws/devel/setup.bash
 ```
-You can now launch Rviz with Niryo One (only display mode with some cursors to move the joints):
-```
-roslaunch niryo_one_description display.launch
-```
 
-You can also launch the complete Niryo One ROS Stack instead, which you can control from Niryo One Studio.
+Launch the complete Niryo One ROS Stack :
 ```
 roslaunch niryo_one_bringup desktop_rviz_simulation.launch
 ```
@@ -56,42 +71,4 @@ The main differences between this launch file and the launch file executed on Ra
 
 Note that Niryo One ROS packages have been developed with **ROS kinetic, on Ubuntu 16.04**. Other ROS versions and OS distributions are not supported.
 
----
 
-(Optional) After you install ROS packages and execute catkin_make you still have some installation steps if you want to use Blockly ("Niryo Blocks" on Niryo One Studio).
-
-Make sure that you have a recent nodejs version (not the default installed one)
-```
-curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-Install node modules in the blockly_code_generator directory (where you can find package.json) and create an executable.
-```
-cd ~/catkin_ws/src/niryo_one_user_interface/blockly_code_generator
-npm install
-sudo npm link
-```
-
-That's it, you have now all the Niryo One functionalities ready to be used.
-
-## Niryo One ROS Stack overview
-
-Here's a global overview of the Niryo One ROS Stack :
-
-![niryo one ros stack - global overview](https://niryo.com/wp-content/uploads/2017/12/niryo_one_ros.png)
-
-**You can find more specific and detailed info in each package's README.**
-
-## Developer Documentation
-
-* [Get started with the Niryo One Stack](https://niryo.com/docs/niryo-one/developer-tutorials/get-started-with-the-niryo-one-ros-stack/). This will help you understand the architecture and where to start as a developer.
-* [C++ example to move the robot](https://github.com/smaassen/niryo_one_tester) by Steve Maassen
-* [Python API](https://github.com/NiryoRobotics/niryo_one_ros/tree/master/niryo_one_python_api)
-* [Remotely control Niryo One (ROS multi-machines)](https://niryo.com/docs/niryo-one/developer-tutorials/remotely-control-niryo-one-ros-multi-machines/)
-
-## Any question ?
-
-If you have a question and you don't find the answer here or on our [documentation](https://niryo.com/docs/niryo-one/), please [send us a message](https://niryo.com/contact/).
-
-Thank you !
