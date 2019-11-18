@@ -56,9 +56,9 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::Joy::ConstPtr& msg)
 
   /* TODO For now, orientation is not control using spacenav joy. This feature
    * will be enabled in the future */
-  cartesian_vel.twist.angular.x = msg->axes[3];
-  cartesian_vel.twist.angular.y = msg->axes[4];
-  cartesian_vel.twist.angular.z = msg->axes[5];
+  // cartesian_vel.twist.angular.x = msg->axes[3];
+  // cartesian_vel.twist.angular.y = msg->axes[4];
+  // cartesian_vel.twist.angular.z = msg->axes[5];
 
   cartesian_cmd_pub_.publish(cartesian_vel);
 }

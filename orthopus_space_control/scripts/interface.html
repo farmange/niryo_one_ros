@@ -20,7 +20,7 @@
 <body>
   <div class="container">
     <nav class="navbar navbar-light bg-light">
-      <a class="navbar-brand" href="#">
+      <a class="navbar-brand" href="#" id="navbar">
         <h5>ORTHOPUS WebApp</h5>
       </a>
       <img src="Logo_Orthopus.png" height="80" alt="" class="d-inline-block align-top">
@@ -56,10 +56,8 @@
     <div class="container">
       <div class="row justify-content-center">
         <div class="col col-sm-5 d-flex" id="YZ_joystick">
-          <!--                 <div class="d-flex border" id="YZ_joystick" style="height: 110px;"></div> -->
         </div>
         <div class="col col-sm-5 d-flex" id="YX_joystick">
-          <!--                 <div class="d-flex border" id="YX_joystick" style="height: 110px;"></div> -->
         </div>
 
         <div class="col col-sm-2 d-flex align-items-center justify-content-center">
@@ -67,16 +65,18 @@
             <button class="btn btn-primary flex-fill" disabled>Gripper</button>
             <button id="gripper_open" class="btn btn-outline-primary">Open</button>
             <button id="gripper_close" class="btn btn-outline-primary">Close</button>
-            <form>
-              <div class="form-group">
-                <label for="rotX_slider">Rotation X</label>
-                <input type="range" class="form-control-range" min="-1.0" max="1.0" step="0.01" id="rotX_slider">
-                <label for="rotY_slider">Rotation Y</label>
-                <input type="range" class="form-control-range" min="-1.0" max="1.0" step="0.01" id="rotY_slider">
-                <label for="rotZ_slider">Rotation Z</label>
-                <input type="range" class="form-control-range" min="-1.0" max="1.0" step="0.01" id="rotZ_slider">
-              </div>
-            </form>
+            <div class="justify-content-center d-flex">
+              <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotX_slider">
+              <img src="x-axis.png" class="img-responsive p-1" height="30px" width="30px" />
+            </div>
+            <div class="justify-content-center d-flex">
+              <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotY_slider">
+              <img src="y-axis.png" class="img-responsive p-1" height="30px" width="30px" />
+            </div>
+            <div class="justify-content-center d-flex">
+              <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotZ_slider">
+              <img src="z-axis.png" class="img-responsive p-1" height="30px" width="30px" />
+            </div>
           </div>
         </div>
 

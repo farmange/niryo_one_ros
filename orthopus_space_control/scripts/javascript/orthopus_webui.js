@@ -167,6 +167,27 @@ function SetLearningMode(state) {
       + result.message);
   });
 }
+function Calibrate() {
+  console.log('Robot calibration');
+
+  var request = new ROSLIB.ServiceRequest({
+    value: 2
+  });
+
+  var learning_mode_srv = new ROSLIB.Service({
+    ros: ros,
+    name: '/niryo_one/calibrate_motors',
+    serviceType: 'niryo_one_msgs/SetInt'
+  });
+  learning_mode_srv.callService(request, function (result) {
+    console.log('Result for service call on '
+      + learning_mode_srv.name
+      + ': '
+      + result.status
+      + ', '
+      + result.message);
+  });
+}
 
 function SetGripperId() {
   console.log('SetGripperId');
@@ -437,7 +458,7 @@ window.onload = function () {
 }
 
 window.onresize = function () {
-  var max_joy_size = $(window).height() - 420;
+  var max_joy_size = $(window).height() - 450;
   console.log("yz_joy")
   console.log(yz_joy)
   yz_joy.destroy();
@@ -451,6 +472,11 @@ $(function () {
     .change(function () {
       var state = $('#enable_switch')[0].checked;
       SetLearningMode(!state);
+    });
+  $('#navbar')
+    .click(function () {
+      var state = $('#enable_switch')[0].checked;
+      Calibrate();
     });
   $('#goto_home')
     .click(function () {
