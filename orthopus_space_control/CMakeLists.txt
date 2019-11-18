@@ -11,7 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
   qpoases_ros
   spacenav_node
   joy
-  tf2_geometry_msgs
   rospy
   web_video_server
   libuvc_camera
@@ -63,7 +62,6 @@ add_executable(cartesian_controller
   src/inverse_kinematic.cpp
   src/forward_kinematic.cpp
   src/velocity_integrator.cpp
-  src/constraints_compensator.cpp
   src/trajectory_controller.cpp
   src/pose_manager.cpp
   src/robot_manager.cpp
