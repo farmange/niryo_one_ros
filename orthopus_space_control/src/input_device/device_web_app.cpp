@@ -43,8 +43,8 @@ void DeviceWebApp::callbackJoy_(const sensor_msgs::Joy::ConstPtr& msg)
   cartesian_vel.twist.angular.x = msg->axes[XBOX_CROSS_VERTICAL];
   // Left/Right Axis of the cross
   cartesian_vel.twist.angular.y = msg->axes[XBOX_CROSS_HORIZONTAL];
-  // Left/Right Axis of the right stick
-  cartesian_vel.twist.angular.z = msg->axes[XBOX_AXIS_HORIZONTAL_RIGHT];
+  // Left/Right Axis of the right stick (axis inversion)
+  cartesian_vel.twist.angular.z = -1.0 * msg->axes[XBOX_AXIS_HORIZONTAL_RIGHT];
 
   cartesian_cmd_pub_.publish(cartesian_vel);
 }

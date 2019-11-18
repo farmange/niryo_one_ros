@@ -36,10 +36,5 @@
         <!-- don't change that unless you manually change ros log location --> 
         <param name="ros_log_location"      type="string" value="/home/niryo/.ros/log" /> 
     </node>
-<!-- 
-    <include file="$(find orthopus_space_control)/launch/demo.launch">
-        <arg name="spacenav" value="true" />
-        <arg name="webapp" value="false" />
-    </include> -->
 
 </launch>

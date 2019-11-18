@@ -27,8 +27,4 @@
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find niryo_one_description)/config/default_config.rviz" />
 
-    <!-- <include file="$(find orthopus_space_control)/launch/demo.launch">
-        <arg name="spacenav" value="true" />
-        <arg name="webapp" value="false" />
-    </include> -->
 </launch>
