@@ -35,7 +35,6 @@ CartesianController::CartesianController(const int joint_number, const bool use_
   , fk_(joint_number, use_quaternion)
   , vi_(joint_number, use_quaternion)
   , pm_(joint_number, use_quaternion)
-  , cc_(joint_number, use_quaternion)
   , joint_number_(joint_number)
   , use_quaternion_(use_quaternion)
   , x_current_()
@@ -67,7 +66,6 @@ void CartesianController::init(double sampling_period, PoseManager& pose_manager
   ik_.init("tool_link", sampling_period_);
   fk_.init("tool_link");
   vi_.init(sampling_period_);
-  cc_.init(sampling_period_);
 }
 
 void CartesianController::setDebugPublishers(ros::Publisher& q_current_debug_pub, ros::Publisher& x_current_debug_pub,
@@ -83,7 +81,6 @@ void CartesianController::reset()
   tc_.reset();
   fk_.reset();
   ik_.reset();
-  cc_.reset();
 }
 
 void CartesianController::setDxDesired(const SpaceVelocity& dx_desired)
@@ -110,28 +107,6 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   ROS_DEBUG_STREAM("Forward kinematic computes space position : ");
   ROS_DEBUG_STREAM("x_current_           : " << x_current_);
 
-  /* Convert cartesian euler velocity into quaternion velocity according to the formula :
-   *    quat_dot = 1/2 * omega * quat(t)
-   */
-  // World control
-  // Eigen::Quaterniond init_quat(x_current_.getQw(), x_current_.getQx(), x_current_.getQy(), x_current_.getQz());
-  // /* The omega vector (store in dx_desired_) can be consider as a quaternion with a scalar part equal to zero */
-  // Eigen::Quaterniond half_omega_quat(0.0, 0.5 * dx_desired_.getQx(), 0.5 * dx_desired_.getQy(),
-  //                                    0.5 * dx_desired_.getQz());
-  // /* quaternion product */
-  // Eigen::Quaterniond vel_quat = half_omega_quat * init_quat;
-
-  // Tool control
-  Eigen::Quaterniond init_quat(x_current_.getQw(), x_current_.getQx(), x_current_.getQy(), x_current_.getQz());
-  /* The omega vector (store in dx_desired_) can be consider as a quaternion with a scalar part equal to zero */
-  Eigen::Quaterniond half_omega_quat(0.0, 0.5 * dx_desired_.getQx(), 0.5 * dx_desired_.getQy(),
-                                     0.5 * dx_desired_.getQz());
-  /* quaternion product */
-  Eigen::Quaterniond vel_quat = init_quat * half_omega_quat;
-
-  dx_desired_quat_.setPosition(dx_desired_.getPosition());
-  dx_desired_quat_.setOrientation(vel_quat);
-
   if (input_selector_ == INPUT_TRAJECTORY)
   {
     /* If input trajectory is selected, user input is ignore */
@@ -145,23 +120,13 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   {
     ROS_INFO("=== Retrieve user space velocity...");
     ROS_DEBUG_STREAM("User sent space velocity : ");
-    ROS_DEBUG_STREAM("dx_desired_ (omega)  : " << dx_desired_);
-
-    // ROS_INFO("=== Perform constraints compensation...");
-    // cc_.setXCurrent(x_current_);
-    // cc_.setDxInput(dx_desired_);
-    // cc_.run(dx_desired_selected_);
-    dx_desired_selected_ = dx_desired_quat_;
-    // ROS_DEBUG_STREAM("Constraints compensator updates space velocity   : " << dx_desired_selected_);
+    ROS_DEBUG_STREAM("dx_desired_ : " << dx_desired_);
+    dx_desired_selected_ = dx_desired_;
   }
-
-  ROS_DEBUG_STREAM("Desired space velocity :");
-  ROS_DEBUG_STREAM("dx_desired_selected_ : " << dx_desired_selected_);
 
   ROS_INFO("=== Start IK computation...");
   ik_.setQCurrent(q_current_);
   ik_.setXCurrent(x_current_);
-  ik_.setOmega(dx_desired_);
   ik_.resolveInverseKinematic(dq_desired_, dx_desired_selected_);
   ROS_DEBUG_STREAM("Inverse kinematic computes joint velocity :");
   ROS_DEBUG_STREAM("dq_desired_          : " << dq_desired_);
@@ -177,11 +142,6 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   ROS_INFO("----------------------------------------");
 
   publishDebugTopic_();
-}
-
-ConstraintsCompensator* CartesianController::getConstraintsCompensator()
-{
-  return &cc_;
 }
 
 TrajectoryController* CartesianController::getTrajectoryController()

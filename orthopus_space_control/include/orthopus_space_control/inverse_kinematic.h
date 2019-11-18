@@ -55,13 +55,20 @@ namespace space_control
 class InverseKinematic
 {
 public:
+  enum class ControlFrame
+  {
+    World,
+    Tool
+  };
+
   InverseKinematic(const int joint_number, const bool use_quaternion);
   void init(const std::string end_effector_link, const double sampling_period);
   void reset();
   void resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired);
   void setQCurrent(const JointPosition& q_current);
   void setXCurrent(const SpacePosition& x_current);
-  void setOmega(const SpaceVelocity& omega);
+  void setPositionControlFrame(const ControlFrame frame);
+  void setOrientationControlFrame(const ControlFrame frame);
 
 protected:
 private:
@@ -72,6 +79,9 @@ private:
   double sampling_period_;
   bool qp_init_required_; /*!< Flag to track the first iteration of QP solver */
   bool jacobian_init_flag_;
+
+  ControlFrame position_ctrl_frame_;
+  ControlFrame orientation_ctrl_frame_;
 
   Eigen::Quaterniond jacobian_quat_prev_;  // TODO used
   std::vector<double> gamma_weight_vec;
@@ -85,6 +95,9 @@ private:
   bool reset_axis2[7];
   std::string end_effector_link_;
 
+  Eigen::Vector3d pos_snap;
+  double eps_inf_pos[3];
+
   JointPosition dq_lower_limit_; /*!< Joint lower velocity bound (vector lb) */
   JointPosition dq_upper_limit_; /*!< Joint upper velocity bound (vector ub) */
 
@@ -95,8 +108,6 @@ private:
   // SpacePosition x_max_limit_; /*!< Space max limit used in upper constraints bound vector ubA */
   double x_min_limit[7]; /*!< Space min limit used in lower constraints bound vector lbA */
   double x_max_limit[7]; /*!< Space max limit used in upper constraints bound vector ubA */
-
-  SpaceVelocity dx_omega_;
 
   MatrixXd alpha_weight_;   /*!< Diagonal matrix which contains weight for space velocity minimization */
   MatrixXd beta_weight_;    /*!< Diagonal matrix which contains weight for joint velocity minimization */
@@ -132,7 +143,7 @@ private:
   */
   bool getJacobian_(const robot_state::RobotStatePtr kinematic_state, const robot_state::JointModelGroup* group,
                     const robot_state::LinkModel* link, const Eigen::Vector3d& reference_point_position,
-                    Eigen::MatrixXd& jacobian, bool use_quaternion_representation, bool impl);
+                    Eigen::MatrixXd& jacobian, bool use_quaternion_representation);
 
   Eigen::Matrix4d xR(Eigen::Quaterniond& quat);
   Eigen::Matrix4d Rx(Eigen::Quaterniond& quat);

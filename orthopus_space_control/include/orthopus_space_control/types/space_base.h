@@ -126,12 +126,21 @@ public:
   {
     return orientation_;
   }
+  Eigen::Vector4d getOrientationVector() const
+  {
+    Eigen::Vector4d vec;
+    vec(0) = orientation_.w();
+    vec(1) = orientation_.x();
+    vec(2) = orientation_.y();
+    vec(3) = orientation_.z();
+    return vec;
+  }
   void setOrientation(const Eigen::Quaterniond& q)
   {
     orientation_ = q;
   }
 
-  Vector7d getRawVector()
+  Vector7d getRawVector() const
   {
     Vector7d ret;
     ret(0) = position_(0);

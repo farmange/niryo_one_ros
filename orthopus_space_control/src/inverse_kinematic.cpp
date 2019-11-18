@@ -39,6 +39,8 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
   , sampling_period_(0)
   , qp_init_required_(true)
   , jacobian_init_flag_(true)
+  , position_ctrl_frame_(ControlFrame::World)
+  , orientation_ctrl_frame_(ControlFrame::World)
 {
   ROS_DEBUG_STREAM("InverseKinematic constructor");
 
@@ -182,11 +184,6 @@ void InverseKinematic::setQCurrent(const JointPosition& q_current)
   q_current_ = q_current;
 }
 
-void InverseKinematic::setOmega(const SpaceVelocity& omega)
-{
-  dx_omega_ = omega;
-}
-
 void InverseKinematic::setXCurrent(const SpacePosition& x_current)
 {
   x_current_ = x_current;
@@ -200,6 +197,16 @@ void InverseKinematic::setXCurrent(const SpacePosition& x_current)
 
   // TODO QUAT improve that to allow copy
   // x_current_eigen_ = x_current.getRawVector();
+}
+
+void InverseKinematic::setPositionControlFrame(const ControlFrame frame)
+{
+  position_ctrl_frame_ = frame;
+}
+
+void InverseKinematic::setOrientationControlFrame(const ControlFrame frame)
+{
+  orientation_ctrl_frame_ = frame;
 }
 
 void InverseKinematic::setDqBounds_(const JointVelocity& dq_bound)
@@ -220,82 +227,88 @@ void InverseKinematic::reset()
 
 void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired)
 {
-  /* Store desired velocity in eigen vector */
-  VectorXd dx_desired_eigen = VectorXd(space_dimension_);
-  for (int i = 0; i < space_dimension_; i++)
-  {
-    dx_desired_eigen(i) = dx_desired[i];
-  }
+  /*
+   * Setup IK inputs according to selected control frame
+   * Note : Depending on position_ctrl_frame_ and orientation_ctrl_frame_, the dx_desired parameter could be interpreted
+   * as tool frame or world frame setpoint
+   */
+  SpaceVelocity dx_desired_in_frame;
 
-  Eigen::Quaterniond quat_current(x_current_[3], x_current_[4], x_current_[5], x_current_[6]);
-  Eigen::Vector4d quat_current_vec;
-  quat_current_vec(0) = quat_current.w();
-  quat_current_vec(1) = quat_current.x();
-  quat_current_vec(2) = quat_current.y();
-  quat_current_vec(3) = quat_current.z();
-  ROS_DEBUG("quat_current = %5f, %5f, %5f; %5f ", quat_current.w(), quat_current.x(), quat_current.y(),
-            quat_current.z());
+  position_ctrl_frame_ = ControlFrame::World;
+  orientation_ctrl_frame_ = ControlFrame::Tool;
+
+  /* Compute the desired linear velocity according to the selected control frame :
+   *       p0 = R_0to1 * p1
+   * with :
+   *     - p0 : the linear velocity in world frame
+   *     - p1 : the linear velocity in tool frame
+   *     - R_0to1 : the rotation matrix of the tool link in the world frame
+   *
+   * Note :
+   *       r_dot = 1/2 * r_c * omega
+   */
+  // TODO need to add documentation here and reread the orientation part to
+  // TODO refactor variable name
+  Eigen::Matrix3d R_0to1 = Eigen::Matrix3d::Identity();
+  Eigen::Matrix3d R_0to1_transpose = Eigen::Matrix3d::Identity();
+
+  if (position_ctrl_frame_ == ControlFrame::World)
+  {
+    R_0to1_transpose = Eigen::Matrix3d::Identity();
+  }
+  else if (position_ctrl_frame_ == ControlFrame::Tool)
+  {
+    R_0to1 = x_current_.getOrientation().toRotationMatrix();
+    R_0to1_transpose = R_0to1.transpose();
+  }
+  else
+  {
+    ROS_ERROR("This control frame is not already handle !");
+  }
+  dx_desired_in_frame.setPosition(R_0to1 * dx_desired.getPosition());
+
+  /* Compute the desired andular velocity according to the selected control frame into a quaternion velocity
+   * using the formula :
+   *       r_dot = 1/2 * omega * r_c
+   * with :
+   *     - r_dot : the orientation velocity in quaternion representation
+   *     - r_c : the current orientation in quaternion representation
+   *     - omega : the angular velocity in rad/s
+   *
+   * Warning : "omega * r_c" is quaternion product !
+   *
+   * Note : velocity in tool frame can be written as :
+   *       r_dot = 1/2 * r_c * omega
+   */
+  /* The omega vector (store in dx_desired) can be consider as a quaternion with a scalar part equal to zero */
+  Eigen::Quaterniond r_half_omega(0.0, 0.5 * dx_desired.getQx(), 0.5 * dx_desired.getQy(), 0.5 * dx_desired.getQz());
+  Eigen::Quaterniond r_dot;
+  if (orientation_ctrl_frame_ == ControlFrame::World)
+  {
+    r_dot = r_half_omega * x_current_.getOrientation();
+  }
+  else if (orientation_ctrl_frame_ == ControlFrame::Tool)
+  {
+    r_dot = x_current_.getOrientation() * r_half_omega;
+  }
+  else
+  {
+    ROS_ERROR("This control frame is not already handle !");
+  }
+  dx_desired_in_frame.setOrientation(r_dot);
+
+  /*********************************************************/
 
   /* Set kinemtic state of the robot to the current joint positions */
   kinematic_state_->setVariablePositions(q_current_);
   kinematic_state_->updateLinkTransforms();
 
-  /* Get jacobian from kinematic state (Moveit) */
+  /* Get jacobian */
   Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
   Eigen::MatrixXd jacobian;
-  Eigen::MatrixXd jacobian_tool;
-
   getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
-               reference_point_position, jacobian, true, false);
+               reference_point_position, jacobian, true);
 
-  getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
-               reference_point_position, jacobian_tool, true, true);
-
-  /**********************************/
-  Eigen::MatrixXd jacob_temp;
-  getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
-               reference_point_position, jacob_temp, false, false);
-  Eigen::MatrixXd Jw_R0(3, 6);
-  Jw_R0 = jacob_temp.bottomLeftCorner(3, 6);
-
-  Eigen::MatrixXd Rc_R0(4, 3);
-  Eigen::MatrixXd Rc_R1(4, 3);
-  double rc_w = quat_current.w(), rc_x = quat_current.x(), rc_y = quat_current.y(), rc_z = quat_current.z();
-  Rc_R0 << -rc_x, -rc_y, -rc_z, rc_w, rc_z, -rc_y, -rc_z, rc_w, rc_x, rc_y, -rc_x, rc_w;
-  Rc_R1 << -rc_x, -rc_y, -rc_z, rc_w, -rc_z, rc_y, rc_z, rc_w, -rc_x, -rc_y, rc_x, rc_w;
-
-  Eigen::MatrixXd Jw_R1 = Rc_R1.transpose() * Rc_R0 * Jw_R0;
-  // ROS_ERROR_STREAM("Rc_R0 = \n" << Rc_R0);
-  // ROS_ERROR_STREAM("Rc_R1 = \n" << Rc_R1);
-  // ROS_ERROR_STREAM("Jw_R0 = \n" << Jw_R0);
-  // ROS_ERROR_STREAM("Jw_R1 = \n" << Jw_R1);
-
-  Eigen::MatrixXd Jr_R0 = 0.5 * Rc_R0 * Jw_R0;
-  Eigen::MatrixXd Jr_R00 = 0.5 * Rc_R1 * Jw_R1;
-  Eigen::MatrixXd Jr_R1 = 0.5 * Rc_R0 * Jw_R1;
-  ROS_ERROR_STREAM("jacobian (world) = \n" << jacobian);
-  ROS_ERROR_STREAM("jacobian (tool) = \n" << jacobian_tool);
-  // HACK uncomment this line for tool frame control (not stable)
-  // jacobian.bottomLeftCorner(4, 6) = Jr_R1;
-
-  // ROS_ERROR_STREAM("jacobian = \n" << jacobian.bottomLeftCorner(4, 6););
-  // ROS_ERROR_STREAM("Jr_R0 = \n" << Jr_R0);
-  // ROS_ERROR_STREAM("is equal : " << Jr_R0.isApprox(jacobian.bottomLeftCorner(4, 6)));
-
-  ROS_ERROR_STREAM("=======================");
-
-  /**********************************/
-  // jacobian.topLeftCorner(3, 6) = jacobian_tool.topLeftCorner(3, 6);
-  // jacobian.bottomLeftCorner(4, 6) = jacobian_tool.bottomLeftCorner(4, 6);
-  Eigen::MatrixXd jacobian_p = jacobian.topLeftCorner(3, 6);
-  Eigen::MatrixXd jacobian_q = jacobian.bottomLeftCorner(4, 6);
-
-  // ROS_ERROR_STREAM("jacobian_tool = \n" << jacobian_tool.bottomLeftCorner(4, 6););
-  // ROS_ERROR_STREAM("Jr_R1 = \n" << Jr_R1);
-  // ROS_ERROR_STREAM("is equal : " << Jr_R1.isApprox(jacobian_tool.bottomLeftCorner(4, 6)));
-
-  // ROS_ERROR_STREAM("jacobian_p = \n" << jacobian_p);
-  // ROS_ERROR_STREAM("jacobian_q = \n" << jacobian_q);
   /*
    * qpOASES solves QPs of the following form :
    * [1]    min   1/2*x'Hx + x'g
@@ -355,7 +368,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
   MatrixXd hessian = (jacobian.transpose() * alpha_weight_ * jacobian) + beta_weight_;
 
   /* Gradient vector computation */
-  VectorXd g = (-jacobian.transpose() * alpha_weight_ * dx_desired_eigen);
+  VectorXd g = (-jacobian.transpose() * alpha_weight_ * dx_desired_in_frame.getRawVector());
 
   /* In order to limit the joint position, we define a inequality constraint for the QP optimisation.
    * Taylor developpement of joint position is :
@@ -377,16 +390,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    */
   Eigen::Matrix<double, 12, 6, Eigen::RowMajor> A;
   A.topLeftCorner(6, 6) = Eigen::MatrixXd::Identity(6, 6) * sampling_period_;
-  A.block(6, 0, 3, 6) = jacobian.topLeftCorner(3, 6) * sampling_period_;
+  A.block(6, 0, 3, 6) = R_0to1_transpose * jacobian.topLeftCorner(3, 6) * sampling_period_;
 
   const double eps_pos = 0.001;
   const double eps_orientation = 0.001;
-  const double inf = 1.0;
-  Eigen::Quaterniond r_c_cong = quat_current.conjugate();
+  const double inf = 10.0;
 
-  Eigen::MatrixXd snap_transfert_matrix(4, 4);
-  double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
-  snap_transfert_matrix << ws, xs, ys, zs, -xs, ws, -zs, ys, -ys, zs, ws, -xs, -zs, -ys, xs, ws;
   if (qp_init_required_)
   {
     for (int i = 0; i < 3; i++)
@@ -394,15 +403,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
       x_min_limit[i] = x_current_[i] - eps_pos;
       x_max_limit[i] = x_current_[i] + eps_pos;
       flag_save[i] = true;
+      eps_inf_pos[i] = eps_pos;
     }
 
-    Qsnap[0] = snap_transfert_matrix.block(1, 0, 1, 4).transpose();
-    Qsnap[1] = snap_transfert_matrix.block(2, 0, 1, 4).transpose();
-    Qsnap[2] = snap_transfert_matrix.block(3, 0, 1, 4).transpose();
-
-    r_snap = quat_current;
+    pos_snap = x_current_.getPosition();
+    r_snap = x_current_.getOrientation();
     r_snap_cong = r_snap.conjugate();
-    Rs_cong = xR(quat_current) * Rx(r_c_cong) * xR(r_snap_cong);
   }
 
   for (int i = 0; i < 3; i++)
@@ -410,65 +416,76 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     if (dx_desired[i] != 0)
     {
       flag_save[i] = true;
-      x_min_limit[i] = x_current_[i] - inf;
-      x_max_limit[i] = x_current_[i] + inf;
+      // x_min_limit[i] = x_current_[i] - inf;
+      // x_max_limit[i] = x_current_[i] + inf;
+      eps_inf_pos[i] = inf;
     }
     else
     {
       if (flag_save[i] == true)
       {
         flag_save[i] = false;
-        x_min_limit[i] = x_current_[i] - eps_pos;
-        x_max_limit[i] = x_current_[i] + eps_pos;
+        pos_snap = x_current_.getPosition();
+        // x_min_limit[i] = x_current_[i] - eps_pos;
+        // x_max_limit[i] = x_current_[i] + eps_pos;
+        eps_inf_pos[i] = eps_pos;
       }
     }
   }
 
-  x_min_limit[3] = -1.1;
-  x_max_limit[3] = +1.1;
+  Eigen::Vector3d lim_pos_vec = R_0to1_transpose * (pos_snap - x_current_.getPosition());
+  for (int i = 0; i < 3; i++)
+  {
+    x_min_limit[i] = lim_pos_vec(i) - eps_inf_pos[i];
+    x_max_limit[i] = lim_pos_vec(i) + eps_inf_pos[i];
+  }
 
-  Eigen::Matrix4d conjugate = Eigen::Matrix4d::Identity();
-  conjugate(1, 1) = -1.0;
-  conjugate(2, 2) = -1.0;
-  conjugate(3, 3) = -1.0;
-  ROS_WARN_STREAM("conjugate = \n" << conjugate);
+  /* Define the quaternion conjugate matrix as :
+   * conjugate_mat = [1, 0, 0, 0]
+   *                 [0,-1, 0, 0]
+   *                 [0, 0,-1, 0]
+   *                 [0, 0, 0,-1]
+   */
+  Eigen::Matrix4d conjugate_mat;
+  conjugate_mat << 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1;
+  ROS_WARN_STREAM("conjugate_mat = \n" << conjugate_mat);
 
   for (int i = 0; i < 3; i++)
   {
-    if (dx_omega_[4 + i] != 0.0)
+    if (dx_desired[4 + i] != 0.0)
     {
       flag_orient_save[i] = true;
-      x_min_limit[4 + i] = -10.0;
-      x_max_limit[4 + i] = +10.0;
+      x_min_limit[4 + i] = -inf;
+      x_max_limit[4 + i] = inf;
     }
     else
     {
       if (flag_orient_save[i] == true)
       {
         flag_orient_save[i] = false;
-        double ws = quat_current.w(), xs = quat_current.x(), ys = quat_current.y(), zs = quat_current.z();
-        r_snap.w() = ws;
-        r_snap.x() = xs;
-        r_snap.y() = ys;
-        r_snap.z() = zs;
+        r_snap = x_current_.getOrientation();
         r_snap_cong = r_snap.conjugate();
       }
 
-      // World control
-      // Rs_cong = Rx(r_snap) * conjugate;
-      // Tool control
-      Rs_cong = xR(r_snap) * conjugate;
-      Eigen::Vector4d Rsrc = Rs_cong * quat_current_vec;
+      if (orientation_ctrl_frame_ == ControlFrame::World)
+      {
+        Rs_cong = Rx(r_snap) * conjugate_mat;
+      }
+      else if (orientation_ctrl_frame_ == ControlFrame::Tool)
+      {
+        Rs_cong = xR(r_snap) * conjugate_mat;
+      }
+
+      Eigen::Vector4d Rsrc = Rs_cong * x_current_.getOrientationVector();
       double QdQc0 = Rsrc(1 + i);
-      // x_min_limit[4 + i] = -eps_orientation;
-      // x_max_limit[4 + i] = +eps_orientation;
+
       x_min_limit[4 + i] = -eps_orientation - QdQc0;
       x_max_limit[4 + i] = +eps_orientation - QdQc0;
     }
   }
 
   /* constraint of quaternion part */
-  A.bottomLeftCorner(3, 6) = (Rs_cong * jacobian_q.bottomLeftCorner(4, 6) * sampling_period_).bottomLeftCorner(3, 6);
+  A.bottomLeftCorner(3, 6) = (Rs_cong * jacobian.bottomLeftCorner(4, 6) * sampling_period_).bottomLeftCorner(3, 6);
 
   // TODO add function to handle constaints beautifuly
   double lbA[] = { /* Joints min hard limits constraints */
@@ -478,9 +495,9 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (q_lower_limit_[3] - q_current_[3]),
                    (q_lower_limit_[4] - q_current_[4]),
                    (q_lower_limit_[5] - q_current_[5]),
-                   (x_min_limit[0] - x_current_eigen_(0, 0)),
-                   (x_min_limit[1] - x_current_eigen_(1, 0)),
-                   (x_min_limit[2] - x_current_eigen_(2, 0)),
+                   x_min_limit[0],
+                   x_min_limit[1],
+                   x_min_limit[2],
                    x_min_limit[4],
                    x_min_limit[5],
                    x_min_limit[6]
@@ -493,9 +510,9 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
                    (q_upper_limit_[3] - q_current_[3]),
                    (q_upper_limit_[4] - q_current_[4]),
                    (q_upper_limit_[5] - q_current_[5]),
-                   (x_max_limit[0] - x_current_eigen_(0, 0)),
-                   (x_max_limit[1] - x_current_eigen_(1, 0)),
-                   (x_max_limit[2] - x_current_eigen_(2, 0)),
+                   x_max_limit[0],
+                   x_max_limit[1],
+                   x_max_limit[2],
                    x_max_limit[4],
                    x_max_limit[5],
                    x_max_limit[6]
@@ -615,7 +632,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
 bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_state,
                                     const robot_state::JointModelGroup* group, const robot_state::LinkModel* link,
                                     const Eigen::Vector3d& reference_point_position, Eigen::MatrixXd& jacobian,
-                                    bool use_quaternion_representation, bool impl)
+                                    bool use_quaternion_representation)
 {
   if (!group->isChain())
   {
@@ -649,13 +666,6 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
   Eigen::Affine3d reference_transform_2 =
       tool_link ? kinematic_state->getGlobalLinkTransform(tool_link).inverse() : Eigen::Affine3d::Identity();
   Eigen::Affine3d link_transform_2 = reference_transform_2 * kinematic_state->getGlobalLinkTransform(tool_link);
-
-  if (impl)
-  {
-    reference_transform = reference_transform_2;
-    // link_transform = link_transform_2;
-    point_transform = link_transform_2 * reference_point_position;
-  }
 
   while (link)
   {
@@ -699,17 +709,6 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
 
   if (use_quaternion_representation)
   {
-    Eigen::Quaterniond* conv_quat_temp;
-    // if (impl)
-    // {
-    //   /* Convert rotation matrix to quaternion */
-    //   conv_quat_temp = new Eigen::Quaterniond(link_transform_2.rotation());
-    // }
-    // else
-    // {
-    /* Convert rotation matrix to quaternion */
-    conv_quat_temp = new Eigen::Quaterniond(link_transform.rotation());
-    // }
     /* Convert rotation matrix to quaternion */
     Eigen::Quaterniond conv_quat(link_transform.rotation());
 
@@ -744,27 +743,19 @@ bool InverseKinematic::getJacobian_(const robot_state::RobotStatePtr kinematic_s
     jacobian_quat_prev_ = conv_quat;
 
     double w = conv_quat.w(), x = conv_quat.x(), y = conv_quat.y(), z = conv_quat.z();
-    Eigen::MatrixXd quaternion_update_matrix(4, 3);
-    // if (impl)
-    // {
-    //   // vrai pour omega exprimé dans R tool
-    //   // Le quaternion resultant est exprimé dans R world ???
-    //   // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
-    //   //        [x]           [  w -z  y ]    [ omega_2 ]
-    //   //        [y]           [  z  w -x ]    [ omega_3 ]
-    //   //        [z]           [ -y  x  w ]
-    //   quaternion_update_matrix << -x, -y, -z, w, -z, y, z, w, -x, -y, x, w;
-    // }
-    // else
-    // {
-    // vrai pour omega exprimé dans R world
-    // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
-    //        [x]           [  w  z -y ]    [ omega_2 ]
-    //        [y]           [ -z  w  x ]    [ omega_3 ]
-    //        [z]           [  y -x  w ]
-    quaternion_update_matrix << -x, -y, -z, w, z, -y, -z, w, x, y, -x, w;
-    // }
-    jacobian.block(3, 0, 4, columns) = 0.5 * quaternion_update_matrix * jacobian.block(3, 0, 3, columns);
+    // Eigen::MatrixXd quaternion_update_matrix(4, 3);
+
+    /* d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
+     *        [x]           [  w  z -y ]    [ omega_2 ]
+     *        [y]           [ -z  w  x ]    [ omega_3 ]
+     *        [z]           [  y -x  w ]
+     */
+    // quaternion_update_matrix << -x, -y, -z, w, z, -y, -z, w, x, y, -x, w;
+
+    // Eigen::Vector4d omega;
+    // omega(0) = 0.0;
+    // omega.bottomLeftCorner(3, 1) =
+    jacobian.block(3, 0, 4, columns) = 0.5 * xR(conv_quat).block(0, 1, 4, 3) * jacobian.block(3, 0, 3, columns);
   }
   return true;
 }

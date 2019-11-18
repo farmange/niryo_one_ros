@@ -26,7 +26,6 @@
 #include "std_msgs/Bool.h"
 #include "std_msgs/Int32.h"
 
-#include "orthopus_space_control/constraints_compensator.h"
 #include "orthopus_space_control/inverse_kinematic.h"
 #include "orthopus_space_control/pose_manager.h"
 #include "orthopus_space_control/trajectory_controller.h"
@@ -65,7 +64,6 @@ public:
   void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
   void callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg);
 
-  ConstraintsCompensator* getConstraintsCompensator();
   TrajectoryController* getTrajectoryController();
   InverseKinematic* getInverseKinematic();
 
@@ -86,7 +84,6 @@ private:
   ForwardKinematic fk_;
   VelocityIntegrator vi_;
   PoseManager pm_;
-  ConstraintsCompensator cc_;
 
   JointPosition q_command_;
   JointPosition q_current_;
