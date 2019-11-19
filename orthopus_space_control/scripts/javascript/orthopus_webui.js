@@ -24,6 +24,7 @@ var ROTY_AXIS_INDEX = 6;
 var ROTZ_AXIS_INDEX = 3;
 
 var mainTimer;
+var enable_loop = true;
 var yz_joy;
 var yx_joy;
 
@@ -50,29 +51,39 @@ var INPUT_EVENT_JOINT_REST = 2;
 var INPUT_EVENT_TRAJECTORY_DRINK = 3;
 var INPUT_EVENT_TRAJECTORY_STAND = 4;
 
+function resetStatus() {
+  hardware_status.rpi_temperature = 0;
+  hardware_status.hardware_version = 0;
+  hardware_status.connection_up = false;
+  hardware_status.error_message = "";
+  hardware_status.calibration_needed = 0;
+  hardware_status.calibration_in_progress = false;
+  hardware_status.motor_names = [];
+  hardware_status.motor_types = [];
+  hardware_status.temperatures = [];
+  hardware_status.voltages = [];
+  hardware_status.hardware_errors = [];
+}
+
+function stopLoop() {
+  enable_loop = false;
+  $('#status_spinner_color').removeClass();
+  $('#status_spinner_color').addClass('text-danger');
+  $('#status_spinner').removeClass();
+  $('#status_spinner').addClass('spinner-grow spinner-grow-sm');
+}
+
 function UpdatePage() {
   /* Update status indicator */
-  $('#enable_spinner_color').removeClass();
+  $('#status_spinner_color').removeClass();
   if (hardware_status.calibration_needed == 1) {
-    $('#enable_spinner_color').addClass('text-danger');
+    $('#status_spinner_color').addClass('text-warning');
   }
   else if (hardware_status.connection_up == false) {
-    $('#enable_spinner_color').addClass('text-warning');
-  }
-  else if (hardware_status.hardware_errors.length != 0) {
-    $('#enable_spinner_color').addClass('text-primary');
+    $('#status_spinner_color').addClass('text-danger');
   }
   else {
-    $('#enable_spinner_color').addClass('text-success');
-  }
-
-  /* Update cartesian mode indicator */
-  $('#cartesian_spinner_color').removeClass();
-  if (joystick_enabled == true) {
-    $('#cartesian_spinner_color').addClass('text-success');
-  }
-  else {
-    $('#cartesian_spinner_color').addClass('text-secondary');
+    $('#status_spinner_color').addClass('text-success');
   }
 
   /* Update enable/disable indicator */
@@ -133,7 +144,9 @@ function Joystick(container, color, x_axis_remap, inv_x, y_axis_remap, inv_y, ma
 }
 
 function mainLoop() {
-  publishCartesianVelocity();
+  if (enable_loop) {
+    publishCartesianVelocity();
+  }
 }
 
 function publishCartesianVelocity() {
@@ -379,10 +392,14 @@ window.onload = function () {
 
   ros.on('error', function (error) {
     console.log('Error connecting to websocket server: ', error);
+    resetStatus();
+    stopLoop();
   });
 
   ros.on('close', function () {
     console.log('Connection to websocket server closed.');
+    resetStatus();
+    stopLoop();
   });
 
   // Setup topic subscribers
@@ -426,6 +443,7 @@ window.onload = function () {
     name: '/niryo_one/joystick_interface/is_enabled',
     messageType: 'std_msgs/Bool'
   });
+
   joystick_enable_sub.subscribe(function (message) {
     console.debug('Received message on ' + joystick_enable_sub.name + ': ' + message.data);
     joystick_enabled = message.data;
