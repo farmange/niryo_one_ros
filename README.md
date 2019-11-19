@@ -152,7 +152,7 @@ Here is an overview of the WebApp :
 The status indicator (the spinner above Gripper section) indicate the state of the robot :
 * <img src="https://orthopus.com/wp-content/uploads/2019/11/spinner_error.png" width="20" > : connection error, be sure the robot is well started and refresh the page (F5)
 * <img src="https://orthopus.com/wp-content/uploads/2019/11/spinner_start.png" width="20" > : connection ok but robot not finish to start 
-* <img src="https://orthopus.com/wp-content/uploads/2019/11/spinner_calib.png" width="20" > : connection ok but robot require calibration ([see calibration section](#calibration))
+* <img src="https://orthopus.com/wp-content/uploads/2019/11/spinner_calib.png" width="20" > : connection ok but robot requires calibration ([see calibration section](#calibration))
 * <img src="https://orthopus.com/wp-content/uploads/2019/11/spinner_ready.png" width="20" > : connection ok and robot is fully operational. ([see play section](#play))
 
 #### Calibration
