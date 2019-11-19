@@ -9,22 +9,22 @@ In this way, we work to improve robot control through wheelchair joystick but al
 **This is a WIP project so it could be unstable !**
 
 - [ArmStrong - Niryo One ROS stack](#armstrong---niryo-one-ros-stack)
-  - [Features (what's differ from the original Niryo One ROS stack ?)](#features-whats-differ-from-the-original-niryo-one-ros-stack)
+  - [Features](#features)
     - [orthopus\_space\_control package](#orthopusspacecontrol-package)
     - [qpoases_ros package](#qpoasesros-package)
   - [Installation](#installation)
-    - [How to install Niryo One ROS packages on your computer (x86) - Simulation Mode](#how-to-install-niryo-one-ros-packages-on-your-computer-x86---simulation-mode)
-    - [How to install Niryo One ROS packages on your robot](#how-to-install-niryo-one-ros-packages-on-your-robot)
-    - [How to install the web interface (WebApp) ?](#how-to-install-the-web-interface-webapp)
+    - [How to install Niryo One ROS packages on your computer (x86) - Simulation Mode ?](#how-to-install-niryo-one-ros-packages-on-your-computer-x86---simulation-mode)
+    - [How to install Niryo One ROS packages on your robot ?](#how-to-install-niryo-one-ros-packages-on-your-robot)
+    - [How to install the WebApp interface ?](#how-to-install-the-webapp-interface)
   - [Usage](#usage)
-    - [How to use WebApp](#how-to-use-webapp)
+    - [How to use WebApp ?](#how-to-use-webapp)
       - [Calibration](#calibration)
       - [Play](#play)
-    - [How to use Spacenav](#how-to-use-spacenav)
+    - [How to use Spacenav ?](#how-to-use-spacenav)
       - [Limitation](#limitation)
-    - [How to use XBox Controller](#how-to-use-xbox-controller)
+    - [How to use XBox Controller ?](#how-to-use-xbox-controller)
 
-## Features (what's differ from the original Niryo One ROS stack ?)
+## Features
 
 The main contribution are the qpoases_ros and orthopus_space_control ROS package.
 Here is an overview of the features : 
@@ -34,7 +34,18 @@ Here is an overview of the features :
 
 ### orthopus\_space\_control package
 
-TODO : Add global overview of the control scheme 
+Global overview of the space control scheme :
+![space control overview](https://orthopus.com/wp-content/uploads/2019/11/orthopus_space_control_scheme.png)
+With :
+
+* $q_{current}$ : the current joint position
+* $X_{current}$ : the current space position
+* $\dot{q}_{desired}$ : the desired joint velocity
+* $\dot{X}_{desired}$ : the desired space velocity
+* $q_{command}$ : the joint position command (Niryo low level controller type follow_joint_trajectory) to send to the robot
+* $q_{measured}$ : the measured joint position of the robot
+
+**Note: Currently, only open loop mode was tested ($q_{current}$=$q_{command}$). This way, Niryo low level control can be seen as a black box and no perturbation is taken into account.**
 
 ### qpoases_ros package
 
@@ -42,7 +53,7 @@ qpOASES is a quadratic programming solver.
 Please refer to the README.md in the qpoases_ros package of more information.
 
 ## Installation
-### How to install Niryo One ROS packages on your computer (x86) - Simulation Mode
+### How to install Niryo One ROS packages on your computer (x86) - Simulation Mode ?
 
 Requirements :
 * Ubuntu 16.04
@@ -90,7 +101,7 @@ The main differences between this launch file and the launch file executed on Ra
 
 Note that Niryo One ROS packages have been developed with **ROS kinetic, on Ubuntu 16.04**. Other ROS versions and OS distributions are not supported.
 
-### How to install Niryo One ROS packages on your robot
+### How to install Niryo One ROS packages on your robot ?
 
 Connect your robot in shh (see Niryo One documentation) and change the github upstream :
 ```
@@ -123,7 +134,7 @@ Launch the complete Niryo One ROS Stack :
 roslaunch niryo_one_bringup rpi_setup.launch
 ```
 
-### How to install the web interface (WebApp) ?
+### How to install the WebApp interface ?
 
 **This section is valid for either simulated or real (RPi) robots.**
 
@@ -143,7 +154,7 @@ root /home/<your_username>/catkin_ws/src/orthopus_space_control/scripts;
 ```
 
 ## Usage
-### How to use WebApp
+### How to use WebApp ?
 
 Go to http://<IP_OF_THE_ROBOT>/interface.html in your favorite web browser. The web page is responsive so it can also be used on smartphone, tablet, etc. 
 Here is an overview of the WebApp :
@@ -165,7 +176,7 @@ You can now play with both joysticks (left joystick for up/down/left/right motio
 
 **Note : Drink and Lay buttons are used to execute predefined trajectories. This is currently unstable but it will be improved very soon...**
 
-### How to use Spacenav
+### How to use Spacenav ?
 If you want to use spacenav, you have to plug it on Niryo One or simulation PC depending on your target. 
 Then edit the following file :
 - To use on the Niryo One RPi robot, edit file ~/catkin_ws/src/niryo_one_bringup/config/rpi_ros_processes.yaml and modify lines :
@@ -211,7 +222,7 @@ Then you can start the robot as mentioned before.
 #### Limitation
 As the spacenav did not offer as many buttons as the WebApp did, you have to perform calibration, enable/disable and goto home through the WebApp ! Note that joystick of the WebApp will not work when spacenav is activated.
 
-### How to use XBox Controller
+### How to use XBox Controller ?
 Should work editing same file as spacenav but I no longer have XBox controller to maintain this feature.
 
 
