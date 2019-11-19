@@ -163,7 +163,7 @@ To disable the Niryo One learning mode, simply activate the toogle Enable/Disabl
 
 You can now play with both joysticks (left joystick for up/down/left/right motion and right joystick for up/down/forward/backward motion) and orientation sliders.
 
-**Note : Drink and Lay buttons are used to execute predefined trajectory. This is not currently stable and it will be improved very soon...**
+**Note : Drink and Lay buttons are used to execute predefined trajectories. This is currently unstable but it will be improved very soon...**
 
 ### How to use Spacenav
 If you want to use spacenav, you have to plug it on Niryo One or simulation PC depending on your target. 
@@ -207,6 +207,7 @@ Then edit the following file :
     </include>
   ```
 Then you can start the robot as mentioned before.
+
 #### Limitation
 As the spacenav did not offer as many buttons as the WebApp did, you have to perform calibration, enable/disable and goto home through the WebApp ! Note that joystick of the WebApp will not work when spacenav is activated.
 
