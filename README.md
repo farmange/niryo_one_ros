@@ -46,7 +46,7 @@ With :
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{command}"/> : the joint position command (Niryo low level controller type follow_joint_trajectory) to send to the robot
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{measured}"/> : the measured joint position of the robot
 
-**Note: Currently, only open loop mode was tested ($q_{current}$=$q_{command}$). This way, Niryo low level control can be seen as a black box and no perturbation is taken into account.**
+**Note: Currently, only open loop mode was tested (<img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{current}"/>=<img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{command}"/>). This way, Niryo low level control can be seen as a black box and no perturbation is taken into account.**
 
 ### qpoases_ros package
 
