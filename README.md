@@ -35,7 +35,7 @@ Here is an overview of the features :
 ### orthopus\_space\_control package
 
 Global overview of the space control scheme :
-![space control overview](https://orthopus.com/wp-content/uploads/2019/11/orthopus_space_control_scheme.png)
+![space control overview](https://orthopus.com/wp-content/uploads/2019/11/orthopus_space_control.png)
 
 With :
 
