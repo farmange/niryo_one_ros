@@ -41,8 +41,8 @@ With :
 
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{current}"/> : the current joint position
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;X_{current}"/> : the current space position
-* <img src="https://latex.codecogs.com/svg.latex?\Large&space;\dot{q}_{desired}"/> : the desired joint velocity
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;\dot{X}_{desired}"/> : the desired space velocity
+* <img src="https://latex.codecogs.com/svg.latex?\Large&space;\dot{q}_{command}"/> : the joint velocity command
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{command}"/> : the joint position command (Niryo low level controller type follow_joint_trajectory) to send to the robot
 * <img src="https://latex.codecogs.com/svg.latex?\Large&space;q_{measured}"/> : the measured joint position of the robot
 
