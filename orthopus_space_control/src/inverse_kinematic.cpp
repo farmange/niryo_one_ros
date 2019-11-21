@@ -143,15 +143,11 @@ void InverseKinematic::setXCurrent(const SpacePosition& x_current)
 
 void InverseKinematic::setPositionControlFrame(const ControlFrame frame)
 {
-  ROS_WARN("setPositionControlFrame = %d", frame);
-
   position_ctrl_frame_ = frame;
 }
 
 void InverseKinematic::setOrientationControlFrame(const ControlFrame frame)
 {
-  ROS_WARN("setOrientationControlFrame = %d", frame);
-
   orientation_ctrl_frame_ = frame;
 }
 
