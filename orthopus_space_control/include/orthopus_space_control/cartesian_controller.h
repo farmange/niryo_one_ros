@@ -50,7 +50,7 @@ public:
   };
   typedef InputSelector InputSelectorType;
 
-  CartesianController(const int joint_number, const bool use_quaternion);
+  CartesianController(const int joint_number);
   void init(double sampling_period, PoseManager& pose_manager);
   void reset();
   void run(const JointPosition& q_current, JointPosition& q_command);
@@ -59,6 +59,7 @@ public:
   void setInputSelector(const InputSelectorType input_selector);
   void setDebugPublishers(ros::Publisher& q_current_debug_pub, ros::Publisher& x_current_debug_pub,
                           ros::Publisher& dx_desired_debug_pub);
+  void setControlFeedbackPublisher(ros::Publisher& control_feedback);
 
   // Callbacks
   void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
@@ -72,12 +73,12 @@ private:
   ros::NodeHandle n_;
 
   int joint_number_;
-  bool use_quaternion_;
   double sampling_period_;
 
   ros::Publisher q_current_debug_pub_;
   ros::Publisher x_current_debug_pub_;
   ros::Publisher dx_desired_debug_pub_;
+  ros::Publisher control_feedback_pub_;
 
   TrajectoryController tc_;
   InverseKinematic ik_;
@@ -102,6 +103,7 @@ private:
   InputSelectorType input_selector_;
 
   void publishDebugTopic_();
+  void publishControlFeedbackTopic_();
 };
 }
 #endif

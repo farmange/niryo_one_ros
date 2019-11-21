@@ -1,4 +1,5 @@
 var ros;
+var control_frame_sub;
 var learning_mode_sub;
 var hardware_status_sub;
 var joystick_enable_sub;
@@ -28,6 +29,7 @@ var enable_loop = true;
 var yz_joy;
 var yx_joy;
 
+var control_state = 0;
 var learning_mode = false;
 var joystick_enabled = false;
 var hardware_status = {
@@ -92,6 +94,19 @@ function UpdatePage() {
   }
   else {
     $('#enable_switch')[0].checked = true;
+  }
+  /* Update control frame switches indicator */
+  if ((control_state & 0x01) != 0) {
+    $('#position_frame_switch')[0].checked = true;
+  }
+  else {
+    $('#position_frame_switch')[0].checked = false;
+  }
+  if ((control_state & 0x02) != 0) {
+    $('#orientation_frame_switch')[0].checked = true;
+  }
+  else {
+    $('#orientation_frame_switch')[0].checked = false;
   }
 }
 
@@ -180,6 +195,40 @@ function SetLearningMode(state) {
       + result.message);
   });
 }
+
+function SetControlFrame() {
+  var val = 0;
+  var pos_state = $('#position_frame_switch')[0].checked;
+  var i = pos_state ? 1 : 0;
+  if (i == 1) {
+    val = val | 0x01;
+  }
+  var orient_state = $('#orientation_frame_switch')[0].checked;
+  var i = orient_state ? 1 : 0;
+  if (i == 1) {
+    val = val | 0x02;
+  }
+  console.log('SetOrientationControlFrame :  ' + val);
+
+  var request = new ROSLIB.ServiceRequest({
+    value: val
+  });
+
+  var set_control_frame_srv = new ROSLIB.Service({
+    ros: ros,
+    name: '/niryo_one/orthopus_space_control/set_control_frame',
+    serviceType: 'orthopus_space_control/SetUInt16'
+  });
+  set_control_frame_srv.callService(request, function (result) {
+    console.log('Result for service call on '
+      + set_control_frame_srv.name
+      + ': '
+      + result.status
+      + ', '
+      + result.message);
+  });
+}
+
 function Calibrate() {
   console.log('Robot calibration');
 
@@ -187,14 +236,14 @@ function Calibrate() {
     value: 2
   });
 
-  var learning_mode_srv = new ROSLIB.Service({
+  var calib_srv = new ROSLIB.Service({
     ros: ros,
     name: '/niryo_one/calibrate_motors',
     serviceType: 'niryo_one_msgs/SetInt'
   });
-  learning_mode_srv.callService(request, function (result) {
+  calib_srv.callService(request, function (result) {
     console.log('Result for service call on '
-      + learning_mode_srv.name
+      + calib_srv.name
       + ': '
       + result.status
       + ', '
@@ -415,6 +464,17 @@ window.onload = function () {
     UpdatePage();
   });
 
+  control_frame_sub = new ROSLIB.Topic({
+    ros: ros,
+    name: '/orthopus_space_control/control_feedback',
+    messageType: 'std_msgs/UInt16'
+  });
+  control_frame_sub.subscribe(function (message) {
+    console.debug('Received message on ' + control_frame_sub.name + ': ' + message.data);
+    control_state = message.data;
+    UpdatePage();
+  });
+
   hardware_status_sub = new ROSLIB.Topic({
     ros: ros,
     name: '/niryo_one/hardware_status',
@@ -491,6 +551,15 @@ $(function () {
       var state = $('#enable_switch')[0].checked;
       SetLearningMode(!state);
     });
+  $('#position_frame_switch')
+    .change(function () {
+      SetControlFrame();
+    });
+  $('#orientation_frame_switch')
+    .change(function () {
+      SetControlFrame();
+    });
+
   $('#navbar')
     .click(function () {
       var state = $('#enable_switch')[0].checked;

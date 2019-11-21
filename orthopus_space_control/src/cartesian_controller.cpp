@@ -22,6 +22,7 @@
 
 #include "niryo_one_msgs/GetInt.h"
 #include "niryo_one_msgs/RobotMove.h"
+#include "std_msgs/UInt16.h"
 
 #include "orthopus_space_control/cartesian_controller.h"
 
@@ -29,14 +30,13 @@
 
 namespace space_control
 {
-CartesianController::CartesianController(const int joint_number, const bool use_quaternion)
-  : tc_(joint_number, use_quaternion)
-  , ik_(joint_number, use_quaternion)
-  , fk_(joint_number, use_quaternion)
-  , vi_(joint_number, use_quaternion)
-  , pm_(joint_number, use_quaternion)
+CartesianController::CartesianController(const int joint_number)
+  : tc_(joint_number)
+  , ik_(joint_number)
+  , fk_(joint_number)
+  , vi_(joint_number)
+  , pm_(joint_number)
   , joint_number_(joint_number)
-  , use_quaternion_(use_quaternion)
   , x_current_()
   , x_orientation_constraint_()
   , x_des_quat_int()
@@ -74,6 +74,11 @@ void CartesianController::setDebugPublishers(ros::Publisher& q_current_debug_pub
   q_current_debug_pub_ = q_current_debug_pub;
   x_current_debug_pub_ = x_current_debug_pub;
   dx_desired_debug_pub_ = dx_desired_debug_pub;
+}
+
+void CartesianController::setControlFeedbackPublisher(ros::Publisher& control_feedback_pub)
+{
+  control_feedback_pub_ = control_feedback_pub;
 }
 
 void CartesianController::reset()
@@ -140,7 +145,7 @@ void CartesianController::run(const JointPosition& q_current, JointPosition& q_c
   /* Write joint command output */
   q_command = q_command_;
   ROS_INFO("----------------------------------------");
-
+  publishControlFeedbackTopic_();
   publishDebugTopic_();
 }
 
@@ -152,6 +157,21 @@ TrajectoryController* CartesianController::getTrajectoryController()
 InverseKinematic* CartesianController::getInverseKinematic()
 {
   return &ik_;
+}
+
+void CartesianController::publishControlFeedbackTopic_()
+{
+  std_msgs::UInt16 feedback;
+  feedback.data = 0;
+  if (ik_.getPositionControlFrame() == InverseKinematic::ControlFrame::Tool)
+  {
+    feedback.data |= 0x01;
+  }
+  if (ik_.getOrientationControlFrame() == InverseKinematic::ControlFrame::Tool)
+  {
+    feedback.data |= 0x02;
+  }
+  control_feedback_pub_.publish(feedback);
 }
 
 void CartesianController::publishDebugTopic_()
@@ -167,24 +187,24 @@ void CartesianController::publishDebugTopic_()
 
   /* debug current space position (result of forward kinematic) */
   geometry_msgs::Pose x_current_pose;
-  x_current_pose.position.x = x_current_.getX();
-  x_current_pose.position.y = x_current_.getY();
-  x_current_pose.position.z = x_current_.getZ();
-  x_current_pose.orientation.w = x_current_.getQw();
-  x_current_pose.orientation.x = x_current_.getQx();
-  x_current_pose.orientation.y = x_current_.getQy();
-  x_current_pose.orientation.z = x_current_.getQz();
+  x_current_pose.position.x = x_current_.position.x();
+  x_current_pose.position.y = x_current_.position.y();
+  x_current_pose.position.z = x_current_.position.z();
+  x_current_pose.orientation.w = x_current_.orientation.w();
+  x_current_pose.orientation.x = x_current_.orientation.x();
+  x_current_pose.orientation.y = x_current_.orientation.y();
+  x_current_pose.orientation.z = x_current_.orientation.z();
   x_current_debug_pub_.publish(x_current_pose);
 
   /* debug space velocity which is sent to inverse kinematic solver */
   geometry_msgs::Pose dx_desired_pose;
-  dx_desired_pose.position.x = dx_desired_selected_.getX();
-  dx_desired_pose.position.y = dx_desired_selected_.getY();
-  dx_desired_pose.position.z = dx_desired_selected_.getZ();
-  dx_desired_pose.orientation.w = dx_desired_selected_.getQw();
-  dx_desired_pose.orientation.x = dx_desired_selected_.getQx();
-  dx_desired_pose.orientation.y = dx_desired_selected_.getQy();
-  dx_desired_pose.orientation.z = dx_desired_selected_.getQz();
+  dx_desired_pose.position.x = dx_desired_selected_.position.x();
+  dx_desired_pose.position.y = dx_desired_selected_.position.y();
+  dx_desired_pose.position.z = dx_desired_selected_.position.z();
+  dx_desired_pose.orientation.w = dx_desired_selected_.orientation.w();
+  dx_desired_pose.orientation.x = dx_desired_selected_.orientation.x();
+  dx_desired_pose.orientation.y = dx_desired_selected_.orientation.y();
+  dx_desired_pose.orientation.z = dx_desired_selected_.orientation.z();
   dx_desired_debug_pub_.publish(dx_desired_pose);
 }
 }

@@ -6,25 +6,11 @@
 #  Minimize cartesian velocity coefs : dx (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
 #        
 alpha_weight:     [4., 4., 4., 1., 1., 1., 1.]
-# alpha_weight:     [0., 0., 0., 0., 0., 0., 0.]
 
 #
 #  Minimize joints velocities coefs : dq
 #        
 beta_weight:      [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-# beta_weight:     [0., 0., 0., 0., 0., 0., 0.]
-
-#
-#  Minimize cartesian position coefs : x (diag matrix 7x7 in case of quaternion and 6x6 in case of euler angles)
-#        
-# gamma_weight:     [400., 400., 400., 100., 100., 100., 100.]
-# gamma_weight:     [1000000., 1000000., 1000000., 0.0, 50000., 1., 50000.]
-# gamma_weight:     [0., 0., 0., 0.0, 0., 0., 0.]
-
-# delta_weight: [400., 400., 400.]
-# epsilon_weight: [0., 100., 100., 100.]
-delta_weight: [0., 0., 0.]
-epsilon_weight: [0., 0., 0., 0.]
 
 #
 #  Saved joint positions 
@@ -35,12 +21,23 @@ rest_position:    [0.0, 0.64, -1.397, 0.0, 0.0, 0.0]
 
 
 #home_position:    [-1.5708, 0.0, 0.0, -1.5708, 1.5708, 1.5708]
-#home_position:    [-1.5708, 0.45, -0.45, -1.5708, -1.5708, 1.5708]
+# home_position:    [-1.5708, 0.45, -0.45, -1.5708, -1.5708, 1.5708]
 
 #
 #  Saved cartesian positions 
 #  
 drink_pose:
+  position:
+    x: -0.0237
+    y: -0.137
+    z: 0.402
+  orientation:
+    w : 0.0
+    x : 0.0
+    y : 0.0
+    z : -1.0
+
+stand_pose:
   position:
     x: 0.0237
     y: -0.126
@@ -51,41 +48,23 @@ drink_pose:
     y : 0.0
     z : 0.0
 
-stand_pose:
-  position:
-    x: -0.0237
-    y: -0.137
-    z: 0.402
-  orientation:
-    w : 0.0
-    x : 0.0
-    y : 0.0
-    z : 1.0
-
 reference_frame             : "ground_link"
 move_group_commander_name   : "arm"
 allow_replanning            : true
-goal_joint_tolerance        : 0.001
-goal_position_tolerance     : 0.001
-goal_orientation_tolerance  : 0.01
+goal_joint_tolerance        : 0.001 # rad
+goal_position_tolerance     : 0.001 # m
+goal_orientation_tolerance  : 0.01 # unit quaternion
 
 # Trajectory controller gain (PI)
-trajectory_ctrl_p_gain      : 8.0
-trajectory_ctrl_i_gain      : 0.1
+traj_ctrl_position_p_gain      : 10.0
+traj_ctrl_position_i_gain      : 0.5
+traj_ctrl_orientation_p_gain      : 4.0
+traj_ctrl_orientation_i_gain      : 0.2
 
-# Constraint controller gain (PI)
-constraint_ctrl_p_gain      : 10.0
-constraint_ctrl_i_gain      : 0.1
-
-joint_max_vel               : 0.4   # rad/s
-space_position_max_vel      : 0.5   # m/s
-space_orientation_max_vel   : 0.5   # rad/s
-# TODO not sure space_orientation_max_vel is properly used (unit in radian but orientation handle in quaternion)
+joint_max_vel               : 0.6   # rad/s
+space_position_max_vel      : 0.2   # m/s
+space_orientation_max_vel   : 0.8   # rad/s
 
 debug                       : true
-# Pose goal joints tolerance
-pose_goal_joints_tolerance  : 0.03  # rad
-
 sampling_frequency          : 10    # Hz
-
 

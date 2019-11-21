@@ -22,8 +22,7 @@
 
 namespace space_control
 {
-VelocityIntegrator::VelocityIntegrator(const int joint_number, const bool use_quaternion)
-  : joint_number_(joint_number), use_quaternion_(use_quaternion), q_current_(joint_number)
+VelocityIntegrator::VelocityIntegrator(const int joint_number) : joint_number_(joint_number), q_current_(joint_number)
 {
   ROS_DEBUG_STREAM("VelocityIntegrator constructor");
   sampling_period_ = 0.0;

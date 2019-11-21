@@ -33,33 +33,33 @@ namespace space_control
 class TrajectoryController
 {
 public:
-  TrajectoryController(const int joint_number, const bool use_quaternion);
+  TrajectoryController(const int joint_number);
   void init(double sampling_period);
   void reset();
   void computeTrajectory(SpaceVelocity& dx_output);
   bool isTrajectoryCompleted();
   void setXCurrent(const SpacePosition& x_current);
-  void setTrajectoryPose(const SpacePosition& x_pose);
+  void setXGoal(const SpacePosition& x_pose);
 
 protected:
 private:
   ros::NodeHandle n_;
   double sampling_period_;
-  bool use_quaternion_;
   int joint_number_;
 
-  SpacePosition x_current_;
-  SpacePosition x_traj_desired_;
-  PiController pi_ctrl_[7];
+  SpacePosition x_current_;           /*!< Current position */
+  SpacePosition x_goal_;              /*!< Goal space position */
+  SpacePosition x_error_;             /*!< Error between x_current_ and x_goal used for the PI */
+  SpacePosition x_traj_tolerance_;    /*!< Trajectory completion tolerance */
+  std::vector<PiController> pi_ctrl_; /*!< Instance of PI controllers */
 
-  bool is_completed_;
-  double euler_factor_[7];
-  double traj_position_tolerance_;
-  double traj_orientation_tolerance_;
+  bool is_completed_;         /*!< Completion state of the trajectory */
+  bool is_comp_completed_[7]; /*!< Completion state of the trajectory on each component (position and orientation) */
+  const int pi_number_;       /*!< Number of PI controller to handle */
 
   void updateTrajectoryCompletion_();
-  void eulerFlipHandling_();
   void processPi_(SpaceVelocity& dx_output);
+  void computeError_();
 };
 }
 #endif

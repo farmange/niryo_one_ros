@@ -1,5 +1,5 @@
 /*
- *  pose_manager.cpp
+ *  space_pose_manager.cpp
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -18,29 +18,41 @@
  */
 #include "ros/ros.h"
 
-#include "orthopus_space_control/pose_manager.h"
+#include "orthopus_space_control/space_pose_manager.h"
 
 // Eigen
 #include "eigen_conversions/eigen_msg.h"
 
 namespace space_control
 {
-PoseManager::PoseManager(const int joint_number) : joint_number_(joint_number)
+SpacePoseManager::SpacePoseManager(const int joint_number) : joint_number_(joint_number)
 {
-  ROS_DEBUG_STREAM("PoseManager constructor");
-  JointPosition q(joint_number);
-  ros::param::get("~home_position", q);
-  q_saved_pose_.emplace("Home", q);
-  ros::param::get("~rest_position", q);
-  q_saved_pose_.emplace("Rest", q);
+  SpacePosition x_pose;
+  ros::param::get("~drink_pose/position/x", x_pose.position.x());
+  ros::param::get("~drink_pose/position/y", x_pose.position.y());
+  ros::param::get("~drink_pose/position/z", x_pose.position.z());
+  ros::param::get("~drink_pose/orientation/w", x_pose.orientation.w());
+  ros::param::get("~drink_pose/orientation/x", x_pose.orientation.x());
+  ros::param::get("~drink_pose/orientation/y", x_pose.orientation.y());
+  ros::param::get("~drink_pose/orientation/z", x_pose.orientation.z());
+  q_saved_pose_.emplace("Home", x_pose);
+
+  ros::param::get("~stand_pose/position/x", x_pose.position.x());
+  ros::param::get("~stand_pose/position/y", x_pose.position.y());
+  ros::param::get("~stand_pose/position/z", x_pose.position.z());
+  ros::param::get("~stand_pose/orientation/w", x_pose.orientation.w());
+  ros::param::get("~stand_pose/orientation/x", x_pose.orientation.x());
+  ros::param::get("~stand_pose/orientation/y", x_pose.orientation.y());
+  ros::param::get("~stand_pose/orientation/z", x_pose.orientation.z());
+  q_saved_pose_.emplace("Stand", x_pose);
 }
 
-const JointPosition PoseManager::getJoints(const std::string position_name)
+const SpacePosition SpacePoseManager::getSpacePose(const std::string position_name)
 {
   return q_saved_pose_.at(position_name);
 }
 
-void PoseManager::setJoints(const std::string position_name, const JointPosition q_pose_to_record)
+void SpacePoseManager::setSpacePose(const std::string position_name, const SpacePosition q_pose_to_record)
 {
   /* Remove entry if exists */
   if (q_saved_pose_.find(position_name) != q_saved_pose_.end())
@@ -50,8 +62,8 @@ void PoseManager::setJoints(const std::string position_name, const JointPosition
   q_saved_pose_.emplace(position_name, q_pose_to_record);
 }
 
-bool PoseManager::callbackManagePose(niryo_one_msgs::ManagePosition::Request& req,
-                                     niryo_one_msgs::ManagePosition::Response& res)
+bool SpacePoseManager::callbackManagePose(niryo_one_msgs::ManagePosition::Request& req,
+                                          niryo_one_msgs::ManagePosition::Response& res)
 {
   if (req.cmd_type == 0)
   {
@@ -64,7 +76,7 @@ bool PoseManager::callbackManagePose(niryo_one_msgs::ManagePosition::Request& re
     }
     res.message = "Set position " + req.position_name;
 
-    JointPosition q(joint_number_);
+    SpacePosition q;
     for (int i = 0; i < joint_number_; i++)
     {
       q[i] = req.position.joints[i];

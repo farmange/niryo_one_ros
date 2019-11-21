@@ -19,6 +19,7 @@
 
 <body>
   <div class="container">
+    <!-- Header navbar -->
     <nav class="navbar navbar-light bg-light">
       <a class="navbar-brand" href="#" id="navbar">
         <h5><span class="font-weight-bold" style="background : #FFCD00">ORTHOPUS</span> WebApp</h5>
@@ -26,67 +27,93 @@
       <img src="Logo_Orthopus.png" height="60" alt="" class="d-inline-block align-top">
     </nav>
 
-    <div class="row ">
+    <!-- Video feedback row -->
+    <div class="row justify-content-center align-items-center">
       <div class="col col-xs-12 justify-content-center d-flex">
         <img src="" class="img-responsive p-1 bg-dark" alt="" id="video" height="250px" />
       </div>
     </div>
 
-    <div class="d-flex align-items-center">
+    <!-- Enable/Disable and status row -->
+    <div class="row d-flex align-items-center">
       <div class="custom-control custom-switch mr-auto">
         <input type="checkbox" class="custom-control-input" id="enable_switch">
         <label class="custom-control-label" for="enable_switch">Enable/Disable</label>
       </div>
 
-      <div>
-        <div id=status_spinner_color class="text-danger">
-          <div id="status_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        </div>
+      <div id=status_spinner_color class="text-danger">
+        <div id="status_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
       </div>
     </div>
 
+    <!-- Joystick and slider row -->
+    <div class="row justify-content-center align-items-center">
+      <div class="col col-sm-4 d-flex" id="YZ_joystick">
+      </div>
+      <div class="col col-sm-4 d-flex" id="YX_joystick">
+      </div>
 
-    <!-- JOYSTICK -->
-    <div class="container">
-      <div class="row justify-content-center align-items-center">
-        <div class="col col-sm-5 d-flex" id="YZ_joystick">
-        </div>
-        <div class="col col-sm-5 d-flex" id="YX_joystick">
-        </div>
-
-        <div class="col col-sm-2 d-flex align-items-center justify-content-center">
-          <div class="btn-group-vertical btn-group-sm flex-fill">
-            <button class="btn btn-primary flex-fill" disabled>Gripper</button>
-            <button id="gripper_open" class="btn btn-outline-primary">Open</button>
-            <button id="gripper_close" class="btn btn-outline-primary">Close</button>
-            <div class="justify-content-center d-flex">
-              <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotX_slider">
-              <img src="x-axis.png" class="img-responsive p-1" height="30px" width="30px" />
-            </div>
-            <div class="justify-content-center d-flex">
-              <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotY_slider">
-              <img src="y-axis.png" class="img-responsive p-1" height="30px" width="30px" />
-            </div>
-            <div class="justify-content-center d-flex">
-              <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotZ_slider">
-              <img src="z-axis.png" class="img-responsive p-1" height="30px" width="30px" />
-            </div>
+      <div class="col col-sm-4 d-flex align-items-center justify-content-center">
+        <div class="d-flex flex-column flex-fill">
+          <div class="d-flex justify-content-center align-items-center">
+            <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotX_slider">
+            <img src="x-axis.png" class="img-fluid p-1" height="40px" width="40px" />
           </div>
-        </div>
-
-        <div class="w-100"></div>
-
-        <div class="col d-flex align-items-top justify-content-center">
-          <div class="btn-group btn-group-sm flex-fill ">
-            <button class="btn btn-primary" disabled>Poses</button>
-            <button id="goto_rest" class="btn btn-outline-primary">Rest</button>
-            <button id="goto_home" class="btn btn-outline-primary">Home</button>
-            <button id="goto_drink" class="btn btn-outline-primary">Drink</button>
-            <button id="goto_stand" class="btn btn-outline-primary">Lay</button>
+          <div class="d-flex justify-content-center align-items-center">
+            <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotY_slider">
+            <img src="y-axis.png" class="img-fluid p-1" height="40px" width="40px" />
+          </div>
+          <div class="d-flex justify-content-center align-items-center">
+            <input type="range" class="custom-range" min="-1.0" max="1.0" step="0.01" id="rotZ_slider">
+            <img src="z-axis.png" class="img-fluid p-1" height="40px" width="40px" />
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Buttons control row -->
+    <div class="d-flex flex-row align-items-start justify-content-center">
+      <div class="col-sm-2 d-flex justify-content-top">
+        <div class="btn-group-vertical btn-group-sm flex-fill">
+          <button class="btn btn-primary flex-fill" disabled>Gripper</button>
+          <button id="gripper_open" class="btn btn-outline-primary">Open</button>
+          <button id="gripper_close" class="btn btn-outline-primary">Close</button>
+        </div>
+      </div>
+
+      <div class="col-sm-2 d-flex justify-content-center">
+        <div class="btn-group-vertical btn-group-sm flex-fill ">
+          <button class="btn btn-primary" disabled>Poses</button>
+          <button id="goto_rest" class="btn btn-outline-primary">Rest</button>
+          <button id="goto_home" class="btn btn-outline-primary">Home</button>
+          <button id="goto_drink" class="btn btn-outline-primary">Drink</button>
+          <button id="goto_stand" class="btn btn-outline-primary">Lay</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings row -->
+    <div class="d-flex flex-row align-items-start justify-content-center border " style="margin-top:10px">
+      <div class="card flex-fill">
+        <div class="card-header">Settings</div>
+        <div class="card-body">
+          <div class="d-flex flex-column align-items-center">
+            <div class="custom-control custom-switch mr-auto">
+              <input type="checkbox" class="custom-control-input" id="position_frame_switch">
+              <label class="custom-control-label" for="position_frame_switch">Position Frame (World/Tool)</label>
+            </div>
+            <div class="custom-control custom-switch mr-auto">
+              <input type="checkbox" class="custom-control-input" id="orientation_frame_switch">
+              <label class="custom-control-label" for="orientation_frame_switch">Orientation Frame (World/Tool)</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
 
   </div>
 </body>

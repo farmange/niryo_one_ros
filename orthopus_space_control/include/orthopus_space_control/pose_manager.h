@@ -31,7 +31,7 @@ namespace space_control
 class PoseManager
 {
 public:
-  PoseManager(const int joint_number, const bool use_quaternion);
+  PoseManager(const int joint_number);
   const JointPosition getJoints(const std::string position_name);
   void setJoints(const std::string position_name, const JointPosition q_pose_to_record);
 
@@ -42,7 +42,6 @@ private:
   ros::NodeHandle n_;
 
   int joint_number_;
-  bool use_quaternion_;
 
   std::map<std::string, JointPosition> q_saved_pose_;
 };

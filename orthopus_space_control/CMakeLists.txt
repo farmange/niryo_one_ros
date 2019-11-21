@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   niryo_one_msgs
   roscpp
   std_msgs
+  message_generation
   moveit_ros_planning_interface
   qpoases_ros
   spacenav_node
@@ -16,6 +17,17 @@ find_package(catkin REQUIRED COMPONENTS
   libuvc_camera
 )
 find_package(Eigen3 REQUIRED)
+
+add_service_files(
+  DIRECTORY srv
+  FILES
+  SetUInt16.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 catkin_package(
   INCLUDE_DIRS
@@ -59,14 +71,15 @@ add_dependencies(device_web_app ${catkin_EXPORTED_TARGETS})
 
 ############ cartesian controller
 add_executable(cartesian_controller
-  src/inverse_kinematic.cpp
+  src/cartesian_controller.cpp
   src/forward_kinematic.cpp
-  src/velocity_integrator.cpp
-  src/trajectory_controller.cpp
+  src/inverse_kinematic.cpp
   src/pose_manager.cpp
   src/robot_manager.cpp
-  src/cartesian_controller.cpp
+  src/space_pose_manager.cpp
+  src/trajectory_controller.cpp
   src/types/space_base.cpp
+  src/velocity_integrator.cpp
   
 )
 target_link_libraries(cartesian_controller ${catkin_LIBRARIES})

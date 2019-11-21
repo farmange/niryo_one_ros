@@ -22,39 +22,59 @@
 
 namespace space_control
 {
-TrajectoryController::TrajectoryController(const int joint_number, const bool use_quaternion)
-  : joint_number_(joint_number), use_quaternion_(use_quaternion), x_traj_desired_(), x_current_(), sampling_period_(0.0)
+TrajectoryController::TrajectoryController(const int joint_number)
+  : pi_number_(7)
+  , joint_number_(joint_number)
+  , x_goal_()
+  , x_current_()
+  , x_error_()
+  , x_traj_tolerance_()
+  , sampling_period_(0.0)
 {
-  ROS_DEBUG_STREAM("TrajectoryController constructor");
-
-  // TODO Improvement: put following value in param
-  traj_position_tolerance_ = 0.005;    // 5 mm
-  traj_orientation_tolerance_ = 0.02;  // 0.01 rad = 0.573 deg // TODO it is not radian in case of quaternion
+  pi_ctrl_.resize(pi_number_);
 }
 
 void TrajectoryController::init(double sampling_period)
 {
   sampling_period_ = sampling_period;
   is_completed_ = true;
-  double p_gain, i_gain, space_position_max_vel;
-  ros::param::get("~trajectory_ctrl_p_gain", p_gain);
-  ros::param::get("~trajectory_ctrl_i_gain", i_gain);
+  double pos_p_gain, pos_i_gain, orient_p_gain, orient_i_gain, space_position_max_vel, space_orientation_max_vel,
+      goal_position_tolerance, goal_orientation_tolerance;
+  ros::param::get("~traj_ctrl_position_p_gain", pos_p_gain);
+  ros::param::get("~traj_ctrl_position_i_gain", pos_i_gain);
+  ros::param::get("~traj_ctrl_orientation_p_gain", orient_p_gain);
+  ros::param::get("~traj_ctrl_orientation_i_gain", orient_i_gain);
   ros::param::get("~space_position_max_vel", space_position_max_vel);
+  ros::param::get("~space_orientation_max_vel", space_orientation_max_vel);
+  ros::param::get("~goal_position_tolerance", goal_position_tolerance);
+  ros::param::get("~goal_orientation_tolerance", goal_orientation_tolerance);
 
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < pi_number_; i++)
   {
-    pi_ctrl_[i].init(sampling_period_, -space_position_max_vel, space_position_max_vel);
-    pi_ctrl_[i].setGains(p_gain, i_gain);
-    euler_factor_[i] = 1.0;
+    if (i < 3)
+    {
+      /* The three first PI are used to control X,Y,Z position */
+      pi_ctrl_[i].init(sampling_period_, -space_position_max_vel, space_position_max_vel);
+      pi_ctrl_[i].setGains(pos_p_gain, pos_i_gain);
+      x_traj_tolerance_[i] = goal_position_tolerance;
+    }
+    else
+    {
+      /* The three last PI are used to control X,Y,Z orientation */
+      pi_ctrl_[i].init(sampling_period_, -space_orientation_max_vel, space_orientation_max_vel);
+      pi_ctrl_[i].setGains(orient_p_gain, orient_i_gain);
+      x_traj_tolerance_[i] = goal_orientation_tolerance;
+    }
+    is_comp_completed_[i] = false;
   }
 }
 
 void TrajectoryController::reset()
 {
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < pi_number_; i++)
   {
     pi_ctrl_[i].reset();
-    euler_factor_[i] = 1.0;
+    is_comp_completed_[i] = false;
   }
   is_completed_ = true;
 }
@@ -62,23 +82,19 @@ void TrajectoryController::reset()
 void TrajectoryController::setXCurrent(const SpacePosition& x_current)
 {
   x_current_ = x_current;
-  euler_factor_[0] = 1.0;
-  euler_factor_[1] = 1.0;
-  euler_factor_[2] = 1.0;
-  euler_factor_[3] = 1.0;
-  euler_factor_[4] = 1.0;
-  euler_factor_[5] = 1.0;
 }
 
-void TrajectoryController::setTrajectoryPose(const SpacePosition& x_pose)
+void TrajectoryController::setXGoal(const SpacePosition& x_goal)
 {
   is_completed_ = false;
-  x_traj_desired_ = x_pose;
+  x_goal_ = x_goal;
 }
 
 void TrajectoryController::computeTrajectory(SpaceVelocity& dx_output)
 {
-  eulerFlipHandling_();
+  ROS_DEBUG_STREAM_NAMED("TrajectoryController", "compute trajectory for the goal position : ");
+  ROS_DEBUG_STREAM("x_goal_      : " << x_goal_);
+  computeError_();
   updateTrajectoryCompletion_();
   processPi_(dx_output);
 }
@@ -88,50 +104,65 @@ bool TrajectoryController::isTrajectoryCompleted()
   return is_completed_;
 }
 
+/* Check if trajectory is achieved */
 void TrajectoryController::updateTrajectoryCompletion_()
 {
   if (!is_completed_)
   {
     is_completed_ = true;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < pi_number_; i++)
     {
-      if (std::abs(x_traj_desired_[i] - x_current_[i]) > traj_position_tolerance_)
+      if (i != 3)
       {
-        is_completed_ = false;
-        ROS_DEBUG("Trajectory status : delta of %5f on %d axis", x_traj_desired_[i] - x_current_[i], i);
-      }
-    }
-    for (int i = 3; i < 7; i++)
-    {
-      if (std::abs(x_traj_desired_[i] - x_current_[i]) > traj_orientation_tolerance_)
-      {
-        is_completed_ = false;
-        ROS_DEBUG("Trajectory status : delta of %5f on %d axis", x_traj_desired_[i] - x_current_[i], i);
+        /* Do not take into account scalar part of the quaternion */
+        if (std::abs(x_error_[i]) > x_traj_tolerance_[i])
+        {
+          is_completed_ = false;
+          ROS_DEBUG("Trajectory status : delta of %5f on %d axis", x_error_[i], i);
+          is_comp_completed_[i] = false;
+        }
+        else
+        {
+          is_comp_completed_[i] = true;
+        }
       }
     }
   }
 }
 
-void TrajectoryController::eulerFlipHandling_()
+void TrajectoryController::computeError_()
 {
+  /* Compute position error */
+  for (int i = 0; i < 3; i++)
+  {
+    x_error_[i] = (x_goal_[i] - x_current_[i]);
+  }
+
+  /* Compute orientation error */
+  Eigen::Quaterniond quat_error = x_goal_.getOrientation() * x_current_.getOrientation().conjugate();
+  x_error_.orientation = quat_error;
 }
 
 void TrajectoryController::processPi_(SpaceVelocity& dx_output)
 {
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < pi_number_; i++)
   {
-    if (i == 3)
+    if (!is_comp_completed_[i])
     {
-      dx_output[i] = 0.0;
+      /* To improve stability, only component that did meet the desired trajectory are controlled */
+      double pi_result;
+      pi_ctrl_[i].execute(x_error_[i], pi_result);
+      dx_output[i] = pi_result;
     }
     else
     {
-      double error = (x_traj_desired_[i] - x_current_[i] * euler_factor_[i]);
-      double pi_result;
-      ROS_DEBUG("error[%d] : %5f", i, error);
-      pi_ctrl_[i].execute(error, pi_result);
-      dx_output[i] = pi_result;
+      pi_ctrl_[i].reset();
+      dx_output[i] = 0.0;
     }
   }
+
+  /* The dx_output computed velocity reflects an angular velocity (omega) in rad/s that is why the scalar part of the
+   * quaternion is set to zero */
+  dx_output.orientation.w() = 0.0;
 }
 }

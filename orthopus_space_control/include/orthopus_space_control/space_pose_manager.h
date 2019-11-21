@@ -1,5 +1,5 @@
 /*
- *  velocity_integrator.h
+ *  space_pose_manager.h
  *  Copyright (C) 2019 Orthopus
  *  All rights reserved.
  *
@@ -16,32 +16,34 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CARTESIAN_CONTROLLER_INTEGRATOR_H
-#define CARTESIAN_CONTROLLER_INTEGRATOR_H
+#ifndef CARTESIAN_CONTROLLER_SPACE_POSE_MANAGER_H
+#define CARTESIAN_CONTROLLER_SPACE_POSE_MANAGER_H
 
 #include "ros/ros.h"
 
-#include "sensor_msgs/JointState.h"
+#include "geometry_msgs/Pose.h"
+#include "niryo_one_msgs/ManagePosition.h"
 
-#include "orthopus_space_control/types/joint_position.h"
-#include "orthopus_space_control/types/joint_velocity.h"
+#include "orthopus_space_control/types/space_position.h"
 
 namespace space_control
 {
-class VelocityIntegrator
+class SpacePoseManager
 {
 public:
-  VelocityIntegrator(const int joint_number);
-  void init(const double sampling_period);
-  void integrate(const JointVelocity& dq_input, JointPosition& q_output);
-  void setQCurrent(const JointPosition& q_current);
+  SpacePoseManager(const int joint_number);
+  const SpacePosition getSpacePose(const std::string position_name);
+  void setSpacePose(const std::string position_name, const SpacePosition q_pose_to_record);
+
+  bool callbackManagePose(niryo_one_msgs::ManagePosition::Request& req, niryo_one_msgs::ManagePosition::Response& res);
 
 protected:
 private:
   ros::NodeHandle n_;
+
   int joint_number_;
-  double sampling_period_;
-  JointPosition q_current_;
+
+  std::map<std::string, SpacePosition> q_saved_pose_;
 };
 }
 #endif

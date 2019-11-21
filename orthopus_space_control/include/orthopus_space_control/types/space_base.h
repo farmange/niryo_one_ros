@@ -21,6 +21,8 @@
 
 #include "ros/ros.h"
 
+#include "geometry_msgs/Pose.h"
+
 // Eigen
 #include "Eigen/Dense"
 
@@ -29,15 +31,12 @@ typedef Eigen::Matrix<double, 7, 1> Vector7d;
 namespace space_control
 {
 /**
-* \brief Parent class of coordinate space position or velocity. The vector size depends on orientation definition.
-* The vector size could be :
-*       - 6 in case of euler (roll, pitch and yaw) representation of the orientation
-*       - 7 in case of quaternion (Qw, Qx, Qy, Qz) representation of the orientation
+* \brief Parent class of coordinate space position or velocity.
 */
-class SpaceBase : public std::vector<double>
+class SpaceBase
 {
 public:
-  SpaceBase() : position_(0, 0, 0), orientation_(0, 0, 0, 0){};
+  SpaceBase() : position(0, 0, 0), orientation(0, 0, 0, 0){};
 
   SpaceBase(double (&raw_data)[7])
   {
@@ -47,173 +46,171 @@ public:
     }
   };
 
+  SpaceBase(const geometry_msgs::Pose p)
+  {
+    position.x() = p.position.x;
+    position.y() = p.position.y;
+    position.z() = p.position.z;
+    orientation.w() = p.orientation.w;
+    orientation.x() = p.orientation.x;
+    orientation.y() = p.orientation.y;
+    orientation.z() = p.orientation.z;
+  };
+
   virtual ~SpaceBase() = 0;
 
-  /* Setter / Getter */
-  void setX(double x)
+  class Positiond : public Eigen::Vector3d
   {
-    position_(0) = x;
-  };
-  double getX() const
-  {
-    return position_(0);
+  public:
+    using Eigen::Vector3d::Vector3d;
+    inline double x(void) const
+    {
+      return m_storage.data()[0];
+    };
+    inline double y(void) const
+    {
+      return m_storage.data()[1];
+    };
+    inline double z(void) const
+    {
+      return m_storage.data()[2];
+    };
+
+    inline double& x(void)
+    {
+      return m_storage.data()[0];
+    };
+    inline double& y(void)
+    {
+      return m_storage.data()[1];
+    };
+    inline double& z(void)
+    {
+      return m_storage.data()[2];
+    };
   };
 
-  void setY(double y)
+  class Orientationd : public Eigen::Quaterniond
   {
-    position_(1) = y;
-  };
-  double getY() const
-  {
-    return position_(1);
-  };
-
-  void setZ(double z)
-  {
-    position_(2) = z;
-  };
-  double getZ() const
-  {
-    return position_(2);
+  public:
+    using Eigen::Quaterniond::Quaterniond;
+    Eigen::Vector4d toVector() const
+    {
+      Eigen::Vector4d vec;
+      vec(0) = w();
+      vec(1) = x();
+      vec(2) = y();
+      vec(3) = z();
+      return vec;
+    };
   };
 
-  double getQw() const
+  bool isAllZero() const
   {
-    return orientation_.w();
-  };
-  void setQw(double qw)
-  {
-    orientation_.w() = qw;
-  };
-
-  double getQx() const
-  {
-    return orientation_.x();
-  };
-  void setQx(double qx)
-  {
-    orientation_.x() = qx;
+    bool ret = true;
+    for (int i = 0; i < 7; i++)
+    {
+      if ((*this)[i] != 0.0)
+      {
+        ret = false;
+        break;
+      }
+    }
+    return ret;
   };
 
-  double getQy() const
+  Positiond getPosition() const
   {
-    return orientation_.y();
+    return position;
   };
-  void setQy(double qy)
+  void setPosition(const Positiond& p)
   {
-    orientation_.y() = qy;
-  };
-
-  double getQz() const
-  {
-    return orientation_.z();
-  };
-  void setQz(double qz)
-  {
-    orientation_.z() = qz;
+    position = p;
   };
 
-  Eigen::Vector3d getPosition() const
+  Orientationd getOrientation() const
   {
-    return position_;
-  }
-  void setPosition(const Eigen::Vector3d& p)
-  {
-    position_ = p;
-  }
+    return orientation;
+  };
 
-  Eigen::Quaterniond getOrientation() const
+  void setOrientation(const Orientationd& q)
   {
-    return orientation_;
-  }
-  Eigen::Vector4d getOrientationVector() const
-  {
-    Eigen::Vector4d vec;
-    vec(0) = orientation_.w();
-    vec(1) = orientation_.x();
-    vec(2) = orientation_.y();
-    vec(3) = orientation_.z();
-    return vec;
-  }
-  void setOrientation(const Eigen::Quaterniond& q)
-  {
-    orientation_ = q;
-  }
+    orientation = q;
+  };
 
   Vector7d getRawVector() const
   {
     Vector7d ret;
-    ret(0) = position_(0);
-    ret(1) = position_(1);
-    ret(2) = position_(2);
-    ret(3) = orientation_.w();
-    ret(4) = orientation_.x();
-    ret(5) = orientation_.y();
-    ret(6) = orientation_.z();
+    ret(0) = position.x();
+    ret(1) = position.y();
+    ret(2) = position.z();
+    ret(3) = orientation.w();
+    ret(4) = orientation.x();
+    ret(5) = orientation.y();
+    ret(6) = orientation.z();
     return ret;
-  }
+  };
 
   /* Write raw data operator */
   double& operator[](int i)
   {
     if (i >= 0 && i < 3)
     {
-      return position_[i];
+      return position[i];
     }
     else if (i == 3)
     {
-      return orientation_.w();
+      return orientation.w();
     }
     else if (i == 4)
     {
-      return orientation_.x();
+      return orientation.x();
     }
     else if (i == 5)
     {
-      return orientation_.y();
+      return orientation.y();
     }
     else if (i == 6)
     {
-      return orientation_.z();
+      return orientation.z();
     }
-  }
+  };
 
   /* Read raw data operator */
   double operator[](int i) const
   {
     if (i >= 0 && i < 3)
     {
-      return position_[i];
+      return position[i];
     }
     else if (i == 3)
     {
-      return orientation_.w();
+      return orientation.w();
     }
     else if (i == 4)
     {
-      return orientation_.x();
+      return orientation.x();
     }
     else if (i == 5)
     {
-      return orientation_.y();
+      return orientation.y();
     }
     else if (i == 6)
     {
-      return orientation_.z();
+      return orientation.z();
     }
-  }
+  };
 
   /* ostream << operator */
   friend std::ostream& operator<<(std::ostream& os, const SpaceBase& sp)
   {
-    return os << "position : [" << sp.position_(0) << ", " << sp.position_(1) << ", " << sp.position_(2)
-              << "] orientation :[" << sp.orientation_.w() << ", " << sp.orientation_.x() << ", " << sp.orientation_.y()
-              << ", " << sp.orientation_.z() << "]";
-  }
+    return os << "position : [" << sp.position(0) << ", " << sp.position(1) << ", " << sp.position(2)
+              << "] orientation :[" << sp.orientation.w() << ", " << sp.orientation.x() << ", " << sp.orientation.y()
+              << ", " << sp.orientation.z() << "]";
+  };
 
-private:
-  Eigen::Vector3d position_;
-  Eigen::Quaterniond orientation_;
+  Positiond position;
+  Orientationd orientation;
 };
 }
 #endif

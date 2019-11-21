@@ -61,7 +61,7 @@ public:
     Tool
   };
 
-  InverseKinematic(const int joint_number, const bool use_quaternion);
+  InverseKinematic(const int joint_number);
   void init(const std::string end_effector_link, const double sampling_period);
   void reset();
   void resolveInverseKinematic(JointVelocity& dq_computed, const SpaceVelocity& dx_desired);
@@ -69,13 +69,14 @@ public:
   void setXCurrent(const SpacePosition& x_current);
   void setPositionControlFrame(const ControlFrame frame);
   void setOrientationControlFrame(const ControlFrame frame);
+  const ControlFrame& getPositionControlFrame() const;
+  const ControlFrame& getOrientationControlFrame() const;
 
 protected:
 private:
   ros::NodeHandle n_;
   int joint_number_;
   int space_dimension_;
-  bool use_quaternion_;
   double sampling_period_;
   bool qp_init_required_; /*!< Flag to track the first iteration of QP solver */
   bool jacobian_init_flag_;
@@ -131,9 +132,6 @@ private:
 
   void setAlphaWeight_(const std::vector<double>& alpha_weight);
   void setBetaWeight_(const std::vector<double>& beta_weight);
-  void setGammaWeight_(const std::vector<double>& gamma_weight, const Eigen::Quaterniond& q);
-  void setDeltaWeight_(const std::vector<double>& delta_weight);
-  void setEpsilonWeight_(const std::vector<double>& epsilon_weight);
   void setDqBounds_(const JointVelocity& dq_bound);
 
   /**

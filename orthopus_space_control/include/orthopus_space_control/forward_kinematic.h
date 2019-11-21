@@ -37,7 +37,7 @@ namespace space_control
 class ForwardKinematic
 {
 public:
-  ForwardKinematic(const int joint_number, const bool use_quaternion);
+  ForwardKinematic(const int joint_number);
   void init(const std::string end_effector_link);
   void reset();
   void resolveForwardKinematic();
@@ -48,7 +48,6 @@ protected:
 private:
   ros::NodeHandle n_;
 
-  bool use_quaternion_;
   bool init_flag_;
   int joint_number_;
 

@@ -21,7 +21,9 @@
 
 #include "ros/ros.h"
 
+#include "orthopus_space_control/SetUInt16.h"
 #include "sensor_msgs/JointState.h"
+#include "std_msgs/UInt16.h"
 
 #include "orthopus_space_control/cartesian_controller.h"
 #include "orthopus_space_control/pose_manager.h"
@@ -39,7 +41,7 @@ namespace space_control
 class RobotManager
 {
 public:
-  RobotManager(const int joint_number = 6, const bool use_quaternion = false, const bool debug = false);
+  RobotManager(const int joint_number = 6, const bool debug = false);
   void init();
 
 protected:
@@ -50,11 +52,13 @@ private:
   ros::Publisher q_current_debug_pub_;
   ros::Publisher x_current_debug_pub_;
   ros::Publisher dx_desired_debug_pub_;
+  ros::Publisher control_feedback_pub_;
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_input_device_sub_;
   ros::Subscriber learning_mode_sub_;
   ros::ServiceServer action_service_;
   ros::ServiceServer manage_pose_service_;
+  ros::ServiceServer set_control_frame_service_;
 
   PoseManager pose_manager_;
   CartesianController cartesian_controller_;
@@ -63,11 +67,12 @@ private:
   int learning_mode_;
   int joint_number_;
   bool debug_;
-  bool use_quaternion_;
   double sampling_period_;
+  double joint_max_vel_;
   double space_position_max_vel_;
   double space_orientation_max_vel_;
-  double pose_goal_joints_tolerance_;
+  double goal_joint_tolerance_;
+  uint16_t set_control_frame_requested_;
 
   JointPosition q_command_;
   JointPosition q_current_;
@@ -89,18 +94,17 @@ private:
   State<RobotManager>* state_joint_rest_;
   State<RobotManager>* state_traj_drink_;
   State<RobotManager>* state_traj_stand_;
-  State<RobotManager>* state_flip_pinch_;
   State<RobotManager>* state_space_control_;
 
   void spaceControlUpdate_();
   void spaceControlEnter_();
   void jointHomeEnter_();
+  void jointHomeExit_();
   void jointRestEnter_();
   void trajDrinkUpdate_();
   void trajDrinkEnter_();
   void trajStandUpdate_();
   void trajStandEnter_();
-  void flipPinchEnter_();
 
   /* FSM Transition */
   Transition<RobotManager>* tr_all_to_disable_;
@@ -110,9 +114,8 @@ private:
   Transition<RobotManager>* tr_to_joint_rest_;
   Transition<RobotManager>* tr_to_traj_drink_;
   Transition<RobotManager>* tr_to_traj_stand_;
-  Transition<RobotManager>* tr_to_flip_pinch_;
-  Transition<RobotManager>* tr_flip_pinch_to_space_control_;
   Transition<RobotManager>* tr_joint_home_to_space_control_;
+  Transition<RobotManager>* tr_traj_to_space_control_;
 
   bool trDisableToIdle_();
   bool trAllToDisable_();
@@ -120,9 +123,8 @@ private:
   bool trToJointRest_();
   bool trToTrajDrink_();
   bool trToTrajStand_();
-  bool trToFlipPinch_();
   bool trJointHomeToSpaceControl_();
-  bool trFlipPinchToSpaceControl_();
+  bool trTrajToSpaceControl_();
   bool trRestToIdle_();
 
   /* Init methods */
@@ -137,6 +139,9 @@ private:
 
   // Callbacks
   bool callbackAction_(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
+  bool callbackSetControlFrame_(orthopus_space_control::SetUInt16::Request& req,
+                                orthopus_space_control::SetUInt16::Response& res);
+
   void callbackLearningMode_(const std_msgs::BoolPtr& msg);
   void callbackJointState_(const sensor_msgs::JointStateConstPtr& msg);
   void callbackInputDeviceVelocity_(const geometry_msgs::TwistStampedPtr& msg);
@@ -145,6 +150,7 @@ private:
   bool isPositionCompleted_(const JointPosition position) const;
   double computeDuration_(const JointPosition position) const;
   void sendJointsCommand_() const;
+  bool isUserVelocityReceive() const;
 };
 }
 #endif

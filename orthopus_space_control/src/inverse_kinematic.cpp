@@ -25,9 +25,8 @@
 
 namespace space_control
 {
-InverseKinematic::InverseKinematic(const int joint_number, const bool use_quaternion)
+InverseKinematic::InverseKinematic(const int joint_number)
   : joint_number_(joint_number)
-  , use_quaternion_(use_quaternion)
   , q_current_(joint_number)
   , q_upper_limit_(joint_number)
   , q_lower_limit_(joint_number)
@@ -40,7 +39,7 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
   , qp_init_required_(true)
   , jacobian_init_flag_(true)
   , position_ctrl_frame_(ControlFrame::World)
-  , orientation_ctrl_frame_(ControlFrame::World)
+  , orientation_ctrl_frame_(ControlFrame::Tool)
 {
   ROS_DEBUG_STREAM("InverseKinematic constructor");
 
@@ -49,18 +48,12 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
 
   std::vector<double> alpha_weight_vec;
   std::vector<double> beta_weight_vec;
-  std::vector<double> delta_weight_vec;
-  std::vector<double> epsilon_weight_vec;
+
   ros::param::get("~alpha_weight", alpha_weight_vec);
   ros::param::get("~beta_weight", beta_weight_vec);
-  ros::param::get("~gamma_weight", gamma_weight_vec);
-  ros::param::get("~delta_weight", delta_weight_vec);
-  ros::param::get("~epsilon_weight", epsilon_weight_vec);
 
   setAlphaWeight_(alpha_weight_vec);
   setBetaWeight_(beta_weight_vec);
-  setDeltaWeight_(delta_weight_vec);
-  setEpsilonWeight_(epsilon_weight_vec);
 
   ROS_DEBUG("Setting up bounds on joint position (q) of the QP");
   n_.getParam("/niryo_one/robot_command_validation/joint_limits/j1/min", q_lower_limit_[0]);
@@ -101,13 +94,6 @@ InverseKinematic::InverseKinematic(const int joint_number, const bool use_quater
   kinematic_state_ = std::make_shared<robot_state::RobotState>(kinematic_model_);
   kinematic_state_->setToDefaultValues();
   joint_model_group_ = kinematic_model_->getJointModelGroup("arm");
-
-  // TODO Comment that part
-  // for (int i = 0; i < 6; i++)
-  // {
-  //   x_min_limit_[i] = 0.0;
-  //   x_max_limit_[i] = 0.0;
-  // }
 }
 
 void InverseKinematic::init(const std::string end_effector_link, const double sampling_period)
@@ -138,47 +124,6 @@ void InverseKinematic::setBetaWeight_(const std::vector<double>& beta_weight)
   ROS_DEBUG_STREAM("Set beta weight to : \n" << beta_weight_ << "\n");
 }
 
-void InverseKinematic::setDeltaWeight_(const std::vector<double>& delta_weight)
-{
-  // TODO
-  delta_weight_ = MatrixXd::Identity(3, 3);
-  for (int i = 0; i < 3; i++)
-  {
-    delta_weight_(i, i) = delta_weight[i];
-  }
-  ROS_DEBUG_STREAM("Set delta weight to : \n" << delta_weight_ << "\n");
-}
-
-void InverseKinematic::setEpsilonWeight_(const std::vector<double>& epsilon_weight)
-{
-  // TODO
-  epsilon_weight_ = MatrixXd::Identity(4, 4);
-  for (int i = 0; i < 4; i++)
-  {
-    epsilon_weight_(i, i) = epsilon_weight[i];
-  }
-  ROS_DEBUG_STREAM("Set epsilon weight to : \n" << epsilon_weight_ << "\n");
-}
-
-void InverseKinematic::setGammaWeight_(const std::vector<double>& gamma_weight, const Eigen::Quaterniond& q)
-{
-  // Minimize cartesian velocity : dx
-  gamma_weight_ = MatrixXd::Identity(space_dimension_, space_dimension_);
-  for (int i = 0; i < space_dimension_; i++)
-  {
-    gamma_weight_(i, i) = gamma_weight[i];
-  }
-  double w = q.w(), x = q.x(), y = q.y(), z = q.z();
-  Eigen::MatrixXd quat_transfert_matrix(4, 3);
-  quat_transfert_matrix << -x, -y, -z, w, -z, y, z, w, -x, -y, x, w;
-  Eigen::MatrixXd quat_transfert_matrix_pseudo_inv(3, 4);
-  quat_transfert_matrix_pseudo_inv = 4 * quat_transfert_matrix.transpose() / (w * w + x * x + y * y + z * z);
-  gamma_weight_.bottomRightCorner(4, 4) = quat_transfert_matrix_pseudo_inv.transpose() *
-                                          gamma_weight_.bottomRightCorner(3, 3) * quat_transfert_matrix_pseudo_inv;
-
-  ROS_DEBUG_STREAM("Set gamma weight to : \n" << gamma_weight_ << "\n");
-}
-
 void InverseKinematic::setQCurrent(const JointPosition& q_current)
 {
   q_current_ = q_current;
@@ -194,19 +139,30 @@ void InverseKinematic::setXCurrent(const SpacePosition& x_current)
   {
     x_current_eigen_(i) = x_current[i];
   }
-
-  // TODO QUAT improve that to allow copy
-  // x_current_eigen_ = x_current.getRawVector();
 }
 
 void InverseKinematic::setPositionControlFrame(const ControlFrame frame)
 {
+  ROS_WARN("setPositionControlFrame = %d", frame);
+
   position_ctrl_frame_ = frame;
 }
 
 void InverseKinematic::setOrientationControlFrame(const ControlFrame frame)
 {
+  ROS_WARN("setOrientationControlFrame = %d", frame);
+
   orientation_ctrl_frame_ = frame;
+}
+
+const InverseKinematic::ControlFrame& InverseKinematic::getPositionControlFrame() const
+{
+  return position_ctrl_frame_;
+}
+
+const InverseKinematic::ControlFrame& InverseKinematic::getOrientationControlFrame() const
+{
+  return orientation_ctrl_frame_;
 }
 
 void InverseKinematic::setDqBounds_(const JointVelocity& dq_bound)
@@ -234,8 +190,9 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    */
   SpaceVelocity dx_desired_in_frame;
 
-  position_ctrl_frame_ = ControlFrame::World;
-  orientation_ctrl_frame_ = ControlFrame::Tool;
+  // position_ctrl_frame_ = ControlFrame::World;
+  // orientation_ctrl_frame_ = ControlFrame::World;
+  // TODO add function to setup the frame
 
   /* Compute the desired linear velocity according to the selected control frame :
    *       p0 = R_0to1 * p1
@@ -281,7 +238,8 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    *       r_dot = 1/2 * r_c * omega
    */
   /* The omega vector (store in dx_desired) can be consider as a quaternion with a scalar part equal to zero */
-  Eigen::Quaterniond r_half_omega(0.0, 0.5 * dx_desired.getQx(), 0.5 * dx_desired.getQy(), 0.5 * dx_desired.getQz());
+  Eigen::Quaterniond r_half_omega(0.0, 0.5 * dx_desired.orientation.x(), 0.5 * dx_desired.orientation.y(),
+                                  0.5 * dx_desired.orientation.z());
   Eigen::Quaterniond r_dot;
   if (orientation_ctrl_frame_ == ControlFrame::World)
   {
@@ -448,7 +406,6 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
    */
   Eigen::Matrix4d conjugate_mat;
   conjugate_mat << 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1;
-  ROS_WARN_STREAM("conjugate_mat = \n" << conjugate_mat);
 
   for (int i = 0; i < 3; i++)
   {
@@ -476,7 +433,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
         Rs_cong = xR(r_snap) * conjugate_mat;
       }
 
-      Eigen::Vector4d Rsrc = Rs_cong * x_current_.getOrientationVector();
+      Eigen::Vector4d Rsrc = Rs_cong * x_current_.getOrientation().toVector();
       double QdQc0 = Rsrc(1 + i);
 
       x_min_limit[4 + i] = -eps_orientation - QdQc0;
@@ -529,7 +486,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     qpOASES::Options options;
     options.setToReliable();
     // options.enableInertiaCorrection = qpOASES::BT_TRUE;
-    // options.printLevel = qpOASES::PL_NONE;
+    options.printLevel = qpOASES::PL_NONE;
     QP_->setOptions(options);
 
     qp_return = QP_->init(hessian.data(), g.data(), A.data(), dq_lower_limit_.data(), dq_upper_limit_.data(), lbA, ubA,
@@ -557,56 +514,56 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     dq_computed[4] = xOpt[4];
     dq_computed[5] = xOpt[5];
 
-    /*********** DEBUG **************/
-    Eigen::Matrix<double, 6, 1> dq_eigen;
-    Eigen::Matrix<double, 4, 1> min_l;
-    Eigen::Matrix<double, 4, 1> max_l;
-    Eigen::Matrix<double, 12, 1> lbA_eigen;
-    Eigen::Matrix<double, 12, 1> ubA_eigen;
-    for (int i = 0; i < 6; i++)
-    {
-      dq_eigen(i) = dq_computed[i];
-    }
-    Eigen::Matrix<double, 12, 1> Aq = A * dq_eigen;
-    for (int i = 0; i < 12; i++)
-    {
-      if (Aq(i) > ubA[i] || Aq(i) < lbA[i])
-      {
-        ROS_ERROR("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
-      }
-      else
-      {
-        ROS_DEBUG("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
-      }
-    };
-    /********************************/
+    // /*********** DEBUG **************/
+    // Eigen::Matrix<double, 6, 1> dq_eigen;
+    // Eigen::Matrix<double, 4, 1> min_l;
+    // Eigen::Matrix<double, 4, 1> max_l;
+    // Eigen::Matrix<double, 12, 1> lbA_eigen;
+    // Eigen::Matrix<double, 12, 1> ubA_eigen;
+    // for (int i = 0; i < 6; i++)
+    // {
+    //   dq_eigen(i) = dq_computed[i];
+    // }
+    // Eigen::Matrix<double, 12, 1> Aq = A * dq_eigen;
+    // for (int i = 0; i < 12; i++)
+    // {
+    //   if (Aq(i) > ubA[i] || Aq(i) < lbA[i])
+    //   {
+    //     ROS_ERROR("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+    //   }
+    //   else
+    //   {
+    //     ROS_DEBUG("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+    //   }
+    // };
+    // /********************************/
   }
   else
   {
     ROS_ERROR("qpOASES : Failed with code : %d !", qp_return);
-    /*********** DEBUG **************/
-    Eigen::Matrix<double, 6, 1> dq_eigen;
-    Eigen::Matrix<double, 4, 1> min_l;
-    Eigen::Matrix<double, 4, 1> max_l;
-    Eigen::Matrix<double, 12, 1> lbA_eigen;
-    Eigen::Matrix<double, 12, 1> ubA_eigen;
-    for (int i = 0; i < 6; i++)
-    {
-      dq_eigen(i) = dq_computed[i];
-    }
-    Eigen::Matrix<double, 12, 1> Aq = A * dq_eigen;
-    for (int i = 0; i < 12; i++)
-    {
-      if (Aq(i) > ubA[i] || Aq(i) < lbA[i])
-      {
-        ROS_ERROR("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
-      }
-      else
-      {
-        ROS_DEBUG("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
-      }
-    };
-    /********************************/
+    // /*********** DEBUG **************/
+    // Eigen::Matrix<double, 6, 1> dq_eigen;
+    // Eigen::Matrix<double, 4, 1> min_l;
+    // Eigen::Matrix<double, 4, 1> max_l;
+    // Eigen::Matrix<double, 12, 1> lbA_eigen;
+    // Eigen::Matrix<double, 12, 1> ubA_eigen;
+    // for (int i = 0; i < 6; i++)
+    // {
+    //   dq_eigen(i) = dq_computed[i];
+    // }
+    // Eigen::Matrix<double, 12, 1> Aq = A * dq_eigen;
+    // for (int i = 0; i < 12; i++)
+    // {
+    //   if (Aq(i) > ubA[i] || Aq(i) < lbA[i])
+    //   {
+    //     ROS_ERROR("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+    //   }
+    //   else
+    //   {
+    //     ROS_DEBUG("%d : %5f \t < %5f \t < %5f", i, lbA[i], Aq(i), ubA[i]);
+    //   }
+    // };
+    // /********************************/
 
     dq_computed[0] = 0.0;
     dq_computed[1] = 0.0;
@@ -614,18 +571,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed, const
     dq_computed[3] = 0.0;
     dq_computed[4] = 0.0;
     dq_computed[5] = 0.0;
-
-    // std::cout << "Press Enter to Continue";
-    // std::cin.ignore();
   }
 
-  QP_->printProperties();
   if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
   {
-    // reset();
-    // exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
-    std::cout << "Press Enter to Continue";
-    std::cin.ignore();
+    reset();
+    exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
   }
 }
 

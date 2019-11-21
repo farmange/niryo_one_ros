@@ -28,8 +28,8 @@
 
 namespace space_control
 {
-ForwardKinematic::ForwardKinematic(const int joint_number, const bool use_quaternion)
-  : joint_number_(joint_number), use_quaternion_(use_quaternion), x_current_(), q_current_(joint_number)
+ForwardKinematic::ForwardKinematic(const int joint_number)
+  : joint_number_(joint_number), x_current_(), q_current_(joint_number)
 {
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   kinematic_model_ = robot_model_loader.getModel();
@@ -72,8 +72,9 @@ void ForwardKinematic::resolveForwardKinematic()
   else
   {
     /* Detect if a discontinuity happened between new quaternion and the previous one */
-    double diff_norm = sqrt(pow(conv_quat.w() - x_current_.getQw(), 2) + pow(conv_quat.x() - x_current_.getQx(), 2) +
-                            pow(conv_quat.y() - x_current_.getQy(), 2) + pow(conv_quat.z() - x_current_.getQz(), 2));
+    double diff_norm =
+        sqrt(pow(conv_quat.w() - x_current_.orientation.w(), 2) + pow(conv_quat.x() - x_current_.orientation.x(), 2) +
+             pow(conv_quat.y() - x_current_.orientation.y(), 2) + pow(conv_quat.z() - x_current_.orientation.z(), 2));
     if (diff_norm > 1)
     {
       ROS_DEBUG_NAMED("ForwardKinematic", "A discontinuity has been detected during quaternion conversion.");
@@ -89,13 +90,13 @@ void ForwardKinematic::resolveForwardKinematic()
     }
   }
 
-  x_current_.setX(end_effector_state.translation()[0]);
-  x_current_.setY(end_effector_state.translation()[1]);
-  x_current_.setZ(end_effector_state.translation()[2]);
-  x_current_.setQw(conv_quat.w());
-  x_current_.setQx(conv_quat.x());
-  x_current_.setQy(conv_quat.y());
-  x_current_.setQz(conv_quat.z());
+  x_current_.position.x() = end_effector_state.translation()[0];
+  x_current_.position.y() = end_effector_state.translation()[1];
+  x_current_.position.z() = end_effector_state.translation()[2];
+  x_current_.orientation.w() = conv_quat.w();
+  x_current_.orientation.x() = conv_quat.x();
+  x_current_.orientation.y() = conv_quat.y();
+  x_current_.orientation.z() = conv_quat.z();
 }
 
 void ForwardKinematic::setQCurrent(const JointPosition& q_current)
