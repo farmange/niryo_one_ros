@@ -75,6 +75,7 @@ private:
   double space_orientation_max_vel_;
   double goal_joint_tolerance_;
   uint16_t set_control_frame_requested_;
+  ros::Time joint_position_timer_;
 
   JointPosition q_command_;
   JointPosition q_current_;
@@ -145,7 +146,7 @@ private:
   void callbackJointState_(const sensor_msgs::JointStateConstPtr& msg);
   void callbackInputDeviceVelocity_(const geometry_msgs::TwistStampedPtr& msg);
 
-  void gotoPosition_(const JointPosition position) const;
+  void gotoPosition_(const JointPosition position);
   bool isPositionCompleted_(const JointPosition position) const;
   double computeDuration_(const JointPosition position) const;
   void sendJointsCommand_() const;

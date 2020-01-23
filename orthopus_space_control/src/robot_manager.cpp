@@ -54,6 +54,7 @@ RobotManager::RobotManager(const int joint_number, const bool debug)
   ROS_INFO("Waiting for first joint msg.");
   ros::topic::waitForMessage<sensor_msgs::JointState>("joint_states");
   ROS_INFO("Received first joint msg.");
+  joint_position_timer_ = ros::Time::now();
 
   if (sampling_freq_ > 0)
   {
@@ -464,6 +465,11 @@ bool RobotManager::trToSpacePosition_()
 
 bool RobotManager::trJointPositionToSpaceControl_()
 {
+  // First check if the required time to perform trajectory is elapse
+  if (ros::Time::now() < joint_position_timer_)
+  {
+    return false;
+  }
   return (isPositionCompleted_(joint_pose_manager_.getJointPosition(position_requested_)));
 }
 
@@ -477,7 +483,7 @@ bool RobotManager::isUserVelocityReceive() const
   return !dx_desired_.isAllZero();
 }
 
-void RobotManager::gotoPosition_(const JointPosition q_pose) const
+void RobotManager::gotoPosition_(const JointPosition q_pose)
 {
   trajectory_msgs::JointTrajectory new_jt_traj;
 
@@ -494,6 +500,7 @@ void RobotManager::gotoPosition_(const JointPosition q_pose) const
   }
 
   point.time_from_start = ros::Duration(computeDuration_(q_pose));
+  joint_position_timer_ = ros::Time::now() + point.time_from_start;
 
   new_jt_traj.points.push_back(point);
   command_pub_.publish(new_jt_traj);
