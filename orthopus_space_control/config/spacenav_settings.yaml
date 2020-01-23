@@ -1,4 +1,4 @@
 #
 #  ### Params of the spacenav device interface ###
 #
-debounce_button_time        : 0.08
+debounce_button_time        : 0.05

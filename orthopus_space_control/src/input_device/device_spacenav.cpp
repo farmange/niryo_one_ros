@@ -52,7 +52,7 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::Joy::ConstPtr& msg)
   // Cartesian control with the axes
   geometry_msgs::TwistStamped cartesian_vel;
   cartesian_vel.header.stamp = ros::Time::now();
-  ROS_ERROR_STREAM("Control mode : " << control_mode_toggle_);
+
   if (control_mode_toggle_)
   {
     cartesian_vel.twist.linear.x = 0.0;
