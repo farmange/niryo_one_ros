@@ -111,7 +111,9 @@ private:
   bool trJointPositionToSpaceControl_();
   bool trSpacePositionToSpaceControl_();
 
-  /* FSM Actions */
+  /* FSM functions */
+  void disableUpdate_();
+  void idleUpdate_();
   void spaceControlUpdate_();
   void spaceControlEnter_();
   void jointPositionExit_();

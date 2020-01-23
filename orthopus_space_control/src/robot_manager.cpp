@@ -273,8 +273,10 @@ void RobotManager::initializeStateMachine_()
 {
   /* State definition */
   state_disable_ = new State<RobotManager>(this, "DISABLE");
+  state_disable_->registerUpdateFcn(&RobotManager::disableUpdate_);
 
   state_idle_ = new State<RobotManager>(this, "IDLE");
+  state_disable_->registerUpdateFcn(&RobotManager::idleUpdate_);
 
   state_joint_position_ = new State<RobotManager>(this, "JOINT POSITION");
   state_joint_position_->registerEnterFcn(&RobotManager::jointPositionEnter_);
@@ -374,6 +376,20 @@ void RobotManager::spaceControlUpdate_()
 
   ROS_INFO("=== Send Niryo One joints command...");
   sendJointsCommand_();
+}
+
+void RobotManager::disableUpdate_()
+{
+  ROS_INFO("=== Update joint position with measured position...");
+  q_current_ = q_meas_;
+  ROS_INFO("    Done.");
+}
+
+void RobotManager::idleUpdate_()
+{
+  ROS_INFO("=== Update joint position with measured position...");
+  q_current_ = q_meas_;
+  ROS_INFO("    Done.");
 }
 
 void RobotManager::spaceControlEnter_()
