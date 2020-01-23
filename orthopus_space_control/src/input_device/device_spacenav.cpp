@@ -34,6 +34,7 @@ DeviceSpacenav::DeviceSpacenav()
   button_right_ = 0;
 
   gripper_toggle_ = false;
+  control_mode_toggle_ = false;
 
   ros::param::get("~debounce_button_time", debounce_button_time_);
 
@@ -46,19 +47,30 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::Joy::ConstPtr& msg)
 {
   processButtons_(msg);
   updateGripperCmd_();
+  updateControlMode_();
 
   // Cartesian control with the axes
   geometry_msgs::TwistStamped cartesian_vel;
   cartesian_vel.header.stamp = ros::Time::now();
-  cartesian_vel.twist.linear.x = msg->axes[0];
-  cartesian_vel.twist.linear.y = msg->axes[1];
-  cartesian_vel.twist.linear.z = msg->axes[2];
-
-  /* TODO For now, orientation is not control using spacenav joy. This feature
-   * will be enabled in the future */
-  // cartesian_vel.twist.angular.x = msg->axes[3];
-  // cartesian_vel.twist.angular.y = msg->axes[4];
-  // cartesian_vel.twist.angular.z = msg->axes[5];
+  ROS_ERROR_STREAM("Control mode : " << control_mode_toggle_);
+  if (control_mode_toggle_)
+  {
+    cartesian_vel.twist.linear.x = 0.0;
+    cartesian_vel.twist.linear.y = 0.0;
+    cartesian_vel.twist.linear.z = 0.0;
+    cartesian_vel.twist.angular.x = msg->axes[3];
+    cartesian_vel.twist.angular.y = msg->axes[4];
+    cartesian_vel.twist.angular.z = msg->axes[5];
+  }
+  else
+  {
+    cartesian_vel.twist.linear.x = msg->axes[0];
+    cartesian_vel.twist.linear.y = msg->axes[1];
+    cartesian_vel.twist.linear.z = msg->axes[2];
+    cartesian_vel.twist.angular.x = 0.0;
+    cartesian_vel.twist.angular.y = 0.0;
+    cartesian_vel.twist.angular.z = 0.0;
+  }
 
   cartesian_cmd_pub_.publish(cartesian_vel);
 }
@@ -84,7 +96,7 @@ void DeviceSpacenav::debounceButtons_(const sensor_msgs::Joy::ConstPtr& msg, con
     }
   }
 }
-// TEST Test spacenav gripper
+
 void DeviceSpacenav::updateGripperCmd_()
 {
   // Use A to toggle gripper state (open/close)
@@ -99,15 +111,28 @@ void DeviceSpacenav::updateGripperCmd_()
     closeGripper_();
   }
 }
+
+void DeviceSpacenav::updateControlMode_()
+{
+  // Use A to toggle gripper state (open/close)
+  if (button_right_ == 1 && control_mode_toggle_ == false)
+  {
+    control_mode_toggle_ = true;  // orientation
+  }
+  else if (button_right_ == 1 && control_mode_toggle_ == true)
+  {
+    control_mode_toggle_ = false;  // translation
+  }
+}
 }
 
 using namespace input_device;
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "device_xbox");
+  ros::init(argc, argv, "device_spacenav");
 
-  DeviceSpacenav device_xbox;
+  DeviceSpacenav device_spacenav;
 
   return 0;
 }
