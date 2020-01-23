@@ -3,6 +3,8 @@
 This is a fork of the [official Niryo One ROS stack](https://github.com/NiryoRobotics/niryo_one_ros). 
 Please refer the Niryo One documentation for installation and setup of the environment.
 
+This work is based on the **2.1.0** version of the Niryo One package.
+
 The aim of the ArmStrong project is to turn Niryo One to a real assistive robot for people with upper limb immobility like muscular dystrophy.
 In this way, we work to improve robot control through wheelchair joystick but also explore different kinds of user interfaces.
 
@@ -74,17 +76,18 @@ Create a catkin workspace and clone Niryo One ROS stack :
 ```
 mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/src
-git clone git@github.com:ArmStrong-Robotics/niryo_one_ros.git .
+git clone https://github.com/ArmStrong-Robotics/niryo_one_ros.git .
 ```
 Install dependencies :
 ```
-cd ~/catkin_ws
+cd ~/catkin_ws/src/niryo_one_ros
 rosdep update
 rosdep install qpoases_ros -y
 rosdep install orthopus_space_control --ignore-src -y
 ```
 Build the ROS stack :
 ```
+cd ~/catkin_ws
 catkin_make
 ```
 **Don't forget to use those commands before you try to launch anything (you can add them in your .bashrc) :**
@@ -107,9 +110,9 @@ Note that Niryo One ROS packages have been developed with **ROS kinetic, on Ubun
 Connect your robot in shh (see Niryo One documentation) and change the github upstream :
 ```
 cd ~/catkin_ws/src
-git remote add armstrong git@github.com:ArmStrong-Robotics/niryo_one_ros.git
+git remote add armstrong https://github.com/ArmStrong-Robotics/niryo_one_ros.git
 git fetch armstrong
-git pull armstrong master 
+git checkout -b armstrong/master
 ```
 
 Install dependencies :
@@ -145,7 +148,7 @@ Install **NGINX** :
 ```
 sudo apt-get install nginx
 ```
-Open the file '''/etc/nginx/sites-enabled/default''' to configure the **NGINX** and find the line :
+Open the file ```/etc/nginx/sites-enabled/default``` to configure the **NGINX** and find the line :
 ```
 root /var/www/html;
 ```

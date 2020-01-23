@@ -31,7 +31,7 @@ namespace space_control
 {
 RobotManager::RobotManager(const int joint_number, const bool debug)
   : cartesian_controller_(joint_number)
-  , pose_manager_(joint_number)
+  , joint_pose_manager_(joint_number)
   , joint_number_(joint_number)
   , debug_(debug)
   , q_command_(joint_number)
@@ -86,7 +86,7 @@ RobotManager::RobotManager(const int joint_number, const bool debug)
 
 void RobotManager::init()
 {
-  cartesian_controller_.init(sampling_period_, pose_manager_);
+  cartesian_controller_.init(sampling_period_, joint_pose_manager_);
   cartesian_controller_.setControlFeedbackPublisher(control_feedback_pub_);
   cartesian_controller_.setDebugPublishers(q_current_debug_pub_, x_current_debug_pub_, dx_desired_debug_pub_);
 }
@@ -118,29 +118,25 @@ void RobotManager::callbackJointState_(const sensor_msgs::JointStateConstPtr& ms
   }
 }
 
-bool RobotManager::callbackAction_(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res)
+bool RobotManager::callbackRobotAction_(orthopus_space_control::SetRobotAction::Request& req,
+                                        orthopus_space_control::SetRobotAction::Response& res)
 {
-  if (req.value == int(FsmInputEvent::JointHome))
+  if (req.cmd_type == int(FsmInputEvent::JointPosition))
   {
-    input_event_requested_ = FsmInputEvent::JointHome;
+    input_event_requested_ = FsmInputEvent::JointPosition;
+    position_requested_ = req.parameter;
   }
-  else if (req.value == int(FsmInputEvent::JointRest))
+  else if (req.cmd_type == int(FsmInputEvent::SpacePosition))
   {
-    input_event_requested_ = FsmInputEvent::JointRest;
-  }
-  else if (req.value == int(FsmInputEvent::TrajectoryDrink))
-  {
-    input_event_requested_ = FsmInputEvent::TrajectoryDrink;
-  }
-  else if (req.value == int(FsmInputEvent::TrajectoryStand))
-  {
-    input_event_requested_ = FsmInputEvent::TrajectoryStand;
+    input_event_requested_ = FsmInputEvent::SpacePosition;
+    position_requested_ = req.parameter;
   }
   else
   {
     /* Keep previous requested action */
-    ROS_ERROR("Input event not allowed : %d", req.value);
+    ROS_ERROR("Input event not allowed : %d", req.cmd_type);
   }
+
   return true;
 }
 
@@ -155,6 +151,42 @@ bool RobotManager::callbackSetControlFrame_(orthopus_space_control::SetUInt16::R
   ROS_WARN("callbackSetControlFrame_ = %d", req.value);
   set_control_frame_requested_ = (req.value | 0x80);
 
+  return true;
+}
+
+bool RobotManager::callbackManagePosition_(niryo_one_msgs::ManagePosition::Request& req,
+                                           niryo_one_msgs::ManagePosition::Response& res)
+{
+  bool result = false;
+  /* Save current position */
+  if (req.cmd_type == 0)
+  {
+    result = joint_pose_manager_.setJointPosition(req.position_name, q_current_);
+  }
+  /* Update position */
+  else if (req.cmd_type == 1)
+  {
+    result = joint_pose_manager_.updateJointPosition(req.position_name, q_current_);
+  }
+  /* Remove position  */
+  else if (req.cmd_type == 2)
+  {
+    result = joint_pose_manager_.removeJointPosition(req.position_name);
+  }
+  /* Rename position  */
+  else if (req.cmd_type == 3)
+  {
+    result = joint_pose_manager_.renameJointPosition(req.position_name, req.position.name);
+  }
+  return result;
+}
+
+bool RobotManager::callbackGetPositionList_(niryo_one_msgs::GetPositionList::Request& req,
+                                            niryo_one_msgs::GetPositionList::Response& res)
+{
+  std::vector<niryo_one_msgs::Position> position_list;
+  joint_pose_manager_.getJointPositionList(position_list);
+  res.positions = position_list;
   return true;
 }
 
@@ -182,13 +214,14 @@ void RobotManager::initializePublishers_()
 void RobotManager::initializeServices_()
 {
   ROS_DEBUG_STREAM("RobotManager initializeServices");
-  // TODO : refactor :better name for this service (not action)
-  action_service_ =
-      n_.advertiseService("/niryo_one/orthopus_space_control/action", &RobotManager::callbackAction_, this);
-  manage_pose_service_ = n_.advertiseService("/niryo_one/orthopus_space_control/manage_pose",
-                                             &PoseManager::callbackManagePose, &pose_manager_);
-  set_control_frame_service_ = n_.advertiseService("/niryo_one/orthopus_space_control/set_control_frame",
-                                                   &RobotManager::callbackSetControlFrame_, this);
+  set_robot_action_service_ =
+      n_.advertiseService("/orthopus_space_control/set_robot_action", &RobotManager::callbackRobotAction_, this);
+  manage_position_service_ =
+      n_.advertiseService("/orthopus_space_control/manage_position", &RobotManager::callbackManagePosition_, this);
+  get_position_list_service_ =
+      n_.advertiseService("/orthopus_space_control/get_position_list", &RobotManager::callbackGetPositionList_, this);
+  set_control_frame_service_ =
+      n_.advertiseService("/orthopus_space_control/set_control_frame", &RobotManager::callbackSetControlFrame_, this);
 }
 
 void RobotManager::retrieveParameters_()
@@ -243,20 +276,13 @@ void RobotManager::initializeStateMachine_()
 
   state_idle_ = new State<RobotManager>(this, "IDLE");
 
-  state_joint_home_ = new State<RobotManager>(this, "JOINT HOME");
-  state_joint_home_->registerEnterFcn(&RobotManager::jointHomeEnter_);
-  state_joint_home_->registerExitFcn(&RobotManager::jointHomeExit_);
+  state_joint_position_ = new State<RobotManager>(this, "JOINT POSITION");
+  state_joint_position_->registerEnterFcn(&RobotManager::jointPositionEnter_);
+  state_joint_position_->registerExitFcn(&RobotManager::jointPositionExit_);
 
-  state_joint_rest_ = new State<RobotManager>(this, "JOINT REST");
-  state_joint_rest_->registerEnterFcn(&RobotManager::jointRestEnter_);
-
-  state_traj_drink_ = new State<RobotManager>(this, "TRAJ DRINK");
-  state_traj_drink_->registerEnterFcn(&RobotManager::trajDrinkEnter_);
-  state_traj_drink_->registerUpdateFcn(&RobotManager::trajDrinkUpdate_);
-
-  state_traj_stand_ = new State<RobotManager>(this, "TRAJ STAND");
-  state_traj_stand_->registerEnterFcn(&RobotManager::trajStandEnter_);
-  state_traj_stand_->registerUpdateFcn(&RobotManager::trajStandUpdate_);
+  state_space_position_ = new State<RobotManager>(this, "SPACE POSITION");
+  state_space_position_->registerEnterFcn(&RobotManager::spacePositionEnter_);
+  state_space_position_->registerUpdateFcn(&RobotManager::spacePositionUpdate_);
 
   state_space_control_ = new State<RobotManager>(this, "SPACE CONTROL");
   state_space_control_->registerEnterFcn(&RobotManager::spaceControlEnter_);
@@ -266,79 +292,50 @@ void RobotManager::initializeStateMachine_()
   tr_all_to_disable_ = new Transition<RobotManager>(this, state_disable_);
   tr_all_to_disable_->registerConditionFcn(&RobotManager::trAllToDisable_);
   tr_all_to_disable_->addInitialState(state_idle_);
-  tr_all_to_disable_->addInitialState(state_joint_home_);
-  tr_all_to_disable_->addInitialState(state_joint_rest_);
-  tr_all_to_disable_->addInitialState(state_traj_drink_);
-  tr_all_to_disable_->addInitialState(state_traj_stand_);
+  tr_all_to_disable_->addInitialState(state_joint_position_);
+  tr_all_to_disable_->addInitialState(state_space_position_);
   tr_all_to_disable_->addInitialState(state_space_control_);
 
   tr_disable_to_idle_ = new Transition<RobotManager>(this, state_idle_);
   tr_disable_to_idle_->registerConditionFcn(&RobotManager::trDisableToIdle_);
   tr_disable_to_idle_->addInitialState(state_disable_);
 
-  tr_rest_to_idle_ = new Transition<RobotManager>(this, state_idle_);
-  tr_rest_to_idle_->registerConditionFcn(&RobotManager::trRestToIdle_);
-  tr_rest_to_idle_->addInitialState(state_joint_rest_);
+  tr_to_joint_position_ = new Transition<RobotManager>(this, state_joint_position_);
+  tr_to_joint_position_->registerConditionFcn(&RobotManager::trToJointPosition_);
+  tr_to_joint_position_->addInitialState(state_idle_);
+  tr_to_joint_position_->addInitialState(state_joint_position_);
+  tr_to_joint_position_->addInitialState(state_space_position_);
+  tr_to_joint_position_->addInitialState(state_space_control_);
 
-  tr_to_joint_home_ = new Transition<RobotManager>(this, state_joint_home_);
-  tr_to_joint_home_->registerConditionFcn(&RobotManager::trToJointHome_);
-  tr_to_joint_home_->addInitialState(state_idle_);
-  tr_to_joint_home_->addInitialState(state_joint_rest_);
-  tr_to_joint_home_->addInitialState(state_traj_drink_);
-  tr_to_joint_home_->addInitialState(state_traj_stand_);
-  tr_to_joint_home_->addInitialState(state_joint_home_);
-  tr_to_joint_home_->addInitialState(state_space_control_);
+  tr_to_space_position_ = new Transition<RobotManager>(this, state_space_position_);
+  tr_to_space_position_->registerConditionFcn(&RobotManager::trToSpacePosition_);
+  tr_to_space_position_->addInitialState(state_space_control_);
+  tr_to_space_position_->addInitialState(state_joint_position_);
+  tr_to_space_position_->addInitialState(state_space_position_);
 
-  tr_to_joint_rest_ = new Transition<RobotManager>(this, state_joint_rest_);
-  tr_to_joint_rest_->registerConditionFcn(&RobotManager::trToJointRest_);
-  tr_to_joint_rest_->addInitialState(state_idle_);
-  tr_to_joint_rest_->addInitialState(state_joint_rest_);
-  tr_to_joint_rest_->addInitialState(state_traj_drink_);
-  tr_to_joint_rest_->addInitialState(state_traj_stand_);
-  tr_to_joint_rest_->addInitialState(state_joint_home_);
-  tr_to_joint_rest_->addInitialState(state_space_control_);
+  tr_joint_position_to_space_control_ = new Transition<RobotManager>(this, state_space_control_);
+  tr_joint_position_to_space_control_->registerConditionFcn(&RobotManager::trJointPositionToSpaceControl_);
+  tr_joint_position_to_space_control_->addInitialState(state_joint_position_);
 
-  tr_to_traj_drink_ = new Transition<RobotManager>(this, state_traj_drink_);
-  tr_to_traj_drink_->registerConditionFcn(&RobotManager::trToTrajDrink_);
-  tr_to_traj_drink_->addInitialState(state_space_control_);
-  tr_to_traj_drink_->addInitialState(state_traj_drink_);
-  tr_to_traj_drink_->addInitialState(state_traj_stand_);
-
-  tr_to_traj_stand_ = new Transition<RobotManager>(this, state_traj_stand_);
-  tr_to_traj_stand_->registerConditionFcn(&RobotManager::trToTrajStand_);
-  tr_to_traj_stand_->addInitialState(state_space_control_);
-  tr_to_traj_stand_->addInitialState(state_traj_drink_);
-  tr_to_traj_stand_->addInitialState(state_traj_stand_);
-
-  tr_joint_home_to_space_control_ = new Transition<RobotManager>(this, state_space_control_);
-  tr_joint_home_to_space_control_->registerConditionFcn(&RobotManager::trJointHomeToSpaceControl_);
-  tr_joint_home_to_space_control_->addInitialState(state_joint_home_);
-
-  tr_traj_to_space_control_ = new Transition<RobotManager>(this, state_space_control_);
-  tr_traj_to_space_control_->registerConditionFcn(&RobotManager::trTrajToSpaceControl_);
-  tr_traj_to_space_control_->addInitialState(state_traj_drink_);
-  tr_traj_to_space_control_->addInitialState(state_traj_stand_);
+  tr_space_position_to_space_control_ = new Transition<RobotManager>(this, state_space_control_);
+  tr_space_position_to_space_control_->registerConditionFcn(&RobotManager::trSpacePositionToSpaceControl_);
+  tr_space_position_to_space_control_->addInitialState(state_space_position_);
 
   /* Engine definition */
   engine_ = new Engine<RobotManager>(this);
   engine_->registerState(state_idle_);
   engine_->registerState(state_disable_);
-  engine_->registerState(state_joint_home_);
-  engine_->registerState(state_joint_rest_);
-  engine_->registerState(state_traj_drink_);
-  engine_->registerState(state_traj_stand_);
+  engine_->registerState(state_joint_position_);
+  engine_->registerState(state_space_position_);
   engine_->registerState(state_space_control_);
   engine_->registerState(state_disable_);
 
   engine_->registerTransition(tr_all_to_disable_);
   engine_->registerTransition(tr_disable_to_idle_);
-  engine_->registerTransition(tr_rest_to_idle_);
-  engine_->registerTransition(tr_to_joint_home_);
-  engine_->registerTransition(tr_to_joint_rest_);
-  engine_->registerTransition(tr_to_traj_drink_);
-  engine_->registerTransition(tr_to_traj_stand_);
-  engine_->registerTransition(tr_joint_home_to_space_control_);
-  engine_->registerTransition(tr_traj_to_space_control_);
+  engine_->registerTransition(tr_to_joint_position_);
+  engine_->registerTransition(tr_to_space_position_);
+  engine_->registerTransition(tr_joint_position_to_space_control_);
+  engine_->registerTransition(tr_space_position_to_space_control_);
 
   engine_->setCurrentState(state_disable_);
 }
@@ -386,25 +383,19 @@ void RobotManager::spaceControlEnter_()
   q_command_ = q_meas_;
 }
 
-void RobotManager::jointHomeEnter_()
+void RobotManager::jointPositionEnter_()
 {
-  gotoPosition_(pose_manager_.getJoints("Home"));
+  gotoPosition_(joint_pose_manager_.getJointPosition(position_requested_));
 }
 
-void RobotManager::jointHomeExit_()
+void RobotManager::jointPositionExit_()
 {
   cartesian_controller_.reset();
 }
 
-void RobotManager::jointRestEnter_()
-{
-  gotoPosition_(pose_manager_.getJoints("Rest"));
-}
-
-void RobotManager::trajDrinkUpdate_()
+void RobotManager::spacePositionUpdate_()
 {
   ROS_INFO("=== Update joint position (Open loop)...");
-  // TODO check q_current consistency (many affectation could lead to issue
   q_current_ = q_command_;
   ROS_INFO("    Done.");
 
@@ -417,35 +408,22 @@ void RobotManager::trajDrinkUpdate_()
   ROS_INFO("    Done.");
 }
 
-void RobotManager::trajDrinkEnter_()
+void RobotManager::spacePositionEnter_()
 {
   // cartesian_controller_.reset();
   q_command_ = q_meas_;
-  cartesian_controller_.getInverseKinematic()->setPositionControlFrame(InverseKinematic::ControlFrame::World);
+  cartesian_controller_.getInverseKinematic()->setPositionControlFrame(
+      InverseKinematic::ControlFrame::World);  // PENDING: why that ?
   cartesian_controller_.getInverseKinematic()->setOrientationControlFrame(InverseKinematic::ControlFrame::World);
-  cartesian_controller_.getTrajectoryController()->setXGoal(x_drink_pose_);
-}
-
-void RobotManager::trajStandUpdate_()
-{
-  ROS_INFO("=== Update joint position (Open loop)...");
-  q_current_ = q_command_;
-  ROS_INFO("    Done.");
-
-  cartesian_controller_.setDxDesired(dx_desired_);
-  cartesian_controller_.setInputSelector(CartesianController::INPUT_TRAJECTORY);
-  cartesian_controller_.run(q_current_, q_command_);
-
-  ROS_INFO("=== Send Niryo One commands...");
-  sendJointsCommand_();
-  ROS_INFO("    Done.");
-}
-
-void RobotManager::trajStandEnter_()
-{
-  // cartesian_controller_.reset();
-  q_command_ = q_meas_;
-  cartesian_controller_.getTrajectoryController()->setXGoal(x_stand_pose_);
+  if (position_requested_ == "TakeDrink")
+  {
+    cartesian_controller_.getTrajectoryController()->setXGoal(
+        x_drink_pose_);  // PENDING: rename drink/stand to takedrink/givedring
+  }
+  else
+  {
+    cartesian_controller_.getTrajectoryController()->setXGoal(x_stand_pose_);
+  }
 }
 
 bool RobotManager::trDisableToIdle_()
@@ -458,32 +436,22 @@ bool RobotManager::trAllToDisable_()
   return (learning_mode_ == 1);
 }
 
-bool RobotManager::trToJointHome_()
+bool RobotManager::trToJointPosition_()
 {
-  return (input_event_requested_ == FsmInputEvent::JointHome);
+  return (input_event_requested_ == FsmInputEvent::JointPosition);
 }
 
-bool RobotManager::trToJointRest_()
+bool RobotManager::trToSpacePosition_()
 {
-  return (input_event_requested_ == FsmInputEvent::JointRest);
+  return (input_event_requested_ == FsmInputEvent::SpacePosition);
 }
 
-bool RobotManager::trToTrajDrink_()
+bool RobotManager::trJointPositionToSpaceControl_()
 {
-  return (input_event_requested_ == FsmInputEvent::TrajectoryDrink);
+  return (isPositionCompleted_(joint_pose_manager_.getJointPosition(position_requested_)));
 }
 
-bool RobotManager::trToTrajStand_()
-{
-  return (input_event_requested_ == FsmInputEvent::TrajectoryStand);
-}
-
-bool RobotManager::trJointHomeToSpaceControl_()
-{
-  return (isPositionCompleted_(pose_manager_.getJoints("Home")));
-}
-
-bool RobotManager::trTrajToSpaceControl_()
+bool RobotManager::trSpacePositionToSpaceControl_()
 {
   return (isUserVelocityReceive() || cartesian_controller_.getTrajectoryController()->isTrajectoryCompleted());
 }
@@ -491,11 +459,6 @@ bool RobotManager::trTrajToSpaceControl_()
 bool RobotManager::isUserVelocityReceive() const
 {
   return !dx_desired_.isAllZero();
-}
-
-bool RobotManager::trRestToIdle_()
-{
-  return (isPositionCompleted_(pose_manager_.getJoints("Rest")));
 }
 
 void RobotManager::gotoPosition_(const JointPosition q_pose) const

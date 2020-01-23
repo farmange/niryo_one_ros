@@ -21,12 +21,13 @@
 
 #include "ros/ros.h"
 
+#include "orthopus_space_control/SetRobotAction.h"
 #include "orthopus_space_control/SetUInt16.h"
 #include "sensor_msgs/JointState.h"
 #include "std_msgs/UInt16.h"
 
 #include "orthopus_space_control/cartesian_controller.h"
-#include "orthopus_space_control/pose_manager.h"
+#include "orthopus_space_control/joint_pose_manager.h"
 #include "orthopus_space_control/robot_manager_fsm.h"
 
 #include "orthopus_space_control/types/joint_position.h"
@@ -56,11 +57,12 @@ private:
   ros::Subscriber joints_sub_;
   ros::Subscriber dx_input_device_sub_;
   ros::Subscriber learning_mode_sub_;
-  ros::ServiceServer action_service_;
-  ros::ServiceServer manage_pose_service_;
+  ros::ServiceServer set_robot_action_service_;
+  ros::ServiceServer manage_position_service_;
+  ros::ServiceServer get_position_list_service_;
   ros::ServiceServer set_control_frame_service_;
 
-  PoseManager pose_manager_;
+  JointPoseManager joint_pose_manager_;
   CartesianController cartesian_controller_;
 
   int sampling_freq_;
@@ -90,42 +92,32 @@ private:
   /* FSM state */
   State<RobotManager>* state_idle_;
   State<RobotManager>* state_disable_;
-  State<RobotManager>* state_joint_home_;
-  State<RobotManager>* state_joint_rest_;
-  State<RobotManager>* state_traj_drink_;
-  State<RobotManager>* state_traj_stand_;
+  State<RobotManager>* state_joint_position_;
+  State<RobotManager>* state_space_position_;
   State<RobotManager>* state_space_control_;
 
-  void spaceControlUpdate_();
-  void spaceControlEnter_();
-  void jointHomeEnter_();
-  void jointHomeExit_();
-  void jointRestEnter_();
-  void trajDrinkUpdate_();
-  void trajDrinkEnter_();
-  void trajStandUpdate_();
-  void trajStandEnter_();
-
-  /* FSM Transition */
+  /* FSM Transitions */
   Transition<RobotManager>* tr_all_to_disable_;
   Transition<RobotManager>* tr_disable_to_idle_;
-  Transition<RobotManager>* tr_rest_to_idle_;
-  Transition<RobotManager>* tr_to_joint_home_;
-  Transition<RobotManager>* tr_to_joint_rest_;
-  Transition<RobotManager>* tr_to_traj_drink_;
-  Transition<RobotManager>* tr_to_traj_stand_;
-  Transition<RobotManager>* tr_joint_home_to_space_control_;
-  Transition<RobotManager>* tr_traj_to_space_control_;
+  Transition<RobotManager>* tr_to_joint_position_;
+  Transition<RobotManager>* tr_to_space_position_;
+  Transition<RobotManager>* tr_joint_position_to_space_control_;
+  Transition<RobotManager>* tr_space_position_to_space_control_;
 
   bool trDisableToIdle_();
   bool trAllToDisable_();
-  bool trToJointHome_();
-  bool trToJointRest_();
-  bool trToTrajDrink_();
-  bool trToTrajStand_();
-  bool trJointHomeToSpaceControl_();
-  bool trTrajToSpaceControl_();
-  bool trRestToIdle_();
+  bool trToJointPosition_();
+  bool trToSpacePosition_();
+  bool trJointPositionToSpaceControl_();
+  bool trSpacePositionToSpaceControl_();
+
+  /* FSM Actions */
+  void spaceControlUpdate_();
+  void spaceControlEnter_();
+  void jointPositionExit_();
+  void jointPositionEnter_();
+  void spacePositionUpdate_();
+  void spacePositionEnter_();
 
   /* Init methods */
   void initializeSubscribers_();
@@ -136,11 +128,16 @@ private:
 
   /* FSM input event (what is allowed to do from user point of view) */
   FsmInputEvent input_event_requested_;
-
+  std::string position_requested_;
   // Callbacks
-  bool callbackAction_(niryo_one_msgs::SetInt::Request& req, niryo_one_msgs::SetInt::Response& res);
+  bool callbackRobotAction_(orthopus_space_control::SetRobotAction::Request& req,
+                            orthopus_space_control::SetRobotAction::Response& res);
   bool callbackSetControlFrame_(orthopus_space_control::SetUInt16::Request& req,
                                 orthopus_space_control::SetUInt16::Response& res);
+  bool callbackManagePosition_(niryo_one_msgs::ManagePosition::Request& req,
+                               niryo_one_msgs::ManagePosition::Response& res);
+  bool callbackGetPositionList_(niryo_one_msgs::GetPositionList::Request& req,
+                                niryo_one_msgs::GetPositionList::Response& res);
 
   void callbackLearningMode_(const std_msgs::BoolPtr& msg);
   void callbackJointState_(const sensor_msgs::JointStateConstPtr& msg);

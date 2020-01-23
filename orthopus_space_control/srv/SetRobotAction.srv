@@ -1,0 +1,7 @@
+int32 cmd_type
+
+string parameter
+---
+int32 status
+string message
+
