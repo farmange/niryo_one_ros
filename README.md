@@ -112,7 +112,7 @@ Connect your robot in shh (see Niryo One documentation) and change the github up
 cd ~/catkin_ws/src
 git remote add armstrong https://github.com/ArmStrong-Robotics/niryo_one_ros.git
 git fetch armstrong
-git checkout -b armstrong/master
+git checkout -B armstrong/master armstrong/master
 ```
 
 Install dependencies :
@@ -152,9 +152,13 @@ Open the file ```/etc/nginx/sites-enabled/default``` to configure the **NGINX** 
 ```
 root /var/www/html;
 ```
-Replace it with (use your username):
+Replace it with (use your username) :
 ```
 root /home/<your_username>/catkin_ws/src/orthopus_space_control/scripts;
+```
+Restart NGINX :
+```
+sudo systemctl restart nginx
 ```
 
 ## Usage
