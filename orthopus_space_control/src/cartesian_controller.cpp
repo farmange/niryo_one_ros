@@ -35,7 +35,7 @@ CartesianController::CartesianController(const int joint_number)
   , ik_(joint_number)
   , fk_(joint_number)
   , vi_(joint_number)
-  , pm_(joint_number)
+  , jpm_(joint_number)
   , joint_number_(joint_number)
   , x_current_()
   , x_orientation_constraint_()
@@ -53,10 +53,10 @@ CartesianController::CartesianController(const int joint_number)
   ROS_DEBUG_STREAM("CartesianController constructor");
 }
 
-void CartesianController::init(double sampling_period, PoseManager& pose_manager)
+void CartesianController::init(double sampling_period, JointPoseManager& joint_pose_manager)
 {
   ROS_DEBUG_STREAM("CartesianController init");
-  pm_ = pose_manager;
+  jpm_ = joint_pose_manager;
   sampling_period_ = sampling_period;
 
   /* This is use to update joint state before running anything */

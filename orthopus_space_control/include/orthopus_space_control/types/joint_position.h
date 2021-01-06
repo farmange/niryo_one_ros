@@ -28,9 +28,6 @@ namespace space_control
 */
 class JointPosition : public std::vector<double>
 {
-private:
-  int joint_number_;
-
 public:
   JointPosition(int joint_number) : joint_number_(joint_number)
   {
@@ -49,6 +46,9 @@ public:
     copy(sp.begin(), sp.end(), ostream_iterator<double>(os, ", "));
     return os;
   };
+
+private:
+  int joint_number_;
 };
 }
 #endif

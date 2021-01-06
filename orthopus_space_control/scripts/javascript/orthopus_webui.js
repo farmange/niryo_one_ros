@@ -5,6 +5,9 @@ var hardware_status_sub;
 var joystick_enable_sub;
 var cmd_vel_pub;
 
+var manage_position_srv;
+var get_position_list_srv;
+
 var GRIPPER_1 = 11;
 var GRIPPER_2 = 12;
 var GRIPPER_3 = 13;
@@ -13,6 +16,8 @@ var CMD_TOOL = 6;
 var OPEN_GRIPPER = 1;
 var CLOSE_GRIPPER = 2;
 var GRIPPER_SPEED = 300;
+
+var pos_list;
 
 /* Axis are map to a joy message of the XBOX controller */
 var axes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -48,10 +53,8 @@ var hardware_status = {
 
 /* Converted from FsmInputEvent */
 var INPUT_EVENT_NONE = 0;
-var INPUT_EVENT_JOINT_HOME = 1;
-var INPUT_EVENT_JOINT_REST = 2;
-var INPUT_EVENT_TRAJECTORY_DRINK = 3;
-var INPUT_EVENT_TRAJECTORY_STAND = 4;
+var INPUT_EVENT_JOINT_POSITION = 1;
+var INPUT_EVENT_SPACE_POSITION = 2;
 
 function resetStatus() {
   hardware_status.rpi_temperature = 0;
@@ -164,6 +167,104 @@ function mainLoop() {
   }
 }
 
+function refreshPositionList() {
+  var request = new ROSLIB.ServiceRequest({});
+  get_position_list_srv.callService(request, function (result) {
+  pos_list = result.positions;
+  // Populates position list 
+  $('#dropdown_position_list')[0].innerHTML = '';
+  $('#modal_position_list')[0].innerHTML = '';
+  
+  for(i in pos_list) {
+    $('#dropdown_position_list')[0].innerHTML += '<a class="dropdown-item" href="#" id="id_go_' + i + '" title="' + pos_list[i].name + '" >' + pos_list[i].name + '</a>';
+    var html_string = '\
+        <div class="d-flex bd-highlight"> \
+          <div class="p-2 flex-grow-1 bd-highlight">' + pos_list[i].name + '</div>';
+    if(pos_list[i].name != "Home" && pos_list[i].name != "Rest")
+    {
+    html_string += '<button id="del_pos_' + i + '" value="' + pos_list[i].name + '" type="button" class="btn btn-outline-danger"> \
+            <img src="delete.png" width="20"/>\
+          </button>\
+        </div>';
+    }
+    $('#modal_position_list')[0].innerHTML += html_string;
+  }
+
+  for(i in pos_list) {
+      var id_go = '#id_go_' + i;
+      $(id_go)
+      .click(function () {
+        console.log(this);       
+        GoToPosition(this.title);
+        });
+      var id_delete = '#del_pos_' + i;
+      $(id_delete)
+        .click(function () {
+          DeletePosition(this.value);
+          });
+
+  }
+
+  });
+}
+
+function DeletePosition(pos_name)
+{
+  console.log('DeletePosition :  ' + pos_name);
+  var request = new ROSLIB.ServiceRequest({
+    cmd_type: 2,
+    position_name: pos_name
+  });
+
+  manage_position_srv.callService(request, function (result) {
+    console.log('Result for service call on '
+      + manage_position_srv.name
+      + ': '
+      + result.status
+      + ', '
+      + result.message);
+      refreshPositionList();
+  });
+}
+
+function AddPosition(pos_name)
+{
+  console.log('AddPosition :  ' + pos_name);
+  var request = new ROSLIB.ServiceRequest({
+    cmd_type: 0,
+    position_name: pos_name
+  });
+
+  manage_position_srv.callService(request, function (result) {
+    console.log('Result for service call on '
+      + manage_position_srv.name
+      + ': '
+      + result.status
+      + ', '
+      + result.message);
+      refreshPositionList();
+  });
+}
+
+function UpdatePosition(pos_name)
+{
+  console.log('UpdatePosition :  ' + pos_name);
+  var request = new ROSLIB.ServiceRequest({
+    cmd_type: 1,
+    position_name: pos_name
+  });
+
+  manage_position_srv.callService(request, function (result) {
+    console.log('Result for service call on '
+      + manage_position_srv.name
+      + ': '
+      + result.status
+      + ', '
+      + result.message);
+      refreshPositionList();
+  });
+}
+
 function publishCartesianVelocity() {
   var msg = new ROSLIB.Message({
     buttons: buttons,
@@ -216,7 +317,7 @@ function SetControlFrame() {
 
   var set_control_frame_srv = new ROSLIB.Service({
     ros: ros,
-    name: '/niryo_one/orthopus_space_control/set_control_frame',
+    name: '/orthopus_space_control/set_control_frame',
     serviceType: 'orthopus_space_control/SetUInt16'
   });
   set_control_frame_srv.callService(request, function (result) {
@@ -321,17 +422,18 @@ function GripperClose() {
   });
 }
 
-function GotoHome() {
-  console.log('GotoHome');
+function GoToPosition(pos_name) {
+  console.log('GoToPosition : ' + pos_name);
 
   var request = new ROSLIB.ServiceRequest({
-    value: INPUT_EVENT_JOINT_HOME
+    cmd_type: INPUT_EVENT_JOINT_POSITION,
+    parameter: pos_name
   });
 
   var goto_srv = new ROSLIB.Service({
     ros: ros,
-    name: '/niryo_one/orthopus_space_control/action',
-    serviceType: 'niryo_one_msgs/SetInt'
+    name: '/orthopus_space_control/set_robot_action',
+    serviceType: 'niryo_one_msgs/SetRobotAction'
   });
   goto_srv.callService(request, function (result) {
     console.log('Result for service call on '
@@ -343,17 +445,18 @@ function GotoHome() {
   });
 }
 
-function GotoRest() {
-  console.log('GotoRest');
+function TakeDrink() {
+  console.log('TakeDrink');
 
   var request = new ROSLIB.ServiceRequest({
-    value: INPUT_EVENT_JOINT_REST
+    cmd_type: INPUT_EVENT_SPACE_POSITION,
+    parameter: "TakeDrink"
   });
 
   var goto_srv = new ROSLIB.Service({
     ros: ros,
-    name: '/niryo_one/orthopus_space_control/action',
-    serviceType: 'niryo_one_msgs/SetInt'
+    name: '/orthopus_space_control/set_robot_action',
+    serviceType: 'niryo_one_msgs/SetRobotAction'
   });
   goto_srv.callService(request, function (result) {
     console.log('Result for service call on '
@@ -365,39 +468,18 @@ function GotoRest() {
   });
 }
 
-function GotoDrink() {
-  console.log('GotoDrink');
+function GiveDrink() {
+  console.log('GiveDrink');
 
   var request = new ROSLIB.ServiceRequest({
-    value: INPUT_EVENT_TRAJECTORY_DRINK
+    cmd_type: INPUT_EVENT_SPACE_POSITION,
+    parameter: "GiveDrink"
   });
 
   var goto_srv = new ROSLIB.Service({
     ros: ros,
-    name: '/niryo_one/orthopus_space_control/action',
-    serviceType: 'niryo_one_msgs/SetInt'
-  });
-  goto_srv.callService(request, function (result) {
-    console.log('Result for service call on '
-      + goto_srv.name
-      + ': '
-      + result.status
-      + ', '
-      + result.message);
-  });
-}
-
-function LayDownGlass() {
-  console.log('LayDownGlass');
-
-  var request = new ROSLIB.ServiceRequest({
-    value: INPUT_EVENT_TRAJECTORY_STAND
-  });
-
-  var goto_srv = new ROSLIB.Service({
-    ros: ros,
-    name: '/niryo_one/orthopus_space_control/action',
-    serviceType: 'niryo_one_msgs/SetInt'
+    name: '/orthopus_space_control/set_robot_action',
+    serviceType: 'niryo_one_msgs/SetRobotAction'
   });
   goto_srv.callService(request, function (result) {
     console.log('Result for service call on '
@@ -420,7 +502,6 @@ function RotationY(value) {
 function RotationZ(value) {
   axes[ROTZ_AXIS_INDEX] = parseFloat(value);
 }
-
 
 window.onload = function () {
   var robot_IP = document.domain;
@@ -480,6 +561,7 @@ window.onload = function () {
     name: '/niryo_one/hardware_status',
     messageType: 'niryo_one_msgs/HardwareStatus'
   });
+
   hardware_status_sub.subscribe(function (message) {
     console.debug('Received message on ' + hardware_status_sub.name + ': ');
     console.debug(message);
@@ -518,9 +600,25 @@ window.onload = function () {
     messageType: 'sensor_msgs/Joy'
   });
 
+  // Setup service 
+  // ----------------------
+  manage_position_srv = new ROSLIB.Service({
+    ros: ros,
+    name: '/orthopus_space_control/manage_position',
+    serviceType: 'niryo_one_msgs/ManagePosition'
+  });
+
+  get_position_list_srv = new ROSLIB.Service({
+    ros: ros,
+    name: '/orthopus_space_control/get_position_list',
+    serviceType: 'niryo_one_msgs/GetPositionList'
+  });
+
+  
+  refreshPositionList();
+
   // Construct joystick objects 
   // ----------------------  
-  console.log();
   var max_joy_size = $(window).height() - 420;
   yz_joy = Joystick($('#YZ_joystick'), '#0066ff', Y_AXIS_INDEX, true, Z_AXIS_INDEX, false, max_joy_size);
   yx_joy = Joystick($('#YX_joystick'), '#0066ff', Y_AXIS_INDEX, true, X_AXIS_INDEX, false, max_joy_size);
@@ -565,21 +663,15 @@ $(function () {
       var state = $('#enable_switch')[0].checked;
       Calibrate();
     });
-  $('#goto_home')
+
+
+  $('#take_drink')
     .click(function () {
-      GotoHome();
+      TakeDrink();
     });
-  $('#goto_rest')
+  $('#give_drink')
     .click(function () {
-      GotoRest();
-    });
-  $('#goto_drink')
-    .click(function () {
-      GotoDrink();
-    });
-  $('#goto_stand')
-    .click(function () {
-      LayDownGlass();
+      GiveDrink();
     });
   $('#gripper_open')
     .click(function () {
@@ -612,5 +704,39 @@ $(function () {
     .change(function () {
       this.value = 0;
       RotationZ(this.value);
+    });
+
+  $('#addPositionForm')
+    .on('submit', function (event) {
+      filename = $('#new_position_name').val();
+      console.log("filename = " + $('#new_position_name').val());
+      // Check if entry exists
+      for(i in pos_list) {
+        if(pos_list[i].name == filename) {
+          $('#addComment')[0].innerHTML = "";
+          $('#overwriteModal').modal('toggle', filename);
+          return;
+        }
+      }
+      AddPosition(filename);
+      $('#addComment').removeClass();
+      $('#addComment').addClass("text-success font-italic text-center");
+      $('#addComment')[0].innerHTML = "The position \""+filename+"\" has been added.";
+
+    });
+    
+  $('#overwriteModal')
+    .on('show.bs.modal', function (event) {
+      var filename = event.relatedTarget;
+      console.log(filename);
+      $('#overwrite_pos').unbind();
+      $('#overwrite_pos')
+        .on('click', function () {
+          UpdatePosition(filename);
+          $('#addComment').removeClass();
+          $('#addComment').addClass("text-warning font-italic text-center");          
+          $('#addComment')[0].innerHTML = "The position \""+filename+"\" has been updated.";
+        });
+      
     });
 });

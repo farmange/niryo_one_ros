@@ -42,17 +42,19 @@ private:
   ros::NodeHandle n_;
 
   bool gripper_toggle_;
+  bool control_mode_toggle_;
   double debounce_button_time_;
   ros::Time debounce_button_left_;
   ros::Time debounce_button_right_;
   int button_left_;
   int button_right_;
-  
+
   void callbackJoy_(const sensor_msgs::Joy::ConstPtr& msg);
   void processButtons_(const sensor_msgs::Joy::ConstPtr& msg);
   void debounceButtons_(const sensor_msgs::Joy::ConstPtr& msg, const int button_id, ros::Time& debounce_timer_ptr,
                         int& button_value_ptr);
   void updateGripperCmd_();
+  void updateControlMode_();
 };
 }
 #endif
