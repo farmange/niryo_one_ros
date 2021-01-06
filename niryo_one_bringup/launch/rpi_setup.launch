@@ -36,4 +36,5 @@
         <!-- don't change that unless you manually change ros log location --> 
         <param name="ros_log_location"      type="string" value="/home/niryo/.ros/log" /> 
     </node>
+
 </launch>

@@ -21,12 +21,12 @@ processes:
           []
       dependencies:
           - controllers
-    - name: 'user_interface'
+    - name: 'cartesian_controller'
       launch_on_startup: true
       delay_before_start: 0.0
-      cmd: 'roslaunch niryo_one_bringup user_interface.launch'
+      cmd: 'roslaunch orthopus_space_control demo.launch'
       args: 
-        []
+        ['webapp:=true', 'spacenav:=false']
       dependencies:
           - controllers
           - robot_commander

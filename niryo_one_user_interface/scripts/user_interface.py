@@ -31,8 +31,8 @@ class UserInterface:
     def __init__(self):
         
         # Joystick
-        self.joy = JoystickInterface()
-        self.joy.disable_joy()
+        #self.joy = JoystickInterface()
+        #self.joy.disable_joy()
     
         # Sequence Manager
         sequences_dir = rospy.get_param("~sequences_dir")

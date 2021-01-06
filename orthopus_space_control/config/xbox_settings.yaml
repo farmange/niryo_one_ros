@@ -1,0 +1,5 @@
+#
+#  ### Params of the xbox device interface ###
+#
+debounce_button_time        : 0.04
+velocity_factor_inc         : 0.02
