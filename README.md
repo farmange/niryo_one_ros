@@ -110,7 +110,7 @@ Connect your robot in shh (see Niryo One documentation) and change the github up
 cd ~/catkin_ws/src
 git remote add farmange git@github.com:farmange/niryo_one_ros.git
 git fetch farmange
-git pull farmange farmange_master 
+git reset --hard farmange/farmange_master
 ```
 
 Install dependencies :
