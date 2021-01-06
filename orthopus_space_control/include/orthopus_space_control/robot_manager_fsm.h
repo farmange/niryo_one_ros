@@ -27,10 +27,8 @@ public:
   enum FsmInputEventEnum
   {
     None = 0,
-    JointHome,
-    JointRest,
-    TrajectoryDrink,
-    TrajectoryStand
+    JointPosition,
+    SpacePosition
   };
 
   FsmInputEvent() = default;
@@ -43,17 +41,11 @@ public:
       case None:
         msg = "None";
         break;
-      case JointHome:
-        msg = "JointHome";
+      case JointPosition:
+        msg = "JointPosition";
         break;
-      case JointRest:
-        msg = "JointRest";
-        break;
-      case TrajectoryDrink:
-        msg = "TrajectoryDrink";
-        break;
-      case TrajectoryStand:
-        msg = "TrajectoryStand";
+      case SpacePosition:
+        msg = "SpacePosition";
         break;
       default:
         msg = "NaN";

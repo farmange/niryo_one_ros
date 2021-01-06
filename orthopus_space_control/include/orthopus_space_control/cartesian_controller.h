@@ -27,7 +27,7 @@
 #include "std_msgs/Int32.h"
 
 #include "orthopus_space_control/inverse_kinematic.h"
-#include "orthopus_space_control/pose_manager.h"
+#include "orthopus_space_control/joint_pose_manager.h"
 #include "orthopus_space_control/trajectory_controller.h"
 
 #include "orthopus_space_control/forward_kinematic.h"
@@ -51,7 +51,7 @@ public:
   typedef InputSelector InputSelectorType;
 
   CartesianController(const int joint_number);
-  void init(double sampling_period, PoseManager& pose_manager);
+  void init(double sampling_period, JointPoseManager& joint_pose_manager);
   void reset();
   void run(const JointPosition& q_current, JointPosition& q_command);
 
@@ -60,10 +60,6 @@ public:
   void setDebugPublishers(ros::Publisher& q_current_debug_pub, ros::Publisher& x_current_debug_pub,
                           ros::Publisher& dx_desired_debug_pub);
   void setControlFeedbackPublisher(ros::Publisher& control_feedback);
-
-  // Callbacks
-  void callbackMoveGroupState(const std_msgs::Int32Ptr& msg);
-  void callbackVelocitiesDesired(const geometry_msgs::TwistStampedPtr& msg);
 
   TrajectoryController* getTrajectoryController();
   InverseKinematic* getInverseKinematic();
@@ -84,7 +80,7 @@ private:
   InverseKinematic ik_;
   ForwardKinematic fk_;
   VelocityIntegrator vi_;
-  PoseManager pm_;
+  JointPoseManager jpm_;
 
   JointPosition q_command_;
   JointPosition q_current_;

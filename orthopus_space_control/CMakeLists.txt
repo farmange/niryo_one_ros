@@ -22,6 +22,7 @@ add_service_files(
   DIRECTORY srv
   FILES
   SetUInt16.srv
+  SetRobotAction.srv
 )
 
 generate_messages(
@@ -74,7 +75,7 @@ add_executable(cartesian_controller
   src/cartesian_controller.cpp
   src/forward_kinematic.cpp
   src/inverse_kinematic.cpp
-  src/pose_manager.cpp
+  src/joint_pose_manager.cpp
   src/robot_manager.cpp
   src/space_pose_manager.cpp
   src/trajectory_controller.cpp

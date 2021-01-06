@@ -1,20 +1,20 @@
-# ArmStrong - Niryo One ROS stack
+# Orthopus - Niryo One ROS stack
 
-<<<<<<< HEAD
 This is a fork of the [official Niryo One ROS stack](https://github.com/NiryoRobotics/niryo_one_ros). 
 Please refer the Niryo One documentation for installation and setup of the environment.
-=======
-Licensed under GPLv3 (see [LICENSE file](https://github.com/NiryoRobotics/niryo_one_ros/blob/master/LICENSE))
 
-(Niryo One : [https://niryo.com](https://niryo.com/?utm_source=github))
->>>>>>> master
+<<<<<<< HEAD
+The aim of this Orthopus project is to turn Niryo One to a real assistive robot for people with upper limb immobility like muscular dystrophy.
+=======
+This work is based on the **2.1.0** version of the Niryo One package.
 
 The aim of the ArmStrong project is to turn Niryo One to a real assistive robot for people with upper limb immobility like muscular dystrophy.
+>>>>>>> 6f8cd7035f7079aba131e63808c63364dc29b299
 In this way, we work to improve robot control through wheelchair joystick but also explore different kinds of user interfaces.
 
 **This is a WIP project so it could be unstable !**
 
-- [ArmStrong - Niryo One ROS stack](#armstrong---niryo-one-ros-stack)
+- [ORTHOPUS - Niryo One ROS stack](#orthopus---niryo-one-ros-stack)
   - [Features](#features)
     - [orthopus\_space\_control package](#orthopusspacecontrol-package)
     - [qpoases_ros package](#qpoasesros-package)
@@ -80,17 +80,23 @@ Create a catkin workspace and clone Niryo One ROS stack :
 ```
 mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/src
-git clone git@github.com:ArmStrong-Robotics/niryo_one_ros.git .
+<<<<<<< HEAD
+git clone git@github.com:farmange/niryo_one_ros.git .
+git checkout farmange_master
+=======
+git clone https://github.com/ArmStrong-Robotics/niryo_one_ros.git .
+>>>>>>> 6f8cd7035f7079aba131e63808c63364dc29b299
 ```
 Install dependencies :
 ```
-cd ~/catkin_ws
+cd ~/catkin_ws/src/niryo_one_ros
 rosdep update
 rosdep install qpoases_ros -y
 rosdep install orthopus_space_control --ignore-src -y
 ```
 Build the ROS stack :
 ```
+cd ~/catkin_ws
 catkin_make
 ```
 **Don't forget to use those commands before you try to launch anything (you can add them in your .bashrc) :**
@@ -113,9 +119,15 @@ Note that Niryo One ROS packages have been developed with **ROS kinetic, on Ubun
 Connect your robot in shh (see Niryo One documentation) and change the github upstream :
 ```
 cd ~/catkin_ws/src
-git remote add armstrong git@github.com:ArmStrong-Robotics/niryo_one_ros.git
+<<<<<<< HEAD
+git remote add farmange git@github.com:farmange/niryo_one_ros.git
+git fetch farmange
+git reset --hard farmange/farmange_master
+=======
+git remote add armstrong https://github.com/ArmStrong-Robotics/niryo_one_ros.git
 git fetch armstrong
-git pull armstrong master 
+git checkout -B armstrong/master armstrong/master
+>>>>>>> 6f8cd7035f7079aba131e63808c63364dc29b299
 ```
 
 Install dependencies :
@@ -151,13 +163,17 @@ Install **NGINX** :
 ```
 sudo apt-get install nginx
 ```
-Open the file '''/etc/nginx/sites-enabled/default''' to configure the **NGINX** and find the line :
+Open the file ```/etc/nginx/sites-enabled/default``` to configure the **NGINX** and find the line :
 ```
 root /var/www/html;
 ```
-Replace it with (use your username):
+Replace it with (use your username) :
 ```
 root /home/<your_username>/catkin_ws/src/orthopus_space_control/scripts;
+```
+Restart NGINX :
+```
+sudo systemctl restart nginx
 ```
 
 ## Usage

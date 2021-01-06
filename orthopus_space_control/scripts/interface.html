@@ -7,14 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <link rel="icon" type="image/png" href="Logo_100x100px.png" />
   <title>ORTHOPUS WebApp</title>
-
+  <link rel="stylesheet" href="css/bootstrap.min.css">
   <script type="text/javascript" src="javascript/eventemitter2.min.js"></script>
   <script type="text/javascript" src="javascript/roslib.min.js"></script>
   <script type="text/javascript" src="javascript/nipplejs.js"></script>
-  <script type="text/javascript" src="javascript/jquery-3.3.1.slim.min.js"></script>
+  <script src="javascript/jquery.min.js"></script>
+  <script src="javascript/bootstrap.bundle.min.js"></script>
   <script type="text/javascript" src="javascript/orthopus_webui.js"></script>
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-
 </head>
 
 <body>
@@ -73,27 +72,118 @@
 
     <!-- Buttons control row -->
     <div class="d-flex flex-row align-items-start justify-content-center">
-      <div class="col-sm-2 d-flex justify-content-top">
+  
+      <div class="col-sm-3 d-flex justify-content-top">
+        
+        <div class="btn-group">
+          <!-- Dropdown to select poses -->
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-primary dropdown-toggle flex-fill" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Poses
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton" id="dropdown_position_list">
+            </div>
+          </div>
+
+          <!-- edit dropdown entries -->
+          <div class="col-sm-2 d-flex justify-content-top">
+            <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#editModal">
+              <img src="edit.png" width="20"/>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success" data-toggle="modal" data-target="#addModal">
+              <img src="add.png" width="20"/>
+            </button>
+
+            <!-- Modal for edit button-->
+            <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">Edit position list</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body" id="modal_position_list">
+                    <!-- Populates in javascript -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal for add button-->
+          <div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="addModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="addModalLabel">Add new position</h5>
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <form id="addPositionForm" role="form">
+                <div class="modal-body" >
+                    <div class="form-group">
+                      <label for="recipient-name" class="col-form-label">Position name:</label>
+                      <input type="text" class="form-control" id="new_position_name" required pattern="[A-Za-z_\-0-9]+" maxlength="30">
+                      <p class="text-center" id="addComment"></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <button type="submit" class="btn btn-success" id="save_pos">Add</button>
+                </div>
+              </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal to confirm overwrite position-->
+          <div class="modal fade" id="overwriteModal" tabindex="-1" role="dialog" aria-labelledby="overwriteModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="overwriteModalLabel">Replace position entry ?</h5>
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="modal-body" >
+                    Another position with the same name already exists on the robot.
+                    Replacing it will overwrite its content.
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                  <button type="button" class="btn btn-primary" id="overwrite_pos" data-dismiss="modal">Replace</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="col-sm-3 d-flex justify-content-top">
         <div class="btn-group-vertical btn-group-sm flex-fill">
           <button class="btn btn-primary flex-fill" disabled>Gripper</button>
           <button id="gripper_open" class="btn btn-outline-primary">Open</button>
           <button id="gripper_close" class="btn btn-outline-primary">Close</button>
         </div>
-      </div>
+      </div>   
 
-      <div class="col-sm-2 d-flex justify-content-center">
+      <div class="col-sm-3 d-flex justify-content-center">
         <div class="btn-group-vertical btn-group-sm flex-fill ">
-          <button class="btn btn-primary" disabled>Poses</button>
-          <button id="goto_rest" class="btn btn-outline-primary">Rest</button>
-          <button id="goto_home" class="btn btn-outline-primary">Home</button>
-          <button id="goto_drink" class="btn btn-outline-primary">Drink</button>
-          <button id="goto_stand" class="btn btn-outline-primary">Lay</button>
+          <button class="btn btn-primary" disabled>Drink</button>
+          <button id="take_drink" class="btn btn-outline-primary">Take</button>
+          <button id="give_drink" class="btn btn-outline-primary">Give</button>
         </div>
       </div>
     </div>
 
     <!-- Settings row -->
-    <div class="d-flex flex-row align-items-start justify-content-center border " style="margin-top:10px">
+    <div class="d-flex flex-row align-items-start justify-content-center " style="margin-top:10px">
       <div class="card flex-fill">
         <div class="card-header">Settings</div>
         <div class="card-body">
