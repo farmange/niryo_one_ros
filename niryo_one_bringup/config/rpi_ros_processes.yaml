@@ -30,12 +30,12 @@ processes:
       dependencies:
           - controllers
           - robot_commander
-     - name: 'vision_node'
-       launch_on_startup: true
-       delay_before_start: 5.0
-       cmd: 'roslaunch niryo_one_bringup vision.launch'
-       args:
-           []
-       dependencies:
+    - name: 'vision_node'
+      launch_on_startup: true
+      delay_before_start: 5.0
+      cmd: 'roslaunch niryo_one_bringup vision.launch'
+      args:
+          []
+      dependencies:
           - controllers
           - robot_commander
