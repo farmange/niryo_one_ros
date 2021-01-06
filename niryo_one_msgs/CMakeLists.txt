@@ -28,40 +28,58 @@ add_message_files(
   TrajectoryPlan.msg
   MatlabMoveResult.msg
   Position.msg
-  Trajectory.msg 
+  Trajectory.msg
+  ObjectPose.msg
+  ConveyorFeedback.msg
 )
 
 add_service_files(
   DIRECTORY srv
   FILES
-  SetInt.srv
-  RobotMove.srv
-  ManageProcess.srv
-  SetLeds.srv
-  GetInt.srv
-  PingDxlTool.srv
-  OpenGripper.srv
+  ChangeHardwareVersion.srv
+  ChangeMotorConfig.srv
+  ControlConveyor.srv
   CloseGripper.srv
+  DebugColorDetection.srv
+  DebugMarkers.srv
+  EditGrip.srv
+  EditWorkspace.srv
+  GetCalibrationCam.srv
+  GetDigitalIO.srv
+  GetInt.srv
+  GetPositionList.srv
+  GetSequenceList.srv
+  GetTargetPose.srv
+  GetTrajectoryList.srv
+  GetWorkspaceList.srv
+  GetWorkspaceRatio.srv
+  GetWorkspaceRobotPoses.srv
+  ObjDetection.srv
+  ManagePosition.srv
+  ManageProcess.srv
+  ManageSequence.srv
+  ManageTrajectory.srv
+  OpenGripper.srv
+  PingDxlTool.srv
   PullAirVacuumPump.srv
   PushAirVacuumPump.srv
-  SetDigitalIO.srv
-  GetDigitalIO.srv
-  GetSequenceList.srv
-  ManageSequence.srv
-  SetSequenceAutorun.srv
-  ManagePosition.srv
-  GetPositionList.srv
-  ManageTrajectory.srv
-  GetTrajectoryList.srv  
-  ChangeHardwareVersion.srv
+  RobotMove.srv
   SendCustomDxlValue.srv
-  ChangeMotorConfig.srv
+  SetBool.srv
+  SetCalibrationCam.srv
+  SetConveyor.srv
+  SetDigitalIO.srv
+  SetInt.srv
+  SetLeds.srv
+  SetSequenceAutorun.srv
   SetString.srv
+  TakePicture.srv
+  UpdateConveyorId.srv
 )
 
 add_action_files(
   DIRECTORY action
-  FILES 
+  FILES
   JoystickJoints.action
   RobotMove.action
   Tool.action
@@ -74,6 +92,7 @@ generate_messages(
   geometry_msgs
   actionlib_msgs
   moveit_msgs
+  sensor_msgs
 )
 
 catkin_package(

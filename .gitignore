@@ -7,5 +7,5 @@ tmp_code_to_execute/
 .vscode
 *_test.py
 /CMakeLists.txt
-*.kdev4
-
+*.egg-info
+*__pycache__

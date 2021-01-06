@@ -38,7 +38,7 @@
 
     <xacro:property name="limit_low_shoulder_rotation" value="-3.05433" />
     <xacro:property name="limit_up_shoulder_rotation" value="3.05433" />
-    <xacro:property name="limit_low_arm_rotation" value="-1.91986" />
+    <xacro:property name="limit_low_arm_rotation" value="-1.57080" />
     <xacro:property name="limit_up_arm_rotation" value="0.640187" />
     <xacro:property name="limit_low_elbow_rotation" value="-1.397485" />
     <xacro:property name="limit_up_elbow_rotation" value="${PI/2}" />
@@ -52,7 +52,7 @@
 
 	<!-- Links -->
 
-    <link name="ground_link"/>
+    <link name="world"/>
 
     <link name="base_link">
 		<visual>
@@ -165,8 +165,8 @@
 
 	<!--Joints -->
 
-    <joint name="ground_joint" type="fixed">
-        <parent link="ground_link" />
+    <joint name="joint_world" type="fixed">
+        <parent link="world" />
         <child link="base_link" />
         <origin xyz="0 0 0" rpy="0 0 0" />
     </joint>

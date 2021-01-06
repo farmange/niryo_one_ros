@@ -45,6 +45,59 @@ RosInterface::RosInterface(CommunicationBase* niryo_one_comm, RpiDiagnostics* rp
     calibration_needed = 0;
 }
 
+bool RosInterface::callbackTestMotors(niryo_one_msgs::SetInt::Request &req, niryo_one_msgs::SetInt::Response &res) 
+{    
+    if (motor_test_status==1)
+    {
+        test_motor.stopTest();
+        learning_mode_on = true;
+        comm->activateLearningMode(learning_mode_on);
+        return true;
+    }
+    
+    motor_test_status = 1;
+    if (calibration_needed)
+    {
+        learning_mode_on = false;
+        comm->activateLearningMode(learning_mode_on);
+        
+        int calibration_mode = 1; 
+        std::string result_message = "";
+        int result = comm->allowMotorsCalibrationToStart(calibration_mode, result_message);
+
+        ros::Duration(1).sleep();
+        while (calibration_in_progress) { ros::Duration(0.05).sleep();}
+
+        learning_mode_on = true;
+        ros::Duration(1).sleep();
+    }
+    
+    learning_mode_on = false;
+    comm->activateLearningMode(learning_mode_on);
+
+    bool status = test_motor.runTest(req.value);
+
+    learning_mode_on = true;
+    comm->activateLearningMode(learning_mode_on);
+
+    if (status)
+    {
+        motor_test_status = 0;
+        res.status = 200;
+        res.message = "Success";
+        ROS_INFO("Motor debug has ended with success");
+    }
+    else
+    {
+        motor_test_status = -1;
+        res.status = 400;
+        res.message = "Fail";
+        ROS_ERROR("Motor debug has ended with failure");
+    }
+    return true;
+}
+
+
 bool RosInterface::callbackCalibrateMotors(niryo_one_msgs::SetInt::Request &req, niryo_one_msgs::SetInt::Response &res) 
 {
     int calibration_mode = req.value; 
@@ -138,6 +191,25 @@ bool RosInterface::callbackPingAndSetDxlTool(niryo_one_msgs::PingDxlTool::Reques
     return true;
 }
 
+bool RosInterface::callbackPingAndSetConveyor(niryo_one_msgs::SetConveyor::Request &req, niryo_one_msgs::SetConveyor::Response &res) {
+    std::string message = "";
+    res.status = comm->pingAndSetConveyor(req.id, req.activate, message);
+    res.message = message; 
+    return true;
+}
+bool RosInterface::callbackControlConveyor(niryo_one_msgs::ControlConveyor::Request &req, niryo_one_msgs::ControlConveyor::Response &res){
+    std::string message = "";
+    res.status = comm->moveConveyor(req.id, req.control_on, req.speed, req.direction, message);
+    res.message = message; 
+    return true;
+}
+bool  RosInterface::callbackUpdateIdConveyor(niryo_one_msgs::UpdateConveyorId::Request &req, niryo_one_msgs::UpdateConveyorId::Response &res){
+    std::string message = "";
+    res.status = comm->updateIdConveyor(req.old_id, req.new_id, message);
+    res.message = message;
+    return true;
+}
+
 bool RosInterface::callbackOpenGripper(niryo_one_msgs::OpenGripper::Request &req, niryo_one_msgs::OpenGripper::Response &res)
 {
     res.state = comm->openGripper(req.id, req.open_position, req.open_speed, req.open_hold_torque);
@@ -192,7 +264,7 @@ bool RosInterface::callbackSendCustomDxlValue(niryo_one_msgs::SendCustomDxlValue
     }
 
     comm->addCustomDxlCommand(req.motor_type, req.id, req.value, req.reg_address, req.byte_number);
-    
+
     res.status = 200;
     res.message = "OK";
     return true;
@@ -211,10 +283,18 @@ void RosInterface::startServiceServers()
     calibrate_motors_server = nh_.advertiseService("niryo_one/calibrate_motors", &RosInterface::callbackCalibrateMotors, this);
     request_new_calibration_server = nh_.advertiseService("niryo_one/request_new_calibration", &RosInterface::callbackRequestNewCalibration, this);
 
+    test_motors_server = nh_.advertiseService("niryo_one/test_motors", &RosInterface::callbackTestMotors, this);
+
     activate_learning_mode_server = nh_.advertiseService("niryo_one/activate_learning_mode", &RosInterface::callbackActivateLearningMode, this);
     activate_leds_server = nh_.advertiseService("niryo_one/set_dxl_leds", &RosInterface::callbackActivateLeds, this);
 
     ping_and_set_dxl_tool_server = nh_.advertiseService("niryo_one/tools/ping_and_set_dxl_tool", &RosInterface::callbackPingAndSetDxlTool, this);
+
+    // steppers service test
+    ping_and_set_stepper_server = nh_.advertiseService("niryo_one/kits/ping_and_set_conveyor", &RosInterface::callbackPingAndSetConveyor, this);
+    control_conveyor_server = nh_.advertiseService("niryo_one/kits/control_conveyor", &RosInterface::callbackControlConveyor, this);
+    update_conveyor_id_server = nh_.advertiseService("niryo_one/kits/update_conveyor_id", &RosInterface::callbackUpdateIdConveyor, this);
+
     open_gripper_server = nh_.advertiseService("niryo_one/tools/open_gripper", &RosInterface::callbackOpenGripper, this);
     close_gripper_server = nh_.advertiseService("niryo_one/tools/close_gripper", &RosInterface::callbackCloseGripper, this);
     pull_air_vacuum_pump_server = nh_.advertiseService("niryo_one/tools/pull_air_vacuum_pump", &RosInterface::callbackPullAirVacuumPump, this);
@@ -235,7 +315,7 @@ void RosInterface::publishHardwareStatus()
         ros::Time time_now = ros::Time::now();
 
         bool connection_up = false;
-        bool calibration_in_progress = false;
+        
         std::string error_message;
         std::vector<std::string> motor_names;
         std::vector<std::string> motor_types;
@@ -262,6 +342,10 @@ void RosInterface::publishHardwareStatus()
         msg.rpi_temperature = rpi_diagnostics->getRpiCpuTemperature();
         msg.hardware_version = hardware_version;
         msg.connection_up = connection_up;
+        if (motor_test_status<0)
+        {
+            error_message += " motor test error";
+        }
         msg.error_message = error_message;
         msg.calibration_needed = calibration_needed;
         msg.calibration_in_progress = calibration_in_progress;
@@ -313,6 +397,52 @@ void RosInterface::publishLearningMode()
     }
 }
 
+void RosInterface::publishConveyor1Feedback()
+{   
+    double publish_conveyor_feedback_frequency = 2.0;
+    ros::Rate publish_conveyor_feedback_rate = ros::Rate(publish_conveyor_feedback_frequency);
+
+    while (ros::ok()) {
+        niryo_one_msgs::ConveyorFeedback msg;
+        bool connection_state;
+        bool running;
+        int16_t speed;
+        int8_t direction; 
+        comm->getConveyorFeedBack (6, &connection_state, &running, &speed, &direction); 
+        msg.conveyor_id  = 6;
+        msg.connection_state = connection_state; 
+        msg.running = running;
+        msg.speed = speed; 
+        msg.direction = direction;  
+
+        conveyor_1_feedback_publisher.publish(msg);
+        publish_conveyor_feedback_rate.sleep();
+    }
+}
+
+void RosInterface::publishConveyor2Feedback()
+{   
+    double publish_conveyor_feedback_frequency = 2.0;
+    ros::Rate publish_conveyor_feedback_rate = ros::Rate(publish_conveyor_feedback_frequency);
+
+    while (ros::ok()) {
+        niryo_one_msgs::ConveyorFeedback msg;
+        bool connection_state;
+        bool running;
+        int16_t speed;
+        int8_t direction; 
+        comm->getConveyorFeedBack (7, &connection_state, &running, &speed, &direction); 
+        msg.conveyor_id  = 7;
+        msg.connection_state = connection_state; 
+        msg.running = running;
+        msg.speed = speed; 
+        msg.direction = direction;  
+
+        conveyor_2_feedback_publisher.publish(msg);
+        publish_conveyor_feedback_rate.sleep();
+    }
+}
+
 void RosInterface::startPublishers()
 {
     hardware_status_publisher = nh_.advertise<niryo_one_msgs::HardwareStatus>("niryo_one/hardware_status", 10);
@@ -323,6 +453,12 @@ void RosInterface::startPublishers()
 
     learning_mode_publisher = nh_.advertise<std_msgs::Bool>("niryo_one/learning_mode", 10);
     publish_learning_mode_thread.reset(new std::thread(boost::bind(&RosInterface::publishLearningMode, this)));
+    
+    conveyor_1_feedback_publisher = nh_.advertise<niryo_one_msgs::ConveyorFeedback>("niryo_one/kits/conveyor_1_feedback", 10);
+    publish_conveyor_1_feedback_thread.reset(new std::thread(boost::bind(&RosInterface::publishConveyor1Feedback, this)));
+
+    conveyor_2_feedback_publisher = nh_.advertise<niryo_one_msgs::ConveyorFeedback>("niryo_one/kits/conveyor_2_feedback", 10);
+    publish_conveyor_2_feedback_thread.reset(new std::thread(boost::bind(&RosInterface::publishConveyor2Feedback, this)));  
 }
 
 
