@@ -89,7 +89,7 @@ bool FakeCommunication::isConnectionOk()
 int FakeCommunication::allowMotorsCalibrationToStart(int mode, std::string &result_message)
 {
     ROS_INFO("Motor calibration with mode : %d", mode);
-    return 1;
+    return 200;
 }
 
 void FakeCommunication::requestNewCalibration() 
@@ -172,7 +172,25 @@ int FakeCommunication::pingAndSetDxlTool(uint8_t id, std::string name)
     ROS_INFO("Ping gripper with id : %03d", id);
     return TOOL_STATE_PING_OK;
 }
-        
+int FakeCommunication::pingAndSetConveyor(uint8_t id, bool activate, std::string &message)
+{
+    ROS_INFO("activate stepper with id : %03d", id);
+    return TOOL_STATE_PING_OK;
+}
+int FakeCommunication::moveConveyor(uint8_t id, bool activate, int16_t speed, int8_t direction, std::string &message){
+	ROS_INFO("move stepper with id : %03d", id);
+    return TOOL_STATE_PING_OK;
+}
+int  FakeCommunication::updateIdConveyor(uint8_t old_id, uint8_t new_id, std::string &message) {
+    ROS_INFO("update  conveyor id  with id : %03d", new_id);
+    return TOOL_STATE_PING_OK;
+}
+
+ void FakeCommunication::getConveyorFeedBack(uint8_t conveyor_id, bool* connection_state, bool* running, int16_t* speed, int8_t* direction)
+ {
+     //nothing 
+ }
+
 int FakeCommunication::openGripper(uint8_t id, uint16_t open_position, uint16_t open_speed, uint16_t open_hold_torque)
 {
     ROS_INFO("Open gripper with id : %03d", id);

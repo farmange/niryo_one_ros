@@ -1,0 +1,16 @@
+*.pyc
+*.swp
+urdf.rviz
+node_modules/
+tmp_blockly/
+tmp_code_to_execute/
+.vscode
+*_test.py
+/CMakeLists.txt
+<<<<<<< HEAD
+*.kdev4
+
+=======
+*.egg-info
+*__pycache__
+>>>>>>> master

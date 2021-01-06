@@ -1,14 +1,14 @@
-# ArmStrong - Niryo One ROS stack
+# Orthopus - Niryo One ROS stack
 
 This is a fork of the [official Niryo One ROS stack](https://github.com/NiryoRobotics/niryo_one_ros). 
 Please refer the Niryo One documentation for installation and setup of the environment.
 
-The aim of the ArmStrong project is to turn Niryo One to a real assistive robot for people with upper limb immobility like muscular dystrophy.
+The aim of this Orthopus project is to turn Niryo One to a real assistive robot for people with upper limb immobility like muscular dystrophy.
 In this way, we work to improve robot control through wheelchair joystick but also explore different kinds of user interfaces.
 
 **This is a WIP project so it could be unstable !**
 
-- [ArmStrong - Niryo One ROS stack](#armstrong---niryo-one-ros-stack)
+- [ORTHOPUS - Niryo One ROS stack](#orthopus---niryo-one-ros-stack)
   - [Features](#features)
     - [orthopus\_space\_control package](#orthopusspacecontrol-package)
     - [qpoases_ros package](#qpoasesros-package)
@@ -74,7 +74,8 @@ Create a catkin workspace and clone Niryo One ROS stack :
 ```
 mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/src
-git clone git@github.com:ArmStrong-Robotics/niryo_one_ros.git .
+git clone git@github.com:farmange/niryo_one_ros.git .
+git checkout farmange_master
 ```
 Install dependencies :
 ```
@@ -107,9 +108,9 @@ Note that Niryo One ROS packages have been developed with **ROS kinetic, on Ubun
 Connect your robot in shh (see Niryo One documentation) and change the github upstream :
 ```
 cd ~/catkin_ws/src
-git remote add armstrong git@github.com:ArmStrong-Robotics/niryo_one_ros.git
-git fetch armstrong
-git pull armstrong master 
+git remote add farmange git@github.com:farmange/niryo_one_ros.git
+git fetch farmange
+git reset --hard farmange/farmange_master
 ```
 
 Install dependencies :
